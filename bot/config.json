@@ -1,0 +1,32 @@
+{
+  "mode": "sanal",
+  "startEquity": 10000,
+  "quote": "TRY",
+  "minDailyVolumeTRY": 5000000,
+  "scanTop": 45,
+  "volatileTop": 15,
+  "riskPerTrade": 0.01,
+  "maxPositionPct": 0.25,
+  "maxOpen": 4,
+  "feePct": 0.002,
+  "slippagePct": 0.001,
+  "minRewardRisk": 1.8,
+  "timeStopHours": 72,
+  "rsiMin": 25,
+  "rsiMax": 45,
+  "exclude": [
+    "USDT",
+    "USDC",
+    "DAI",
+    "FDUSD",
+    "TUSD",
+    "EUR",
+    "BUSD",
+    "PAXG",
+    "XAUT"
+  ],
+  "ntfyTopic": "kripto-radar-c17afbe6c5de",
+  "maxRR": 2.5,
+  "beAtR": 1.2,
+  "minEmaSlope": -1.0
+}

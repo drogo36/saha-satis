@@ -1,0 +1,31 @@
+name: Kripto Radar (sanal bot)
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  push:
+    paths: ["bot/config.json", "bot/strategy.mjs", "bot/run.mjs"]
+permissions:
+  contents: write
+concurrency:
+  group: kripto-radar
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Botu çalıştır
+        run: node bot/run.mjs
+      - name: Durumu kaydet
+        run: |
+          git config user.name "kripto-radar-bot"
+          git config user.email "kripto-radar-bot@users.noreply.github.com"
+          git add bot/state.json bot/scan.json
+          git diff --cached --quiet && exit 0
+          git commit -m "radar: durum güncellendi [skip ci]"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done

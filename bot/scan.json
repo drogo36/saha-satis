@@ -1,13 +1,13 @@
 {
- "at": 1792791089,
+ "at": 1792791271,
  "count": 45,
  "list": [
   {
    "pair": "PHATRY",
    "sym": "PHA",
-   "last": 2.7933,
-   "dailyPercent": -7.4,
-   "volTL": 76760731,
+   "last": 2.7931,
+   "dailyPercent": -7.14,
+   "volTL": 76861791,
    "atrPct": 4.52,
    "rsi": 38.7,
    "supports": [
@@ -40,9 +40,9 @@
   {
    "pair": "ERATRY",
    "sym": "ERA",
-   "last": 4.012,
-   "dailyPercent": 23.98,
-   "volTL": 210506590,
+   "last": 3.954,
+   "dailyPercent": 22.3,
+   "volTL": 211903812,
    "atrPct": 4.13,
    "rsi": 70,
    "supports": [
@@ -66,14 +66,14 @@
     }
    ],
    "signal": "",
-   "why": "desteğe uzak"
+   "why": "RSI 70"
   },
   {
    "pair": "BILLTRY",
    "sym": "BILL",
-   "last": 0.3002,
-   "dailyPercent": -1.7,
-   "volTL": 100075905,
+   "last": 0.2996,
+   "dailyPercent": -1.93,
+   "volTL": 99935488,
    "atrPct": 3.57,
    "rsi": 40.1,
    "supports": [
@@ -103,8 +103,8 @@
    "pair": "ARKMTRY",
    "sym": "ARKM",
    "last": 6.708,
-   "dailyPercent": 2.05,
-   "volTL": 20518622,
+   "dailyPercent": 2.66,
+   "volTL": 20379891,
    "atrPct": 2.63,
    "rsi": 55.1,
    "supports": [
@@ -164,9 +164,9 @@
   {
    "pair": "SENTTRY",
    "sym": "SENT",
-   "last": 1.1326,
-   "dailyPercent": 5.23,
-   "volTL": 42291938,
+   "last": 1.136,
+   "dailyPercent": 5.55,
+   "volTL": 42307122,
    "atrPct": 2.5,
    "rsi": 53.4,
    "supports": [
@@ -228,7 +228,7 @@
    "sym": "STORJ",
    "last": 1.157,
    "dailyPercent": 3.3,
-   "volTL": 16011479,
+   "volTL": 16072736,
    "atrPct": 2.22,
    "rsi": 46.6,
    "supports": [
@@ -275,9 +275,9 @@
   {
    "pair": "ZKCTRY",
    "sym": "ZKC",
-   "last": 1.772,
-   "dailyPercent": 7.85,
-   "volTL": 39771944,
+   "last": 1.78,
+   "dailyPercent": 8.34,
+   "volTL": 40318422,
    "atrPct": 2.1,
    "rsi": 57.5,
    "supports": [
@@ -293,9 +293,9 @@
   {
    "pair": "AMPTRY",
    "sym": "AMP",
-   "last": 0.0393,
-   "dailyPercent": 3.15,
-   "volTL": 143514632,
+   "last": 0.0392,
+   "dailyPercent": 2.62,
+   "volTL": 143763421,
    "atrPct": 2.09,
    "rsi": 51,
    "supports": [
@@ -333,8 +333,8 @@
    "pair": "STRKTRY",
    "sym": "STRK",
    "last": 2.48,
-   "dailyPercent": -6.06,
-   "volTL": 50890151,
+   "dailyPercent": -5.7,
+   "volTL": 50904827,
    "atrPct": 2.02,
    "rsi": 31.2,
    "supports": [],
@@ -358,9 +358,9 @@
   {
    "pair": "PEPETRY",
    "sym": "PEPE",
-   "last": 0.0002295,
-   "dailyPercent": 5.21,
-   "volTL": 360637466,
+   "last": 0.00022965,
+   "dailyPercent": 5.22,
+   "volTL": 360896591,
    "atrPct": 2,
    "rsi": 44.9,
    "supports": [
@@ -397,9 +397,9 @@
   {
    "pair": "MIRATRY",
    "sym": "MIRA",
-   "last": 2.297,
-   "dailyPercent": 5.03,
-   "volTL": 17067706,
+   "last": 2.298,
+   "dailyPercent": 5.08,
+   "volTL": 17095259,
    "atrPct": 2,
    "rsi": 63.8,
    "supports": [
@@ -423,9 +423,9 @@
   {
    "pair": "ATHTRY",
    "sym": "ATH",
-   "last": 0.30561,
-   "dailyPercent": 6.25,
-   "volTL": 44338275,
+   "last": 0.30506,
+   "dailyPercent": 6.06,
+   "volTL": 44356180,
    "atrPct": 1.98,
    "rsi": 50.3,
    "supports": [

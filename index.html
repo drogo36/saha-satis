@@ -634,7 +634,8 @@ async function loadSample(){const t=today();const d=n=>{const x=new Date();x.set
 
 /* ---------- AI (Google Gemini, kullanıcının kendi ücretsiz anahtarı) ---------- */
 const AIK="saha-ai";
-const AI_MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.0-flash"];
+const AI_MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-flash-lite-latest","gemini-2.5-flash-lite","gemini-2.0-flash","gemini-2.0-flash-lite"];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
 function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
 const aiReady=()=>!!aiCfg().key;
@@ -643,18 +644,24 @@ async function gemini(prompt,{system="",json=false,history=[]}={}){
   const models=cfg.model?[cfg.model,...AI_MODELS.filter(m=>m!==cfg.model)]:AI_MODELS;
   const body={contents:[...history,{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:json?0.2:0.5,...(json?{responseMimeType:"application/json"}:{})}};
   if(system)body.systemInstruction={parts:[{text:system}]};
-  let lastErr;
-  for(const m of models){
+  let lastErr="",busy=0,quota=0;
+  for(let round=0;round<2;round++){
+   for(const m of models){
     let res;try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cfg.key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})}
     catch(e){throw new Error("İnternet bağlantısı yok. Asistan çevrimdışı çalışmaz.")}
     if(res.ok){const d=await res.json();const t=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
-      if(!t)throw new Error("Yapay zekâ boş yanıt verdi, tekrar dene.");if(cfg.model!==m)aiSave({model:m});return t}
-    const e=await res.json().catch(()=>({}));const msg=e.error?.message||res.status;
-    if(res.status===404||/not found|not supported/i.test(msg)){lastErr=msg;continue}
+      if(!t){lastErr="boş yanıt";continue}if(cfg.model!==m)aiSave({model:m});return t}
+    const e=await res.json().catch(()=>({}));const msg=String(e.error?.message||res.status);lastErr=msg;
     if(res.status===400&&/API key/i.test(msg))throw new Error("Anahtar geçersiz. Asistan sekmesinden kontrol et.");
-    if(res.status===429)throw new Error("Ücretsiz kullanım sınırına ulaşıldı. Biraz bekleyip tekrar dene.");
+    if(res.status===403)throw new Error("Anahtarın bu hizmete izni yok. aistudio.google.com/apikey adresinden yeni anahtar oluştur.");
+    if(res.status===429){quota++;continue}            // bu modelin kotası doldu → diğer modele geç
+    if(res.status>=500||/demand|overload|unavailable|try again/i.test(msg)){busy++;continue} // yoğun → diğer modele geç
+    if(res.status===404||/not found|not supported/i.test(msg))continue;
     throw new Error("Yapay zekâ hatası: "+msg)}
-  throw new Error("Uygun model bulunamadı: "+lastErr)}
+   if(round===0){toast("Google sunucuları yoğun, tekrar deniyorum…");await sleep(4000)}}
+  if(busy)throw new Error("Google'ın ücretsiz yapay zekâ sunucuları şu an çok yoğun. 1-2 dakika sonra tekrar dene.");
+  if(quota)throw new Error("Bugünkü ücretsiz kullanım sınırı doldu. Yarın sıfırlanır.");
+  throw new Error("Yapay zekâya ulaşılamadı: "+lastErr)}
 function aiJSON(t){try{return JSON.parse(t)}catch(e){const m=t.match(/\{[\s\S]*\}/);if(m)try{return JSON.parse(m[0])}catch(_){}}return null}
 function dataContext(){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
   const lines=cs.slice(0,250).map(c=>{const lv=lastVisit(c);const p=priority(c);
@@ -714,7 +721,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.1.0";
+const APP_VERSION="1.1.1";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -828,7 +835,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
 render();boot();
 checkUpdate(false);setInterval(()=>checkUpdate(false),30*60*1000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate(false)});
-if("serviceWorker" in navigator){let reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;if(!document.querySelector("#visitForm,#custForm"))location.reload()})}
+if("serviceWorker" in navigator){let reloaded=false;const hadCtl=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded||!hadCtl)return;reloaded=true;if(!document.querySelector("#visitForm,#custForm"))location.reload()})}
 let deferredInstall=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#installBtn").hidden=false});
 window.addEventListener("appinstalled",()=>{$("#installBtn").hidden=true;toast("Ana ekrana eklendi")});

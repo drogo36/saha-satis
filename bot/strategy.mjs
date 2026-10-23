@@ -69,6 +69,7 @@ export function analyze(candles, ticker = {}) {
 
 // Giriş kuralı: güçlü bir desteğe yakın, desteğe dokunup yeşil kapanmış, RSI düşük bölgede, hedef direnç yeterince uzak.
 export function entrySignal(candles, an, cfg) {
+  if (cfg.strategy === "kirilim") return breakoutSignal(candles, an, cfg);
   const s = an.supports.find(l => l.touches >= 2);
   if (!s) return { ok: false, why: "güçlü destek yok" };
   const r = an.resistances.find(l => l.price > an.last + an.atr * 0.8);
@@ -92,6 +93,22 @@ export function entrySignal(candles, an, cfg) {
   const rr = reward / risk;
   if (rr < cfg.minRewardRisk) return { ok: false, why: `kazanç/risk ${rr.toFixed(1)}` };
   return { ok: true, entry, stop, target, rr, support: s.price, resistance: r.price, why: `destek ${fmt(s.price)} (${s.touches} dokunuş), hedef ${fmt(r.price)}, RSI ${an.rsi.toFixed(0)}, K/R ${rr.toFixed(1)}` };
+}
+
+// Kırılım: son kapanan mum güçlü bir direnci hacimle yukarı kırdıysa al; stop kırılan seviyenin altında.
+export function breakoutSignal(c, an, cfg) {
+  const a = an.atr, x = c[c.length - 1], prev = c.slice(-50, -1);
+  const lv = levels(c.slice(0, -1), a).filter(l => l.touches >= 2 && l.price < x.c && l.price > c[c.length - 2].c * 0.995 - a * 0.1);
+  const broke = lv.find(l => c[c.length - 2].c <= l.price + a * 0.1 && x.c > l.price + a * 0.25);
+  if (!broke) return { ok: false, why: "kırılım yok" };
+  const avgV = prev.reduce((s, y) => s + y.v, 0) / prev.length;
+  if (x.v < avgV * (cfg.volMult || 1.5)) return { ok: false, why: "hacim zayıf" };
+  if (an.ema50Slope < 0) return { ok: false, why: "trend aşağı" };
+  if (an.rsi > 78) return { ok: false, why: "aşırı alım" };
+  const entry = an.last, stop = broke.price - a * (cfg.stopAtr || 0.8), risk = entry - stop;
+  if (risk <= 0 || risk / entry > 0.08) return { ok: false, why: "stop çok uzak" };
+  const target = entry + risk * (cfg.maxRR || 2.5);
+  return { ok: true, entry, stop, target, rr: (target - entry) / risk, support: broke.price, resistance: target, why: `${fmt(broke.price)} direnci ${(x.v / avgV).toFixed(1)}x hacimle kırıldı, RSI ${an.rsi.toFixed(0)}` };
 }
 
 // Açık pozisyonu son çalıştırmadan beri gelen mumlarla güncelle. Aynı mumda hem stop hem hedef varsa temkinli olarak stop sayılır.

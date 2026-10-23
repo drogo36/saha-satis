@@ -2,28 +2,60 @@ name: Kripto Radar geçmiş veri testi
 on:
   workflow_dispatch:
   push:
-    paths: ["bot/config.json", "bot/strategy.mjs", "bot/backtest.mjs"]
+    paths: ["bot/strategy.mjs", "bot/backtest.mjs", ".github/workflows/kripto-backtest.yml"]
 permissions:
   contents: write
-concurrency:
-  group: kripto-radar
-  cancel-in-progress: false
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - name: A-destek
+            cfg: '{}'
+          - name: B-destek-trend
+            cfg: '{"rsiMax":40,"minEmaSlope":0}'
+          - name: C-kirilim
+            cfg: '{"strategy":"kirilim","volMult":1.5,"maxRR":2.5}'
+          - name: D-kirilim-guclu
+            cfg: '{"strategy":"kirilim","volMult":2,"maxRR":3,"timeStopHours":48}'
+          - name: E-kirilim-hizli
+            cfg: '{"strategy":"kirilim","volMult":1.5,"maxRR":2,"beAtR":1}'
+          - name: F-kirilim-uzun
+            cfg: '{"strategy":"kirilim","volMult":1.5,"maxRR":4,"beAtR":1.5,"timeStopHours":120}'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Son 60 günü test et
+      - name: Test (120 gün)
+        env:
+          BT_DAYS: "120"
+          BT_NAME: ${{ matrix.name }}
+          BT_CFG: ${{ matrix.cfg }}
         run: node bot/backtest.mjs
-      - name: Sonucu kaydet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bt-${{ matrix.name }}
+          path: bot/bt/${{ matrix.name }}.json
+  collect:
+    needs: backtest
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
+      - name: Sonuçları kaydet
         run: |
+          mkdir -p bot/bt && cp dl/*/*.json bot/bt/ || true
           git config user.name "kripto-radar-bot"
           git config user.email "kripto-radar-bot@users.noreply.github.com"
-          git add bot/backtest.json
+          git add bot/bt
           git diff --cached --quiet && exit 0
-          git commit -m "radar: geçmiş veri testi [skip ci]"
+          git commit -m "radar: strateji karşılaştırması [skip ci]"
           for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done

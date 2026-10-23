@@ -3,7 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { analyze, entrySignal, manage, sizePosition } from "./strategy.mjs";
 
 const DIR = new URL(".", import.meta.url);
-const cfg = JSON.parse(await readFile(new URL("config.json", DIR), "utf8"));
+const cfg = { ...JSON.parse(await readFile(new URL("config.json", DIR), "utf8")), ...JSON.parse(process.env.BT_CFG || "{}") };
+const NAME = process.env.BT_NAME || "";
 const DAYS = Number(process.env.BT_DAYS || 60);
 const now = Math.floor(Date.now() / 1000 / 3600) * 3600;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -83,5 +84,10 @@ const out = {
   byReason: trades.reduce((m, x) => (m[x.reason] = (m[x.reason] || 0) + 1, m), {}),
   curve, lastTrades: trades.slice(-40).reverse(),
 };
-await writeFile(new URL("backtest.json", DIR), JSON.stringify(out, null, 1));
+// ilk yarı / ikinci yarı ayrı sonuç (tesadüf mü değil mi görmek için)
+const mid = start + (now - start) / 2;
+const half = arr => { const p = arr.reduce((s, x) => s + x.pnl, 0); return { trades: arr.length, pnlTL: +p.toFixed(0), winRate: arr.length ? +(arr.filter(x => x.pnl > 0).length / arr.length * 100).toFixed(1) : 0 }; };
+out.firstHalf = half(trades.filter(x => x.openT < mid)); out.secondHalf = half(trades.filter(x => x.openT >= mid));
+out.name = NAME; out.cfg = JSON.parse(process.env.BT_CFG || "{}");
+await writeFile(new URL(NAME ? `bt/${NAME}.json` : "backtest.json", DIR), JSON.stringify(out, null, 1));
 console.log(JSON.stringify({ ...out, curve: undefined, lastTrades: undefined }, null, 1));

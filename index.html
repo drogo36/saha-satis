@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Saha Satış Defteri</title>
+<meta name="theme-color" content="#24465f">
+<meta name="description" content="Yedek parça saha satışı: müşteri, ziyaret, sipariş ve rota">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Saha Satış">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* Layout: sticky header + tab bar, single-column work surface (max 980px), cards only for records that are acted on */
+:root{
+  --bg:#eef1f3; --surface:#ffffff; --sunk:#e3e8ec; --line:#cdd5dc;
+  --ink:#16222c; --muted:#5b6b78; --accent:#d9620f; --accent-ink:#ffffff;
+  --steel:#24465f; --ok:#1d7a4c; --warn:#b07400; --bad:#b3261e;
+  --ok-bg:#dff1e7; --warn-bg:#fbefd2; --bad-bg:#f8dedb; --steel-bg:#dce8f1;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161c; --surface:#17212a; --sunk:#1e2a34; --line:#2c3a46;
+  --ink:#e6edf2; --muted:#93a4b2; --accent:#f08a3c; --accent-ink:#1a0e05;
+  --steel:#8fb8d6; --ok:#5fcf95; --warn:#e9b44c; --bad:#f08077;
+  --ok-bg:#163326; --warn-bg:#3a2d10; --bad-bg:#3d1b18; --steel-bg:#1d3242; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161c; --surface:#17212a; --sunk:#1e2a34; --line:#2c3a46;
+  --ink:#e6edf2; --muted:#93a4b2; --accent:#f08a3c; --accent-ink:#1a0e05;
+  --steel:#8fb8d6; --ok:#5fcf95; --warn:#e9b44c; --bad:#f08077;
+  --ok-bg:#163326; --warn-bg:#3a2d10; --bad-bg:#3d1b18; --steel-bg:#1d3242; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--steel)}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--steel);color:#fff}
+:root[data-theme="dark"] header.top{color:#0f161c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) header.top{color:#0f161c}}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:12px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.02em;text-transform:uppercase}
+.brand small{display:block;font-family:var(--f-mono);font-size:11px;font-weight:400;letter-spacing:.04em;text-transform:none;opacity:.8}
+.sync{margin-left:auto;font-family:var(--f-mono);font-size:11px;opacity:.85;text-align:right}
+nav.tabs{background:var(--surface);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{flex:1 0 auto;font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.03em;text-transform:uppercase;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:12px 10px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+main{padding-block:18px 60px;display:grid;gap:18px}
+h2{font-family:var(--f-display);font-weight:700;font-size:22px;margin:0;text-wrap:balance;letter-spacing:.01em}
+h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sp{flex:1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi .l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi .v{font-family:var(--f-mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:2px}
+.btn{font:600 14px/1 var(--f-body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:6px 10px;min-height:32px;font-size:13px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+label.f{display:grid;gap:4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
+input,select,textarea{font:400 15px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+textarea{min-height:80px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.grid2,.grid3{grid-template-columns:1fr}}
+.list{display:grid;gap:8px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:6px;min-width:0}
+.item .t{font-weight:600;font-size:16px}
+.meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.chip{font:500 11px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;padding:5px 7px;border-radius:5px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}.chip.warn{background:var(--warn-bg);color:var(--warn)}.chip.bad{background:var(--bad-bg);color:var(--bad)}.chip.st{background:var(--steel-bg);color:var(--steel)}
+.note{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:600 12px var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--sunk)}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.stop{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center}
+.stop .num{width:30px;height:30px;border-radius:50%;background:var(--steel);color:var(--surface);font:600 14px var(--f-mono);display:grid;place-items:center}
+.stop .num.x{background:var(--sunk);color:var(--muted)}
+@media (max-width:560px){.stop{grid-template-columns:34px minmax(0,1fr)}.stop>.row,.stop>.btn,.stop>a{grid-column:2;justify-self:start}
+ .kpi .v{font-size:17px;white-space:nowrap}}
+.check{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.check input{width:20px;height:20px;flex:none}
+svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sunk);border-radius:8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:20;max-width:calc(100% - 32px)}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px}
+.sub{color:var(--muted);font-size:14px;max-width:65ch}
+.live{border-left:4px solid var(--accent)}
+.muted{color:var(--muted)}
+.bar{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden}.bar>i{display:block;height:100%;background:var(--accent)}
+.bar.ok>i{background:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.fchip{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 11px;cursor:pointer;min-height:32px}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.mapbox{position:relative;touch-action:none;user-select:none}
+.mapbox svg{width:100%;height:auto;display:block;background:var(--sunk);border-radius:var(--r);border:1px solid var(--line);cursor:grab}
+.mapctl{position:absolute;right:10px;top:10px;display:grid;gap:6px}
+.mapctl .btn{width:40px;justify-content:center;padding:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tier{font:600 12px var(--f-mono);width:24px;height:24px;border-radius:6px;display:inline-grid;place-items:center;background:var(--sunk);color:var(--muted)}
+.tier.A{background:var(--accent);color:var(--accent-ink)}.tier.B{background:var(--steel-bg);color:var(--steel)}
+.funnel{display:grid;gap:6px}.funnel .r{display:grid;grid-template-columns:120px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:14px}
+.pipe{display:flex;flex-wrap:wrap;gap:4px}
+.pipe button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:7px 10px;border-radius:6px;cursor:pointer}
+.pipe button[aria-pressed="true"]{background:var(--steel);color:var(--surface);border-color:var(--steel)}
+.why{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.item,.panel{transition:border-color .15s}}
+</style>
+</head><body>
+<header class="top"><div class="wrap">
+  <div class="brand">Saha Satış Defteri<small>yedek parça · ziyaret · sipariş · rota</small></div>
+  <button class="btn sm" id="installBtn" hidden style="background:var(--accent);border-color:var(--accent);color:var(--accent-ink)">Ana ekrana ekle</button>
+  <div class="sync" id="sync">yükleniyor…</div>
+</div></header>
+<nav class="tabs"><div class="wrap" role="tablist">
+  <button role="tab" data-tab="rota" aria-selected="true">Bugün</button>
+  <button role="tab" data-tab="harita" aria-selected="false">Harita</button>
+  <button role="tab" data-tab="musteri" aria-selected="false">Müşteriler</button>
+  <button role="tab" data-tab="ziyaret" aria-selected="false">Ziyaretler</button>
+  <button role="tab" data-tab="siparis" aria-selected="false">Sipariş / Fatura</button>
+  <button role="tab" data-tab="rapor" aria-selected="false">Rapor</button>
+</div></nav>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const trLow=s=>String(s??"").toLocaleLowerCase("tr-TR").replace(/\s+/g," ").trim();
+const tl=n=>(Number(n)||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₺";
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const nowTime=()=>new Date().toTimeString().slice(0,5);
+const fmtDate=s=>{if(!s)return "—";const [y,m,d]=s.split("-");return d&&m?`${d}.${m}.${y}`:s};
+const uid=p=>p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function parseNum(v){if(typeof v==="number")return v;let s=String(v??"").replace(/[^\d,.\-]/g,"");if(!s)return 0;
+  if(s.includes(",")&&s.includes(".")){s=s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"")}
+  else if(s.includes(",")){s=s.replace(",",".")}
+  else if((s.match(/\./g)||[]).length>1||/\.\d{3}$/.test(s)){s=s.replace(/\./g,"")}
+  return parseFloat(s)||0}
+function parseDate(v){if(v instanceof Date&&!isNaN(v)){return v.getFullYear()+"-"+String(v.getMonth()+1).padStart(2,"0")+"-"+String(v.getDate()).padStart(2,"0")}
+  if(typeof v==="number"&&window.XLSX){const o=XLSX.SSF.parse_date_code(v);if(o)return `${o.y}-${String(o.m).padStart(2,"0")}-${String(o.d).padStart(2,"0")}`}
+  const s=String(v??"").trim();let m=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];return ""}
+function parseCoords(s){s=String(s||"");let m=s.match(/@(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)/)||s.match(/[?&](?:q|query|ll|destination)=(-?\d{1,2}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/)||s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||s.match(/^\s*(-?\d{1,2}\.\d+)\s*[, ]\s*(-?\d{1,3}\.\d+)\s*$/);
+  if(!m)return null;const lat=parseFloat(m[1]),lng=parseFloat(m[2]);if(Math.abs(lat)>90||Math.abs(lng)>180)return null;return {lat,lng}}
+const hasGeo=c=>c&&typeof c.lat==="number"&&typeof c.lng==="number";
+function km(a,b){const R=6371,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lng-a.lng)*r;const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+const placeStr=c=>hasGeo(c)?`${c.lat},${c.lng}`:[c.address,c.city].filter(Boolean).join(", ");
+const mapsLink=c=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(placeStr(c)||c.name);
+function phoneHref(p){return "tel:"+String(p||"").replace(/[^\d+]/g,"")}
+
+/* ---------- store: private per-user db, localStorage fallback ---------- */
+const S={customers:new Map(),visits:new Map(),orders:new Map(),settings:new Map(),mode:"yükleniyor",ready:false};
+let col=null;const LSK="saha-satis-v1";
+function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||"[]");o.forEach(put)}catch(e){}}
+function lsSave(){try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values()]))}catch(e){}}
+function bucket(k){return k==="customer"?S.customers:k==="visit"?S.visits:k==="setting"?S.settings:S.orders}
+function put(d){if(d&&d.id&&d.kind)bucket(d.kind).set(d.id,d)}
+async function save(d){put(d);render();
+  if(col){try{await col.doc(d.id).set(d)}catch(e){toast("Kaydedilemedi: "+(e.message||e.code||"bağlantı"))}}else lsSave()}
+async function remove(d){bucket(d.kind).delete(d.id);render();
+  if(col){try{await col.doc(d.id).delete()}catch(e){toast("Silinemedi: "+(e.message||e.code))}}else lsSave()}
+async function saveMany(list){list.forEach(put);render();
+  if(!col){lsSave();return}
+  for(let i=0;i<list.length;i+=10){await Promise.all(list.slice(i,i+10).map(d=>col.doc(d.id).set(d).catch(()=>null)))}}
+async function boot(){
+  lsLoad();S.mode="cihaz";S.ready=true;setSync();render();
+  try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
+}
+const BK="saha-son-yedek";
+function lastBackup(){try{return localStorage.getItem(BK)||""}catch(e){return ""}}
+function setSync(){const lb=lastBackup();$("#sync").innerHTML="● bu telefonda kayıtlı<br>"+(lb?"son yedek "+fmtDate(lb):"yedek alınmadı")}
+
+/* ---------- ui state ---------- */
+const U={tab:"rota",editCust:null,custQ:"",selected:new Set(),start:"",live:null,import:null,ordQ:"",ordType:"hepsi",visitFor:null,detail:null,
+  f:{status:new Set(),tier:new Set(),brand:new Set()},sort:"öncelik",region:"",mapSel:null};
+try{const s=JSON.parse(localStorage.getItem("saha-ui")||"{}");if(s.tab)U.tab=s.tab;if(s.sel)U.selected=new Set(s.sel);if(s.start)U.start=s.start}catch(e){}
+function keepUI(){try{localStorage.setItem("saha-ui",JSON.stringify({tab:U.tab,sel:[...U.selected],start:U.start}))}catch(e){}}
+
+const custList=()=>[...S.customers.values()].sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+const custByName=n=>{const k=trLow(n);return custList().find(c=>trLow(c.name)===k)};
+const visitsOf=c=>[...S.visits.values()].filter(v=>v.customerId===c.id).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start));
+const ordersOf=c=>[...S.orders.values()].filter(o=>o.customerId===c.id||trLow(o.customer)===trLow(c.name));
+const lastVisit=c=>visitsOf(c)[0];
+const STATUS=["Aday","Görüşülüyor","Teklif","Aktif","Pasif"];
+const STATUS_COL={"Aday":"var(--muted)","Görüşülüyor":"var(--steel)","Teklif":"var(--warn)","Aktif":"var(--ok)","Pasif":"var(--bad)"};
+const STATUS_CHIP={"Aday":"","Görüşülüyor":"st","Teklif":"warn","Aktif":"ok","Pasif":"bad"};
+const TIERS={A:"A · güçlü toptan",B:"B · orta",C:"C · küçük"};
+const TYPES=["Toptancı","Perakende parçacı","Servis / tamirhane","Filo / kurumsal","Online satıcı","Diğer"];
+const BRANDS=["Ford","Fiat","PSA","Renault","VAG","Toyota","Hyundai","Diğer"];
+const settings=()=>S.settings.get("setting_main")||{id:"setting_main",kind:"setting",target:0};
+function waLink(p){let d=String(p||"").replace(/\D/g,"");if(d.startsWith("0"))d="90"+d.slice(1);else if(d.length===10)d="90"+d;return d.length>=11?"https://wa.me/"+d:""}
+function daysSince(d){if(!d)return null;return Math.floor((new Date(today())-new Date(d))/864e5)}
+function custRevenue(c){return ordersOf(c).reduce((a,o)=>a+(o.amount||0),0)}
+function priority(c){const t=today();let sc=0,why=[];
+  const tw={A:30,B:16,C:6}[c.tier||"C"];sc+=tw;if(c.tier==="A")why.push("A potansiyel");
+  const sw={"Teklif":22,"Görüşülüyor":12,"Aktif":10,"Aday":8,"Pasif":0}[c.status||"Aday"];sc+=sw;if(c.status==="Teklif")why.push("açık teklif");
+  if(c.type==="Toptancı"){sc+=10;why.push("toptancı")}
+  const est=Number(c.estMonthly)||0;if(est){sc+=Math.min(20,est/25000);if(est>=100000)why.push("~"+Math.round(est/1000)+"b ₺/ay")}
+  if(c.nextVisit&&c.nextVisit<=t){const od=daysSince(c.nextVisit);sc+=Math.min(25,6+od*1.5);why.push(od?od+" gün gecikti":"ziyaret günü")}
+  const lv=lastVisit(c);if(!lv&&c.status!=="Pasif"){sc+=6;why.push("hiç ziyaret yok")}
+  if(c.status==="Pasif")sc-=20;return {score:Math.round(sc),why}}
+const RESULTS={"Sipariş alındı":"ok","Teklif verildi":"st","Bilgi / tanıtım":"","Tahsilat":"ok","Şikayet":"bad","Ulaşılamadı":"warn"};
+
+/* ---------- render ---------- */
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===U.tab));
+  const app=$("#app");
+  if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
+  const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
+  app.innerHTML=U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():vOrders();
+  if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
+}
+
+function kpis(){
+  const t=today(),ym=t.slice(0,7);const os=[...S.orders.values()];
+  const sipAy=os.filter(o=>o.type==="sipariş"&&(o.date||"").startsWith(ym)).reduce((a,o)=>a+(o.amount||0),0);
+  const fatAy=os.filter(o=>o.type==="fatura"&&(o.date||"").startsWith(ym)).reduce((a,o)=>a+(o.amount||0),0);
+  const w=new Date();w.setDate(w.getDate()-6);const ws=w.toISOString().slice(0,10);
+  const vis=[...S.visits.values()].filter(v=>v.date>=ws).length;
+  const due=custList().filter(c=>c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t).length;
+  const tg=Number(settings().target)||0;const base=Math.max(sipAy,fatAy);const pct=tg?Math.min(100,base/tg*100):0;
+  return `<div class="kpis">
+  <div class="kpi"><div class="l">Bu ay sipariş</div><div class="v">${tl(sipAy)}</div></div>
+  <div class="kpi"><div class="l">Bu ay fatura</div><div class="v">${tl(fatAy)}</div></div>
+  <div class="kpi"><div class="l">Son 7 gün ziyaret</div><div class="v">${vis}</div></div>
+  <div class="kpi"><div class="l">Ziyareti gelen</div><div class="v">${due}</div></div></div>
+  ${tg?`<div class="panel" style="gap:6px"><div class="row"><b>Aylık hedef</b><span class="sp"></span><span class="mono">${tl(base)} / ${tl(tg)} · %${pct.toFixed(0)}</span></div><div class="bar ${pct>=100?"ok":""}"><i style="width:${pct}%"></i></div></div>`:""}`}
+
+function sampleCTA(){return S.customers.size?"":`<div class="empty"><b>Henüz müşteri yok.</b><span>Müşterileri tek tek ekleyebilir, Excel'den toplu yükleyebilir ya da uygulamayı denemek için örnek verileri yükleyebilirsin.</span>
+  <div class="row"><button class="btn pri" data-act="goto" data-v="musteri">Müşteri ekle</button><button class="btn" data-act="sample">Örnek verileri yükle</button></div></div>`}
+
+function n7(){if(!S.customers.size)return false;const lb=lastBackup();return !lb||daysSince(lb)>=7}
+function tierBadge(c){return `<span class="tier ${esc(c.tier||"C")}" title="${esc(TIERS[c.tier||"C"])}">${esc(c.tier||"C")}</span>`}
+const regions=()=>[...new Set(custList().map(c=>c.region||c.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"tr"));
+
+/* ---- route / today ---- */
+
+const DAY_DEF={home:"İnönü Mah. Cemevi Sk., Sancaktepe",homeLat:41.0112,homeLng:29.2133,dayStart:"09:00",arriveBy:"18:00",visitMin:30,speed:22,lunchFrom:"12:00",lunchTo:"13:00",lunchMin:45,lunchPlaces:[]};
+const day=()=>Object.assign({},DAY_DEF,settings().day||{});
+const toMin=s=>{const [h,m]=String(s||"0:0").split(":").map(Number);return (h||0)*60+(m||0)};
+const hhmm=m=>{m=Math.round(m);return String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+const homePt=()=>{const D=day();return typeof D.homeLat==="number"&&typeof D.homeLng==="number"?{lat:D.homeLat,lng:D.homeLng,name:"Ev",home:true}:null};
+function travelMin(a,b){const D=day();return km(a,b)*1.35/(Number(D.speed)||22)*60+5}
+function buildRoute(){
+  const sel=custList().filter(c=>U.selected.has(c.id));
+  const geo=sel.filter(hasGeo),nogeo=sel.filter(c=>!hasGeo(c));
+  const home=homePt();const start=parseCoords(U.start)||home;const end=home;
+  let order=[],rest=[...geo],cur=start;
+  if(!cur&&rest.length){rest.sort((a,b)=>a.lng-b.lng);cur=rest.shift();order.push(cur)}
+  while(rest.length){let bi=0,bd=1e9;rest.forEach((c,i)=>{const d=km(cur,c);if(d<bd){bd=d;bi=i}});cur=rest.splice(bi,1)[0];order.push(cur)}
+  // 2-opt with fixed start and fixed end (home)
+  const pts=[...(start?[start]:[]),...order,...(end?[end]:[])];const lo=start?1:0,hi=pts.length-(end?2:1);
+  const seg=(i,j)=>pts[i]&&pts[j]?km(pts[i],pts[j]):0;
+  let improved=true,guard=0;
+  while(improved&&guard++<60){improved=false;
+    for(let i=lo;i<hi;i++)for(let k=i+1;k<=hi;k++){
+      const before=seg(i-1,i)+seg(k,k+1),after=seg(i-1,k)+seg(i,k+1);
+      if(after+1e-6<before){pts.splice(i,k-i+1,...pts.slice(i,k+1).reverse());improved=true}}}
+  order=pts.slice(lo,hi+1);
+  const r={start,end,order,nogeo};r.plan=schedule(r);
+  let dist=0;const full=[...(start?[start]:[]),...order,...(end?[end]:[])];for(let i=1;i<full.length;i++)dist+=km(full[i-1],full[i]);r.dist=dist;
+  return r}
+function nearestLunch(a,b){const L=(day().lunchPlaces||[]).filter(hasGeo);if(!L.length||!a)return null;
+  const mid=b?{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2}:a;return L.reduce((x,y)=>km(mid,y)<km(mid,x)?y:x)}
+function schedule(r){const D=day();const vm=Number(D.visitMin)||30,lf=toMin(D.lunchFrom),lt=toMin(D.lunchTo),lm=Number(D.lunchMin)||45,by=toMin(D.arriveBy);
+  let t=toMin(D.dayStart),prev=r.start,lunch=null;const rows=[];
+  const doLunch=next=>{const L=nearestLunch(prev||next,next);let at=prev||next;let tr=0;if(L&&at){tr=travelMin(at,L);at=L}
+    const s=Math.max(t+tr,lf);lunch={place:L,pos:at,start:s,end:s+lm,late:s>lt-15};t=lunch.end;if(L)prev=L;rows.push({lunch:true,...lunch})};
+  r.order.forEach(c=>{
+    if(!lunch&&prev){const arr=t+travelMin(prev,c);if(arr+vm>lf)doLunch(c)}
+    const tr=prev?travelMin(prev,c):0;const arrive=t+tr;const depart=arrive+vm;t=depart;prev=c;
+    const back=r.end?travelMin(c,r.end):0;rows.push({c,arrive,depart,tr,late:depart+back>by})});
+  if(!lunch&&t>lf&&t<lt)doLunch(null);
+  const back=r.end&&prev?travelMin(prev,r.end):0;const homeAt=t+back;
+  return {rows,lunch,homeAt,ok:homeAt<=by,leaveBy:by-back,by}}
+function mapsRouteLinks(r){
+  const seq=[];r.plan.rows.forEach(x=>{if(x.c)seq.push(placeStr(x.c));else if(x.place)seq.push(placeStr(x.place))});
+  r.nogeo.forEach(c=>seq.push(placeStr(c)));if(!seq.length)return [];
+  if(r.end)seq.push(placeStr(r.end));
+  const links=[];let origin=r.start?`${r.start.lat},${r.start.lng}`:null;
+  for(let i=0;i<seq.length;i+=10){const leg=seq.slice(i,i+10);const dest=leg[leg.length-1],wps=leg.slice(0,-1);
+    let u="https://www.google.com/maps/dir/?api=1&travelmode=driving&destination="+encodeURIComponent(dest);
+    if(origin)u+="&origin="+encodeURIComponent(origin);
+    if(wps.length)u+="&waypoints="+encodeURIComponent(wps.join("|"));
+    links.push({u,from:i+1,to:i+leg.length,last:i+10>=seq.length});origin=dest}
+  return links}
+function routeSVG(r){
+  const lp=r.plan.lunch&&r.plan.lunch.place;
+  const pts=[...(r.start?[r.start]:[]),...r.order,...(r.end?[r.end]:[])];if(pts.length<2)return "";
+  const all=lp?[...pts,lp]:pts;
+  const W=600,H=300,P=30;const lats=all.map(p=>p.lat),lngs=all.map(p=>p.lng);
+  const mnLa=Math.min(...lats),mxLa=Math.max(...lats),mnLo=Math.min(...lngs),mxLo=Math.max(...lngs);
+  const kx=Math.cos((mnLa+mxLa)/2*Math.PI/180);const sx=(mxLo-mnLo)*kx||0.01,sy=(mxLa-mnLa)||0.01;const s=Math.min((W-2*P)/sx,(H-2*P)/sy);
+  const ox=(W-sx*s)/2,oy=(H-sy*s)/2;const X=p=>ox+(p.lng-mnLo)*kx*s,Y=p=>H-oy-(p.lat-mnLa)*s;
+  let g=`<polyline points="${pts.map(p=>X(p).toFixed(1)+","+Y(p).toFixed(1)).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
+  const lab=(p,t)=>`<text x="${X(p)+12}" y="${Y(p)+4}" fill="var(--muted)" font-size="12" font-family="IBM Plex Mono,monospace" paint-order="stroke" stroke="var(--sunk)" stroke-width="3">${t}</text>`;
+  if(r.start&&!r.start.home)g+=`<rect x="${X(r.start)-6}" y="${Y(r.start)-6}" width="12" height="12" fill="var(--ink)"/>`+lab(r.start,"başlangıç");
+  if(r.end)g+=`<path d="M${X(r.end)-9} ${Y(r.end)+7}h18v-9l-9-8-9 8z" fill="var(--ink)"/>`+lab(r.end,"ev "+day().arriveBy);
+  if(lp)g+=`<circle cx="${X(lp)}" cy="${Y(lp)}" r="8" fill="var(--warn)"/>`+lab(lp,"öğle");
+  r.order.forEach((p,i)=>{const late=r.plan.rows.find(x=>x.c===p)?.late;g+=`<circle cx="${X(p)}" cy="${Y(p)}" r="11" fill="${late?"var(--bad)":"var(--steel)"}"/><text x="${X(p)}" y="${Y(p)+4}" text-anchor="middle" fill="var(--surface)" font-size="12" font-weight="600" font-family="IBM Plex Mono,monospace">${i+1}</text>`});
+  return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Rota sırası şeması">${g}</svg>`}
+function timeline(r){const P=r.plan;const D=day();let n=0;
+  const rows=P.rows.map(x=>{
+    if(x.lunch){const pl=x.place;const near=x.pos?`https://www.google.com/maps/search/restoran/@${x.pos.lat},${x.pos.lng},16z`:"";
+      return `<div class="item stop" style="background:var(--warn-bg);border-color:transparent"><div class="num" style="background:var(--warn);color:var(--surface)">☕</div>
+       <div style="min-width:0"><div class="t">Öğle arası <span class="mono" style="font-weight:500">${hhmm(x.start)}–${hhmm(x.end)}</span></div>
+       <div class="meta"><span>${pl?esc(pl.name)+" · TokenFlex":"TokenFlex geçen bir yer eklemedin; aşağıdaki linkle yakındaki restoranlara bak, TokenFlex uygulamasından geçerli olduğunu doğrula."}</span>${x.late?'<span class="chip bad">13:00 sonrasına kayıyor</span>':""}</div></div>
+       <div class="row" style="gap:6px">${pl?`<a class="btn sm" href="${esc(mapsLink(pl))}" target="_blank" rel="noopener">Yol</a>`:""}${near?`<a class="btn sm" href="${esc(near)}" target="_blank" rel="noopener">Yakındakiler</a>`:""}</div></div>`}
+    n++;return stopRow(x.c,n,x)}).join("");
+  const nog=r.nogeo.map(c=>stopRow(c,"?")).join("");
+  const home=r.end?`<div class="item stop" style="border-color:${P.ok?"var(--ok)":"var(--bad)"}"><div class="num" style="background:var(--ink)">⌂</div>
+    <div style="min-width:0"><div class="t">Eve varış <span class="mono">${hhmm(P.homeAt)}</span></div><div class="meta"><span>${esc(D.home)}</span><span>en geç ${hhmm(P.leaveBy)}'de son duraktan çık</span></div></div>
+    <span class="chip ${P.ok?"ok":"bad"} mono">${P.ok?"hedef "+D.arriveBy+" ✓":(Math.round(P.homeAt-P.by))+" dk geç"}</span></div>`:"";
+  return `<div class="list">${rows}${nog}${home}</div>`}
+
+function vRoute(){
+  const t=today();const cs=custList();
+  const r=buildRoute();const links=mapsRouteLinks(r);
+  const live=U.live?S.customers.get(U.live.customerId):null;
+  const pri=cs.filter(c=>c.status!=="Pasif"&&!U.selected.has(c.id)).map(c=>({c,p:priority(c)})).sort((a,b)=>b.p.score-a.p.score).slice(0,6);
+  // nearby: not selected, within 2.5 km of any geo stop
+  const near=r.order.length?cs.filter(c=>hasGeo(c)&&!U.selected.has(c.id)&&c.status!=="Pasif").map(c=>({c,d:Math.min(...r.order.map(s=>km(s,c)))})).filter(x=>x.d<=2.5).sort((a,b)=>priority(b.c).score-priority(a.c).score).slice(0,6):[];
+  const rg=regions();const q=trLow(U.custQ);
+  const pickable=cs.filter(c=>(!U.region||(c.region||c.district)===U.region)&&(!q||trLow(c.name+" "+(c.district||"")).includes(q)));
+  return `${kpis()}
+  ${live?`<section class="panel live"><div class="row"><h2>Ziyarette: ${esc(live.name)}</h2><span class="chip warn mono">başladı ${esc(U.live.start)}</span></div>
+    <span class="sub">Görüşmeyi bitirince sonucu ve notunu gir.</span><div class="row"><button class="btn pri" data-act="visit" data-id="${live.id}">Ziyareti bitir ve not al</button><button class="btn ghost" data-act="cancelLive">Vazgeç</button></div></section>`:""}
+  ${sampleCTA()}
+  ${n7()?`<div class="banner">Son 7 gündür yedek almadın. <button class="btn sm" data-act="backup">Şimdi yedek al</button></div>`:""}
+  ${pri.length?`<section class="panel"><div class="row"><h2>Bugün kime gitmeli?</h2><span class="sp"></span><button class="btn sm" data-act="addPri">Hepsini rotaya ekle</button></div>
+   <span class="sub">Potansiyel, toptan hacim, açık teklif ve geciken ziyarete göre sıralandı.</span>
+   <div class="list">${pri.map(({c,p})=>`<div class="item stop" style="grid-template-columns:auto minmax(0,1fr) auto">${tierBadge(c)}<div style="min-width:0"><div class="t">${esc(c.name)}</div><div class="why">${esc([c.region||c.district,...p.why].filter(Boolean).join(" · "))}</div></div><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div></section>`:""}
+  ${cs.length?`<section class="panel"><div class="row"><h2>Günün rotası</h2><span class="sp"></span><span class="chip st mono">${U.selected.size} durak · ~${r.dist.toFixed(1)} km kuş uçuşu</span></div>
+  <div class="row"><button class="btn sm" type="button" data-act="geoHere" data-t="startIn">📍 Bulunduğum yerden başla</button>${U.start?`<button class="btn sm ghost" type="button" data-act="clearStart">Evden başla</button>`:""}</div>
+  <label class="f">Başlangıç noktası<input id="startIn" placeholder="Boş bırakırsan evden ${esc(day().dayStart)}'da çıkıyorsun sayılır. Başka yerden başlıyorsan Maps linki ya da koordinat yapıştır." value="${esc(U.start)}"></label>
+  ${r.order.length+r.nogeo.length?`${!r.plan.ok&&r.end?`<div class="banner" style="background:var(--bad-bg);color:var(--bad)">Bu rotayla eve ${hhmm(r.plan.homeAt)}'da varırsın, ${esc(day().arriveBy)} hedefini kaçırırsın. Kırmızı durakları çıkar ya da yarına bırak. <button class="btn sm" data-act="dropLate">Sığmayanları çıkar</button></div>`:""}
+   ${timeline(r)}
+   ${r.nogeo.length?`<div class="banner">${r.nogeo.length} müşterinin konumu yok; rotanın sonuna adresiyle eklendi. Konum eklersen sıralamaya katılır.</div>`:""}
+   ${near.length?`<div class="panel" style="background:var(--sunk);border:0"><div class="row"><b>Rotanın yakınında (2,5 km)</b><span class="sp"></span><button class="btn sm" data-act="addNear">Hepsini ekle</button></div>
+     <div class="chips">${near.map(x=>`<button class="fchip" data-act="addSel" data-id="${x.c.id}">+ ${esc(x.c.name)} <span class="mono muted">${x.d.toFixed(1)} km</span></button>`).join("")}</div></div>`:""}
+   ${routeSVG(r)}
+   <div class="row">${links.map(l=>`<a class="btn pri" href="${esc(l.u)}" target="_blank" rel="noopener">Google Maps'te aç${links.length>1?` (${l.from}–${l.to})`:""}</a>`).join("")}<button class="btn ghost" data-act="clearSel">Rotayı temizle</button></div>`
+   :`<p class="sub">Yukarıdaki önerilerden ya da aşağıdan bölge seçerek duraklarını ekle. En kısa sırayı, öğle arasını ve ${esc(day().arriveBy)}'da evde olacak şekilde saatleri hesaplarım.</p>`}
+  </section>
+  ${dayPanel()}
+  <section class="panel"><div class="row"><h3>Durak seç</h3><span class="sp"></span>
+   ${rg.length?`<select id="regionSel" style="max-width:200px"><option value="">Tüm bölgeler</option>${rg.map(x=>`<option ${U.region===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`:""}
+   ${U.region?`<button class="btn sm" data-act="addRegion">Bölgeyi ekle (${pickable.length})</button>`:""}</div>
+  <input id="custQ" placeholder="Ara" value="${esc(U.custQ)}">
+  <div class="grid2">${pickable.map(c=>`<label class="check"><input type="checkbox" data-act="toggleSel" data-id="${c.id}" ${U.selected.has(c.id)?"checked":""}>${tierBadge(c)}<span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${esc(c.region||c.district||c.city||"")}${c.nextVisit&&c.nextVisit<=t?' · <span class="chip warn">ziyaret zamanı</span>':""}${hasGeo(c)?"":' · <span class="chip">konum yok</span>'}</span></span></label>`).join("")}</div></section>`:""}`}
+function dayPanel(){const D=day();const L=D.lunchPlaces||[];
+  return `<details class="panel" id="dayDetails" ${U.dayOpen?"open":""}><summary style="cursor:pointer"><b>Gün ayarları</b> <span class="muted">· ev ${esc(D.arriveBy)} · öğle ${esc(D.lunchFrom)}–${esc(D.lunchTo)} · ${L.length} TokenFlex yeri</span></summary>
+   <form id="dayForm" class="grid3" style="margin-top:12px">
+    <label class="f" style="grid-column:1/-1">Ev / gün sonu adresi<input id="df_home" name="home" value="${esc(D.home)}"></label>
+    <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="df_geo">📍 Evdeyim, konumu al</button></div>
+    <label class="f" style="grid-column:1/-1">Ev konumu (Maps linki ya da koordinat)<input id="df_geo" name="geo" value="${typeof D.homeLat==="number"?D.homeLat+", "+D.homeLng:""}"></label>
+    <label class="f">Güne başlama<input id="df_start" type="time" name="dayStart" value="${esc(D.dayStart)}"></label>
+    <label class="f">Evde olma saati<input id="df_by" type="time" name="arriveBy" value="${esc(D.arriveBy)}"></label>
+    <label class="f">Ziyaret süresi (dk)<input id="df_vm" type="number" min="5" name="visitMin" value="${esc(D.visitMin)}"></label>
+    <label class="f">Öğle başlangıç<input id="df_lf" type="time" name="lunchFrom" value="${esc(D.lunchFrom)}"></label>
+    <label class="f">Öğle bitiş<input id="df_lt" type="time" name="lunchTo" value="${esc(D.lunchTo)}"></label>
+    <label class="f">Yemek süresi (dk)<input id="df_lm" type="number" min="15" name="lunchMin" value="${esc(D.lunchMin)}"></label>
+    <label class="f">Trafikte ort. hız (km/s)<input id="df_sp" type="number" min="8" name="speed" value="${esc(D.speed)}"></label>
+    <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Ayarları kaydet</button><span class="why">Yol süresi kuş uçuşu mesafe ×1,35 ÷ hız + 5 dk park olarak tahmin edilir.</span></div>
+   </form>
+   <h3 style="margin-top:14px">TokenFlex geçen yemek yerleri</h3>
+   <span class="sub">Rotada saat ${esc(D.lunchFrom)} civarında bulunduğun yere en yakın olanı öğle durağı yaparım. Geçerliliğini TokenFlex uygulamasındaki üye iş yerleri listesinden kontrol et.</span>
+   <div class="list">${L.map((p,i)=>`<div class="row"><span style="flex:1;min-width:0">${esc(p.name)} <span class="muted mono" style="font-size:12px">${hasGeo(p)?p.lat.toFixed(4)+", "+p.lng.toFixed(4):"konum yok"}</span></span><a class="btn sm" href="${esc(mapsLink(p))}" target="_blank" rel="noopener">Harita</a><button class="btn sm ghost" data-act="delLunch" data-i="${i}">Sil</button></div>`).join("")||'<span class="muted">Henüz yer eklemedin.</span>'}</div>
+   <form id="lunchForm" class="grid2"><label class="f">Yer adı<input id="lf_name" name="name" required placeholder="örn. Topkapı Lokantası"></label><label class="f">Konum (Maps linki ya da koordinat)<input id="lf_geo" name="geo" required placeholder="41.0180, 28.9080"></label><div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="lf_geo">📍 Buradayım</button><button class="btn" type="submit">+ Yemek yeri ekle</button></div></form>
+  </details>`}
+function stopRow(c,n,x){const lv=lastVisit(c);return `<div class="item stop" ${x&&x.late?'style="border-color:var(--bad)"':""}><div class="num ${n==="?"?"x":""}" ${x&&x.late?'style="background:var(--bad)"':""}>${n}</div>
+  <div style="min-width:0"><div class="t">${x?`<span class="mono" style="font-weight:500">${hhmm(x.arrive)}–${hhmm(x.depart)}</span> `:""}${esc(c.name)}</div><div class="meta">${x?`<span class="mono">${Math.round(x.tr)} dk yol</span>`:""}${x&&x.late?'<span class="chip bad">eve geç kalırsın</span>':""}<span>${esc([c.region||c.district,c.city].filter(Boolean).join(" / ")||c.address||"")}</span>${c.status?`<span class="chip ${STATUS_CHIP[c.status]||""}">${esc(c.status)}</span>`:""}${lv?`<span>son ziyaret ${fmtDate(lv.date)}</span>`:""}</div></div>
+  <div class="row" style="gap:6px"><button class="btn sm pri" data-act="startLive" data-id="${c.id}">Başla</button><a class="btn sm" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Yol</a><button class="btn sm ghost" data-act="unSel" data-id="${c.id}" aria-label="Rotadan çıkar">×</button></div></div>`}
+
+/* ---- customers ---- */
+function custForm(c){c=c||{status:"Aday",tier:"B",freq:14};const br=new Set(c.brands||[]);return `<section class="panel"><h2>${c.id?"Müşteriyi düzenle":"Yeni müşteri"}</h2>
+  <form id="custForm" class="grid2">
+   <label class="f">Firma adı *<input id="cf_name" name="name" required value="${esc(c.name)}"></label>
+   <label class="f">Yetkili<input id="cf_contact" name="contact" value="${esc(c.contact)}"></label>
+   <label class="f">Telefon<input id="cf_phone" name="phone" inputmode="tel" value="${esc(c.phone)}"></label>
+   <label class="f">Firma tipi<select id="cf_type" name="type">${TYPES.map(s=>`<option ${c.type===s?"selected":""}>${s}</option>`).join("")}</select></label>
+   <label class="f">Aşama<select id="cf_status" name="status">${STATUS.map(s=>`<option ${c.status===s?"selected":""}>${s}</option>`).join("")}</select></label>
+   <label class="f">Potansiyel<select id="cf_tier" name="tier">${Object.entries(TIERS).map(([k,v])=>`<option value="${k}" ${c.tier===k?"selected":""}>${v}</option>`).join("")}</select></label>
+   <label class="f">Tahmini aylık alım (₺)<input id="cf_est" name="estMonthly" inputmode="numeric" value="${esc(c.estMonthly||"")}" placeholder="örn. 150000"></label>
+   <label class="f">Vade (gün)<input id="cf_term" name="term" inputmode="numeric" value="${esc(c.term||"")}" placeholder="örn. 60"></label>
+   <fieldset class="f" style="grid-column:1/-1;border:0;padding:0;margin:0"><legend style="margin-bottom:6px">Çalıştığı markalar</legend><div class="chips">${BRANDS.map(b=>`<label class="fchip"><input type="checkbox" name="brands" value="${b}" ${br.has(b)?"checked":""} style="width:auto;margin-right:6px">${b}</label>`).join("")}</div></fieldset>
+   <label class="f">İl<input id="cf_city" name="city" value="${esc(c.city)}"></label>
+   <label class="f">Bölge / sanayi sitesi<input id="cf_region" name="region" list="rgList" value="${esc(c.region||c.district)}" placeholder="örn. Topkapı, İkitelli"><datalist id="rgList">${regions().map(r=>`<option value="${esc(r)}">`).join("")}</datalist></label>
+   <label class="f" style="grid-column:1/-1">Açık adres<input id="cf_addr" name="address" value="${esc(c.address)}"></label>
+   <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="cf_geo">📍 Şu an buradayım, konumu al</button></div>
+   <label class="f" style="grid-column:1/-1">Konum: Google Maps linki veya enlem, boylam<input id="cf_geo" name="geo" placeholder="https://www.google.com/maps/place/...@41.07,28.80,17z  ya da  41.07, 28.80" value="${hasGeo(c)?c.lat+", "+c.lng:""}"></label>
+   <label class="f">Sonraki ziyaret<input id="cf_next" type="date" name="nextVisit" value="${esc(c.nextVisit)}"></label>
+   <label class="f">Ziyaret sıklığı (gün)<input id="cf_freq" type="number" min="0" name="freq" value="${esc(c.freq||14)}"></label>
+   <label class="f" style="grid-column:1/-1">Notlar (rakip tedarikçi, fiyat hassasiyeti, ödeme alışkanlığı…)<textarea id="cf_notes" name="notes">${esc(c.notes)}</textarea></label>
+   <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Kaydet</button><button class="btn ghost" type="button" data-act="cancelCust">Vazgeç</button>
+   ${c.id?`<span class="sp"></span><button class="btn ghost" type="button" data-act="delCust" data-id="${c.id}" style="color:var(--bad)">Sil</button>`:""}</div>
+  </form><p class="sub">Kısa linkler (maps.app.goo.gl) okunamaz. Google Maps'te noktaya basılı tut, üstte çıkan koordinatı kopyalayıp buraya yapıştır.</p></section>`}
+
+function filterChips(){const F=U.f;const ch=(g,v,l)=>`<button class="fchip" data-act="fchip" data-g="${g}" data-v="${esc(v)}" aria-pressed="${F[g].has(v)}">${esc(l||v)}</button>`;
+  return `<div class="chips">${STATUS.map(s=>ch("status",s)).join("")}</div><div class="chips">${Object.keys(TIERS).map(k=>ch("tier",k,"Potansiyel "+k)).join("")}${BRANDS.slice(0,7).map(b=>ch("brand",b)).join("")}</div>`}
+function filtered(){const F=U.f;const q=trLow(U.custQ);
+  return custList().filter(c=>(!F.status.size||F.status.has(c.status||"Aday"))&&(!F.tier.size||F.tier.has(c.tier||"C"))&&(!F.brand.size||(c.brands||[]).some(b=>F.brand.has(b)))
+   &&(!q||trLow([c.name,c.city,c.region,c.district,c.contact,c.type].join(" ")).includes(q)))}
+function custCard(c){const t=today();const lv=lastVisit(c);const rev=custRevenue(c);const p=priority(c);
+  return `<div class="item"><div class="row">${tierBadge(c)}<span class="t" style="min-width:0;flex:1 1 160px">${esc(c.name)}</span><span class="chip ${STATUS_CHIP[c.status||"Aday"]}">${esc(c.status||"Aday")}</span>
+     ${c.nextVisit?`<span class="chip ${c.nextVisit<=t?"warn":"st"}">ziyaret ${fmtDate(c.nextVisit)}</span>`:""}</div>
+     <div class="meta"><span>${esc([c.type,c.contact,c.region||c.district].filter(Boolean).join(" · "))}</span>${(c.brands||[]).length?`<span>${esc(c.brands.join(", "))}</span>`:""}${c.estMonthly?`<span class="mono">~${tl(c.estMonthly)}/ay</span>`:""}</div>
+     <div class="meta"><span>${lv?"son ziyaret "+fmtDate(lv.date)+" ("+esc(lv.result)+")":"henüz ziyaret yok"}</span>${rev?`<span class="mono">ciro ${tl(rev)}</span>`:""}<span class="mono">öncelik ${p.score}</span></div>
+     <div class="row" style="gap:6px"><button class="btn sm pri" data-act="visit" data-id="${c.id}">Ziyaret notu</button><button class="btn sm" data-act="detail" data-id="${c.id}">Kart</button><button class="btn sm" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rota"}</button><a class="btn sm" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Harita</a></div></div>`}
+function vCustomers(){
+  if(U.editCust!==null)return custForm(U.editCust==="new"?null:S.customers.get(U.editCust));
+  let cs=filtered();
+  const sorters={"öncelik":(a,b)=>priority(b).score-priority(a).score,"ad":(a,b)=>a.name.localeCompare(b.name,"tr"),"ciro":(a,b)=>custRevenue(b)-custRevenue(a),"potansiyel":(a,b)=>(Number(b.estMonthly)||0)-(Number(a.estMonthly)||0),"son ziyaret":(a,b)=>((lastVisit(a)||{}).date||"").localeCompare((lastVisit(b)||{}).date||"")};
+  cs.sort(sorters[U.sort]||sorters["öncelik"]);
+  return `<div class="row"><h2>Müşteriler <span class="muted mono" style="font-size:16px">${cs.length}/${S.customers.size}</span></h2><span class="sp"></span>
+   <button class="btn" data-act="impCust">Excel'den yükle</button><button class="btn pri" data-act="newCust">+ Müşteri</button></div>
+   ${impPanel("customer")}
+   ${sampleCTA()}
+   ${S.customers.size?`<div class="row"><input id="custQ" placeholder="Ara: firma, bölge, yetkili, tip" value="${esc(U.custQ)}" style="flex:1 1 220px"><select id="sortSel" style="flex:0 1 170px">${Object.keys(sorters).map(k=>`<option ${U.sort===k?"selected":""}>${k}</option>`).join("")}</select></div>${filterChips()}`:""}
+   <div class="list">${cs.map(custCard).join("")}</div>`}
+
+function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return vCustomers()}
+  const vs=visitsOf(c),os=ordersOf(c).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const sip=os.filter(o=>o.type==="sipariş").reduce((a,o)=>a+(o.amount||0),0),fat=os.filter(o=>o.type==="fatura").reduce((a,o)=>a+(o.amount||0),0);
+  const wa=waLink(c.phone);const p=priority(c);
+  return `<div class="row"><button class="btn ghost sm" data-act="back">← Geri</button></div>
+  <section class="panel"><div class="row">${tierBadge(c)}<h2 style="flex:1 1 200px">${esc(c.name)}</h2><span class="chip mono">öncelik ${p.score}</span></div>
+   <div class="pipe" role="group" aria-label="Aşama">${STATUS.map(s=>`<button data-act="setStatus" data-id="${c.id}" data-v="${s}" aria-pressed="${(c.status||"Aday")===s}">${s}</button>`).join("")}</div>
+   <div class="meta"><span>${esc([c.type,c.contact].filter(Boolean).join(" · "))}</span>${c.phone?`<span class="mono" style="user-select:all">${esc(c.phone)}</span>`:""}<span>${esc([c.address,c.region||c.district,c.city].filter(Boolean).join(", "))}</span></div>
+   <div class="meta">${(c.brands||[]).length?`<span>Markalar: ${esc(c.brands.join(", "))}</span>`:""}${c.estMonthly?`<span class="mono">Tahmini alım ~${tl(c.estMonthly)}/ay</span>`:""}${c.term?`<span class="mono">Vade ${esc(c.term)} gün</span>`:""}</div>
+   ${p.why.length?`<div class="why">Öncelik nedeni: ${esc(p.why.join(" · "))}</div>`:""}
+   ${c.notes?`<div class="note">${esc(c.notes)}</div>`:""}
+   <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sipariş toplamı</div><div class="v">${tl(sip)}</div></div><div class="kpi"><div class="l">Fatura toplamı</div><div class="v">${tl(fat)}</div></div><div class="kpi"><div class="l">Ziyaret</div><div class="v">${vs.length}</div></div></div>
+   <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Haritada aç</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button></div></section>
+  <h3>Ziyaret geçmişi</h3><div class="list">${vs.length?vs.map(visitItem).join(""):`<div class="empty">Bu müşteriye henüz ziyaret notu yok.</div>`}</div>
+  <h3>Sipariş ve faturalar</h3>${os.length?ordTable(os):`<div class="empty">Bu müşteriyle eşleşen belge yok. Excel yüklerken müşteri adı, buradaki firma adıyla aynı yazılmalı.</div>`}`}
+
+/* ---- map ---- */
+const M={z:1,px:0,py:0,W:600,H:520};
+function mapPoints(){return filtered().filter(hasGeo)}
+function mapSVG(){const pts=mapPoints();const {W,H}=M;const P=30;
+  if(!pts.length)return `<svg viewBox="0 0 ${W} ${H}" id="mapSvg"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="15">Konumu girilmiş müşteri yok</text></svg>`;
+  const lats=pts.map(p=>p.lat),lngs=pts.map(p=>p.lng);const mnLa=Math.min(...lats),mxLa=Math.max(...lats),mnLo=Math.min(...lngs),mxLo=Math.max(...lngs);
+  const kx=Math.cos((mnLa+mxLa)/2*Math.PI/180);const sx=(mxLo-mnLo)*kx||0.02,sy=(mxLa-mnLa)||0.02;const s=Math.min((W-2*P)/sx,(H-2*P)/sy);
+  const ox=(W-sx*s)/2,oy=(H-sy*s)/2;
+  const X=p=>W/2+((ox+(p.lng-mnLo)*kx*s)-W/2)*M.z+M.px,Y=p=>H/2+((H-oy-(p.lat-mnLa)*s)-H/2)*M.z+M.py;
+  // scale bar
+  const kmPx=s*M.z/111.32;let sk=[0.5,1,2,5,10,20].find(k=>k*kmPx>60)||20;
+  const t=today();let g="";
+  // route line
+  const r=buildRoute();if(r.order.length>1)g+=`<polyline points="${r.order.map(p=>X(p).toFixed(1)+","+Y(p).toFixed(1)).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  [...pts].sort((a,b)=>(a.tier||"C")<(b.tier||"C")?1:-1).forEach(c=>{const rr={A:11,B:8,C:6}[c.tier||"C"];const x=X(c),y=Y(c);if(x<-20||y<-20||x>W+20||y>H+20)return;
+    const due=c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t;const sel=U.mapSel===c.id;const inR=U.selected.has(c.id);
+    g+=`<g data-pin="${c.id}" style="cursor:pointer">${due?`<circle cx="${x}" cy="${y}" r="${rr+5}" fill="none" stroke="var(--accent)" stroke-width="2"/>`:""}<circle cx="${x}" cy="${y}" r="${rr+(sel?3:0)}" fill="${STATUS_COL[c.status||"Aday"]}" stroke="${sel||inR?"var(--ink)":"var(--surface)"}" stroke-width="${sel||inR?3:1.5}"/>${M.z>=2.2||sel?`<text x="${x+rr+4}" y="${y+4}" font-size="12" fill="var(--ink)" font-family="Barlow,sans-serif" paint-order="stroke" stroke="var(--sunk)" stroke-width="3">${esc(c.name.slice(0,26))}</text>`:""}</g>`});
+  g+=`<g transform="translate(14,${H-18})"><line x1="0" y1="0" x2="${(sk*kmPx).toFixed(1)}" y2="0" stroke="var(--ink)" stroke-width="2"/><text x="0" y="-6" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${String(sk).replace(".",",")} km</text></g>`;
+  return `<svg viewBox="0 0 ${W} ${H}" id="mapSvg" role="img" aria-label="Müşteri konum haritası">${g}</svg>`}
+function vMap(){const sel=U.mapSel?S.customers.get(U.mapSel):null;const pts=mapPoints();const noGeo=filtered().length-pts.length;
+  return `<div class="row"><h2>Müşteri haritası</h2><span class="sp"></span><span class="chip st mono">${pts.length} nokta</span>${pts.length?`<button class="btn sm" data-act="addVisible">Filtredekileri rotaya ekle</button>`:""}</div>
+  ${S.customers.size?filterChips():sampleCTA()}
+  <div class="legend">${STATUS.map(s=>`<span><i style="background:${STATUS_COL[s]}"></i>${s}</span>`).join("")}<span><i style="border:2px solid var(--accent);background:transparent"></i>ziyaret zamanı</span><span>büyük nokta = A potansiyel</span></div>
+  <div class="mapbox" id="mapBox">${mapSVG()}<div class="mapctl"><button class="btn" data-act="zin" aria-label="Yakınlaştır">+</button><button class="btn" data-act="zout" aria-label="Uzaklaştır">−</button><button class="btn" data-act="zreset" aria-label="Sığdır">⤢</button></div></div>
+  ${noGeo>0?`<p class="sub">${noGeo} müşterinin konumu yok, haritada görünmüyor.</p>`:""}
+  <p class="sub">Sürükleyerek gez, noktaya dokunup kartı aç. Harita kuş uçuşu konumu gösterir; yol tarifi Google Maps'te açılır.</p>
+  ${sel?custCard(sel):""}`}
+function redrawMap(){const b=$("#mapBox");if(!b)return;const old=$("#mapSvg");const w=document.createElement("div");w.innerHTML=mapSVG();old.replaceWith(w.firstChild)}
+
+/* ---- report ---- */
+function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=settings();
+  const cnt=STATUS.map(s=>[s,cs.filter(c=>(c.status||"Aday")===s).length]);const mx=Math.max(1,...cnt.map(x=>x[1]));
+  const top=cs.map(c=>({c,r:custRevenue(c)})).filter(x=>x.r>0).sort((a,b)=>b.r-a.r).slice(0,10);
+  const potA=cs.filter(c=>c.tier==="A"&&c.status!=="Aktif"&&c.status!=="Pasif");
+  const overdue=cs.filter(c=>c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<t).sort((a,b)=>a.nextVisit.localeCompare(b.nextVisit));
+  const vm=[...S.visits.values()].filter(v=>(v.date||"").startsWith(ym));const res={};vm.forEach(v=>res[v.result]=(res[v.result]||0)+1);
+  const won=vm.filter(v=>v.result==="Sipariş alındı").length;const conv=vm.length?won/vm.length*100:0;
+  const brandRev={};[...S.orders.values()].forEach(o=>{const c=o.customerId?S.customers.get(o.customerId):custByName(o.customer);(c&&c.brands&&c.brands.length?c.brands:["Belirsiz"]).forEach(b=>brandRev[b]=(brandRev[b]||0)+(o.amount||0)/((c&&c.brands&&c.brands.length)||1))});
+  const bmx=Math.max(1,...Object.values(brandRev));
+  return `${kpis()}
+  ${backupPanel()}
+  <section class="panel"><h2>Aylık hedef</h2><form id="setForm" class="row"><label class="f" style="flex:1 1 200px">Satış hedefi (₺/ay)<input id="sf_target" name="target" inputmode="numeric" value="${esc(st.target||"")}" placeholder="örn. 750000"></label><button class="btn pri" type="submit" style="align-self:end">Kaydet</button></form></section>
+  <section class="panel"><h2>Satış hunisi</h2><div class="funnel">${cnt.map(([s,n])=>`<div class="r"><span>${s}</span><div class="bar"><i style="width:${n/mx*100}%;background:${STATUS_COL[s]}"></i></div><span class="mono">${n}</span></div>`).join("")}</div></section>
+  <section class="panel"><h2>Bu ayın ziyaretleri</h2><div class="row"><span class="chip st mono">${vm.length} ziyaret</span><span class="chip ok mono">%${conv.toFixed(0)} siparişe döndü</span></div>
+   <div class="chips">${Object.entries(res).map(([k,n])=>`<span class="chip ${RESULTS[k]||""}">${esc(k)} · ${n}</span>`).join("")||'<span class="muted">Bu ay henüz ziyaret yok.</span>'}</div></section>
+  <section class="panel"><h2>Kazanılacak büyük alıcılar</h2><span class="sub">A potansiyelli ama henüz aktif müşteri olmayan firmalar.</span>
+   <div class="list">${potA.length?potA.map(c=>`<div class="row">${tierBadge(c)}<span style="flex:1;min-width:0">${esc(c.name)}</span><span class="chip ${STATUS_CHIP[c.status||"Aday"]}">${esc(c.status||"Aday")}</span><button class="btn sm" data-act="detail" data-id="${c.id}">Kart</button></div>`).join(""):'<span class="muted">Yok. Müşteri kartlarında potansiyeli A olarak işaretle.</span>'}</div></section>
+  <section class="panel"><h2>En çok alan müşteriler</h2>${top.length?`<div class="tbl"><table><thead><tr><th>Müşteri</th><th>Aşama</th><th class="n">Ciro</th></tr></thead><tbody>${top.map(x=>`<tr><td>${esc(x.c.name)}</td><td>${esc(x.c.status||"")}</td><td class="n">${tl(x.r)}</td></tr>`).join("")}</tbody></table></div>`:'<span class="muted">Sipariş veya fatura yükleyince burada görünür.</span>'}</section>
+  ${Object.keys(brandRev).length?`<section class="panel"><h2>Markaya göre ciro</h2><span class="sub">Müşterinin çalıştığı markalara eşit bölünerek tahmin edilir.</span><div class="funnel">${Object.entries(brandRev).sort((a,b)=>b[1]-a[1]).map(([b,v])=>`<div class="r"><span>${esc(b)}</span><div class="bar"><i style="width:${v/bmx*100}%"></i></div><span class="mono" style="font-size:12px">${Math.round(v/1000)}b</span></div>`).join("")}</div></section>`:""}
+  <section class="panel"><h2>Geciken ziyaretler <span class="muted mono" style="font-size:16px">${overdue.length}</span></h2>
+   ${overdue.length?`<div class="list">${overdue.slice(0,15).map(c=>`<div class="row">${tierBadge(c)}<span style="flex:1;min-width:0">${esc(c.name)}</span><span class="chip warn mono">${daysSince(c.nextVisit)} gün</span><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div>`:'<span class="muted">Geciken ziyaret yok.</span>'}</section>`}
+
+/* ---- visits ---- */
+function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
+  return `<section class="panel live"><h2>Ziyaret notu: ${esc(c.name)}</h2>
+  <form id="visitForm" class="grid3" data-id="${c.id}">
+   <label class="f">Tarih<input id="vf_date" type="date" name="date" value="${today()}" required></label>
+   <label class="f">Başlangıç<input id="vf_start" type="time" name="start" value="${lv?lv.start:nowTime()}"></label>
+   <label class="f">Bitiş<input id="vf_end" type="time" name="end" value="${nowTime()}"></label>
+   <label class="f">Sonuç<select id="vf_res" name="result">${Object.keys(RESULTS).map(k=>`<option>${k}</option>`).join("")}</select></label>
+   <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
+   <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return d.toISOString().slice(0,10)})()}"></label>
+   <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no<input id="vf_parts" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label>
+   <label class="f" style="grid-column:1/-1">Görüşme notu<textarea id="vf_note" name="note" placeholder="Rakip fiyatı, stok durumu, ödeme vadesi, söz verilenler…"></textarea></label>
+   <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Kaydet</button><button class="btn ghost" type="button" data-act="cancelVisit">Vazgeç</button></div>
+  </form></section>`}
+function visitItem(v){const c=S.customers.get(v.customerId);return `<div class="item"><div class="row"><span class="t" style="min-width:0">${esc(c?c.name:v.customerName||"Silinmiş müşteri")}</span><span class="chip ${RESULTS[v.result]||""}">${esc(v.result)}</span><span class="sp"></span><span class="mono muted" style="font-size:13px">${fmtDate(v.date)} ${esc(v.start||"")}${v.end?"–"+esc(v.end):""}</span></div>
+  ${v.parts?`<div class="meta"><span class="mono">${esc(v.parts)}</span></div>`:""}${v.note?`<div class="note">${esc(v.note)}</div>`:""}
+  <div class="row">${v.amount?`<span class="chip ok mono">${tl(v.amount)}</span>`:""}<span class="sp"></span><button class="btn sm ghost" data-act="delVisit" data-id="${v.id}">Sil</button></div></div>`}
+function vVisits(){
+  if(U.visitFor){const c=S.customers.get(U.visitFor);if(c)return visitForm(c)}
+  const vs=[...S.visits.values()].sort((a,b)=>(b.date+(b.start||"")).localeCompare(a.date+(a.start||"")));
+  return `<div class="row"><h2>Ziyaretler <span class="muted mono" style="font-size:16px">${vs.length}</span></h2><span class="sp"></span>${vs.length?`<button class="btn" data-act="expVisits">Excel'e aktar</button>`:""}</div>
+  ${S.customers.size?`<label class="f">Yeni ziyaret notu<select id="pickVisit"><option value="">Müşteri seç…</option>${custList().map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>`:sampleCTA()}
+  <div class="list">${vs.length?vs.map(visitItem).join(""):S.customers.size?`<div class="empty">Henüz ziyaret notu yok. Bugün sekmesinde bir durakta “Başla”ya bas, görüşme bitince notunu gir.</div>`:""}</div>`}
+
+/* ---- orders / invoices ---- */
+const FIELD_HINTS={customer:["müşteri","musteri","cari","firma","unvan","ünvan","alıcı","customer"],date:["tarih","date","belge tarihi","fatura tarihi","sipariş tarihi"],
+  no:["fatura no","sipariş no","belge no","evrak no","no","numara","fiş no","invoice"],amount:["genel toplam","toplam tutar","tutar","toplam","net tutar","kdv dahil","amount","total"],
+  item:["ürün","urun","parça","parca","stok adı","stok adi","malzeme","açıklama","aciklama","item","oem"],qty:["miktar","adet","qty"],
+  name:["firma","müşteri","musteri","unvan","ünvan","cari adı","cari"],contact:["yetkili","ilgili kişi","kişi"],phone:["telefon","tel","gsm","cep"],
+  city:["il","şehir","sehir"],region:["bölge","bolge","ilçe","ilce","semt","sanayi"],address:["adres"],geo:["konum","koordinat","maps","harita","lat"],
+  type:["tip","tür","tur","firma tipi","segment"],tier:["potansiyel","sınıf","sinif","segment harf"],status:["aşama","asama","durum","statü"],brands:["marka","markalar"],estMonthly:["aylık alım","aylik alim","ciro","hacim","potansiyel tutar"]};
+function guessCol(headers,key){const hs=headers.map(trLow);for(const h of FIELD_HINTS[key]){const i=hs.findIndex(x=>x===h);if(i>=0)return headers[i]}
+  for(const h of FIELD_HINTS[key]){if(h.length<=3)continue;const i=hs.findIndex(x=>x.includes(h));if(i>=0)return headers[i]}return ""}
+function impPanel(kind){const I=U.import;if(!I||I.kind!==kind)return "";
+  if(!I.rows)return `<section class="panel"><h2>${kind==="customer"?"Müşteri listesi yükle":"Sipariş / fatura yükle"}</h2>
+   <p class="sub">${kind==="customer"?"İlk satırı başlık olan bir Excel veya CSV seç. Okunan sütunlar: Firma, Yetkili, Telefon, Tip, Potansiyel (A/B/C), Aşama, Markalar, Aylık alım, İl, Bölge, Adres, Konum.":"Muhasebe ya da ERP programından aldığın Excel/CSV dökümünü seç. Sütunları otomatik eşleştiririm, sen kontrol edersin."}</p>
+   <div class="row"><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods" style="max-width:360px">${kind==="order"?`<select id="impType" style="max-width:180px"><option value="sipariş">Siparişler</option><option value="fatura">Faturalar</option></select>`:""}<button class="btn ghost" data-act="cancelImp">Kapat</button></div></section>`;
+  const keys=kind==="customer"?["name","contact","phone","type","tier","status","brands","estMonthly","city","region","address","geo"]:["customer","date","no","amount","item","qty"];
+  const lbl={type:"Firma tipi",tier:"Potansiyel (A/B/C)",status:"Aşama",brands:"Markalar",estMonthly:"Aylık alım",region:"Bölge",name:"Firma *",contact:"Yetkili",phone:"Telefon",city:"İl",district:"İlçe",address:"Adres",geo:"Konum",customer:"Müşteri *",date:"Tarih",no:"Belge no",amount:"Tutar *",item:"Parça / ürün",qty:"Adet"};
+  const opts=v=>`<option value="">—</option>`+I.headers.map(h=>`<option ${h===v?"selected":""}>${esc(h)}</option>`).join("");
+  return `<section class="panel"><div class="row"><h2>${esc(I.file)}</h2><span class="chip st mono">${I.rows.length} satır</span></div>
+   <div class="grid3">${keys.map(k=>`<label class="f">${lbl[k]}<select data-map="${k}" id="map_${k}">${opts(I.map[k])}</select></label>`).join("")}</div>
+   <div class="tbl"><table><thead><tr>${keys.filter(k=>I.map[k]).map(k=>`<th>${lbl[k]}</th>`).join("")}</tr></thead><tbody>
+   ${I.rows.slice(0,5).map(r=>`<tr>${keys.filter(k=>I.map[k]).map(k=>`<td>${esc(k==="date"?fmtDate(parseDate(r[I.map[k]])):r[I.map[k]])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+   <div class="row"><button class="btn pri" data-act="doImp">${I.rows.length} kaydı içe aktar</button><button class="btn ghost" data-act="cancelImp">Vazgeç</button></div></section>`}
+function ordTable(os){return `<div class="tbl"><table><thead><tr><th>Tarih</th><th>Tür</th><th>Belge</th><th>Müşteri</th><th>Parça</th><th class="n">Adet</th><th class="n">Tutar</th><th></th></tr></thead><tbody>
+  ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>`}
+function vOrders(){
+  const q=trLow(U.ordQ);let os=[...S.orders.values()].filter(o=>(U.ordType==="hepsi"||o.type===U.ordType)&&(!q||trLow([o.customer,o.no,o.item].join(" ")).includes(q))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const tot=os.reduce((a,o)=>a+(o.amount||0),0);const unmatched=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
+  return `<div class="row"><h2>Sipariş / Fatura</h2><span class="sp"></span><button class="btn pri" data-act="impOrd">Excel'den yükle</button>${S.orders.size?`<button class="btn" data-act="expOrd">Excel'e aktar</button>`:""}</div>
+  ${impPanel("order")}
+  ${S.orders.size?`<div class="row"><input id="ordQ" placeholder="Ara: müşteri, belge no, parça" value="${esc(U.ordQ)}" style="flex:1 1 220px"><select id="ordType" style="flex:0 1 160px">${["hepsi","sipariş","fatura"].map(t=>`<option ${U.ordType===t?"selected":""}>${t}</option>`).join("")}</select></div>
+   <div class="row"><span class="chip st mono">${os.length} belge</span><span class="chip ok mono">${tl(tot)}</span></div>
+   ${unmatched.size?`<div class="banner">${unmatched.size} müşteri adı listende yok: ${[...unmatched].slice(0,4).map(esc).join(", ")}${unmatched.size>4?"…":""}. <button class="btn sm" data-act="addUnmatched">Hepsini müşteri olarak ekle</button></div>`:""}
+   ${ordTable(os.slice(0,300))}${os.length>300?`<p class="sub">İlk 300 belge gösteriliyor; aramayla daralt.</p>`:""}`
+  :`<div class="empty"><b>Henüz belge yok.</b><span>Muhasebe programından aldığın sipariş veya fatura dökümünü Excel olarak yükle. Müşteri kartlarında toplamlar otomatik görünür.</span><button class="btn pri" data-act="impOrd">Excel seç</button></div>`}`}
+
+/* ---------- excel ---------- */
+async function readFile(f){if(!window.XLSX){toast("Excel okuyucu yüklenemedi; sayfayı yenile.");return}
+  const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:true});if(!rows.length){toast("Dosyada satır bulunamadı.");return}
+  const headers=Object.keys(rows[0]);const I=U.import;I.file=f.name;I.rows=rows;I.headers=headers;I.map={};
+  const keys=I.kind==="customer"?["name","contact","phone","type","tier","status","brands","estMonthly","city","region","address","geo"]:["customer","date","no","amount","item","qty"];
+  keys.forEach(k=>I.map[k]=guessCol(headers,k));render()}
+async function doImport(){const I=U.import;const m=I.map;
+  if(I.kind==="customer"){if(!m.name){toast("Firma sütununu seç.");return}
+    const out=[];I.rows.forEach(r=>{const name=String(r[m.name]||"").trim();if(!name)return;const ex=custByName(name);const g=m.geo?parseCoords(r[m.geo]):null;
+      const v=k=>m[k]?String(r[m[k]]??"").trim():"";const o={name};
+      ["contact","phone","city","region","address"].forEach(k=>{if(v(k))o[k]=v(k)});
+      const ty=TYPES.find(x=>trLow(x).startsWith(trLow(v("type")).slice(0,5)));if(v("type"))o.type=ty||v("type");
+      const ti=v("tier").toUpperCase().charAt(0);if("ABC".includes(ti)&&ti)o.tier=ti;
+      const stt=STATUS.find(x=>trLow(x)===trLow(v("status")));if(stt)o.status=stt;
+      if(v("brands"))o.brands=v("brands").split(/[,;/]+/).map(x=>x.trim()).filter(Boolean).map(x=>BRANDS.find(b=>trLow(b)===trLow(x))||(/peugeot|citro|opel|ds/i.test(x)?"PSA":x)).filter((x,i,a)=>a.indexOf(x)===i);
+      if(v("estMonthly"))o.estMonthly=parseNum(v("estMonthly"));
+      out.push(Object.assign({},ex||{id:uid("c"),kind:"customer",status:"Aday",tier:"B",freq:14,createdAt:Date.now()},o,g?{lat:g.lat,lng:g.lng}:{}))});
+    U.import=null;await saveMany(out);toast(out.length+" müşteri kaydedildi")}
+  else{if(!m.customer||!m.amount){toast("Müşteri ve Tutar sütunlarını seç.");return}
+    const type=I.type||"sipariş";const out=[];I.rows.forEach(r=>{const cust=String(r[m.customer]||"").trim();if(!cust)return;const c=custByName(cust);
+      out.push({id:uid("o"),kind:"order",type,customer:cust,customerId:c?c.id:"",date:m.date?parseDate(r[m.date]):"",no:m.no?String(r[m.no]):"",amount:parseNum(r[m.amount]),item:m.item?String(r[m.item]):"",qty:m.qty?parseNum(r[m.qty]):"",importedFrom:I.file})});
+    U.import=null;await saveMany(out);toast(out.length+" "+type+" kaydedildi")}}
+async function exportX(kind){if(!window.XLSX)return;
+  let rows,name;if(kind==="order"){rows=[...S.orders.values()].map(o=>({Tarih:fmtDate(o.date),Tür:o.type,"Belge no":o.no,Müşteri:o.customer,Parça:o.item,Adet:o.qty,Tutar:o.amount}));name="siparis-fatura"}
+  else{rows=[...S.visits.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(v=>({Tarih:fmtDate(v.date),Başlangıç:v.start,Bitiş:v.end,Müşteri:S.customers.get(v.customerId)?.name||v.customerName,Sonuç:v.result,Tutar:v.amount||"",Parçalar:v.parts,Not:v.note,"Sonraki ziyaret":fmtDate(v.nextVisit)}));name="ziyaretler"}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Kayıtlar");
+  const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});const fn=`${name}-${today()}.xlsx`;
+  downloadBlob(new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),fn);toast(fn+" indirildi")}
+async function downloadBlob(blob,fn){
+  try{const f=new File([blob],fn,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[f],title:fn});return}}catch(e){if(e&&e.name==="AbortError")return}
+  const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+function backupNow(){const all=[...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values()];
+  const fn="saha-satis-yedek-"+today()+".json";downloadBlob(new Blob([JSON.stringify({app:"saha-satis",v:1,at:new Date().toISOString(),data:all})],{type:"application/json"}),fn);
+  try{localStorage.setItem(BK,today())}catch(e){}setSync();render();toast("Yedek hazır: "+fn)}
+async function restoreFrom(file){try{const o=JSON.parse(await file.text());const arr=Array.isArray(o)?o:o.data;if(!Array.isArray(arr))throw 0;
+  const n=arr.filter(d=>d&&d.id&&d.kind).length;await saveMany(arr.filter(d=>d&&d.id&&d.kind));toast(n+" kayıt geri yüklendi")}catch(e){toast("Bu dosya bir Saha Satış yedeği değil.")}}
+function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.size+S.orders.size;
+  return `<section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
+   <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span></div>
+   <div class="row"><button class="btn pri" data-act="backup">Yedek al</button><label class="btn" for="restoreFile">Yedekten geri yükle</label><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></section>`}
+
+/* ---------- sample ---------- */
+async function loadSample(){const t=today();const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+  // [ad, yetkili, bölge, lat, lng, tip, ziyaret+gün, aşama, potansiyel, aylık, markalar]
+  const cs=[["Öz Kardeşler Oto Yedek Parça (örnek)","Hasan Öz","İkitelli",41.0861,28.7955,"Toptancı",-2,"Aktif","A",220000,["Ford","Fiat"]],
+   ["Yıldız Otomotiv Dağıtım (örnek)","Murat Yıldız","İkitelli",41.0868,28.7932,"Toptancı",0,"Teklif","A",350000,["PSA","Fiat"]],
+   ["Demir PSA Parça (örnek)","Ali Demir","İkitelli",41.0857,28.7962,"Perakende parçacı",5,"Görüşülüyor","B",60000,["PSA"]],
+   ["Topkapı Ford Merkez (örnek)","Serkan Aydın","Topkapı",41.0186,28.9078,"Toptancı",-4,"Görüşülüyor","A",400000,["Ford"]],
+   ["Şahin Fiat Yedek (örnek)","Cem Şahin","Topkapı",41.0179,28.9095,"Perakende parçacı",1,"Aday","B",80000,["Fiat"]],
+   ["Aksu Fren Balata (örnek)","Emre Aksu","Ümraniye",41.0249,29.1188,"Perakende parçacı",0,"Aktif","B",45000,["Ford","PSA"]],
+   ["Kadosan PSA Toptan (örnek)","Okan Kaya","Dudullu",40.9942,29.1853,"Toptancı",3,"Aday","A",280000,["PSA"]],
+   ["Esen Filo Servis (örnek)","Burak Esen","Esenyurt",41.0139,28.6930,"Filo / kurumsal",7,"Aday","C",25000,["Fiat","Renault"]]]
+   .map(a=>({id:uid("c"),kind:"customer",name:a[0],contact:a[1],city:"İstanbul",region:a[2],lat:a[3],lng:a[4],type:a[5],nextVisit:d(a[6]),status:a[7],tier:a[8],estMonthly:a[9],brands:a[10],freq:14,phone:"0532 000 00 00",notes:"Örnek kayıt, silebilirsin.",createdAt:Date.now()}));
+  const vs=[{c:0,r:"Sipariş alındı",a:48450,p:"Fren balatası ×120, yağ filtresi ×240",n:"Vade 60 gün istedi, 45'te anlaştık."},{c:1,r:"Teklif verildi",a:96000,p:"PSA debriyaj seti ×40",n:"Rakip %5 altında; fiyatı müdüre soracağım."},{c:3,r:"Bilgi / tanıtım",a:0,p:"",n:"Ford Transit parçalarında tedarikçisinden memnun değil. Katalog bıraktım."},{c:6,r:"Ulaşılamadı",a:0,p:"",n:"Kapalıydı, perşembe tekrar."}]
+   .map((v,i)=>({id:uid("v"),kind:"visit",customerId:cs[v.c].id,customerName:cs[v.c].name,date:d(-i-2),start:"10:"+(10+i*12),end:"10:"+(40+i*4),result:v.r,amount:v.a,parts:v.p,note:v.n,nextVisit:cs[v.c].nextVisit}));
+  const ym=t.slice(0,8);const os=[[0,"sipariş","SP-2026-0412",48450,"Fren balatası seti",120],[0,"fatura","FT-2026-1180",47890,"Fren balatası seti",120],[5,"fatura","FT-2026-1176",22300,"Debriyaj seti",6],[1,"sipariş","SP-2026-0415",31200,"Marş motoru",12],[5,"fatura","FT-2026-1184",6750,"Fren hidroliği",30]]
+   .map((o,i)=>({id:uid("o"),kind:"order",type:o[1],customer:cs[o[0]].name,customerId:cs[o[0]].id,date:ym+String(Math.max(1,Number(t.slice(8))-i*2)).padStart(2,"0"),no:o[2],amount:o[3],item:o[4],qty:o[5],importedFrom:"örnek"}));
+  await saveMany([...cs,...vs,...os]);toast("Örnek veriler yüklendi; hepsi “(örnek)” etiketli")}
+
+/* ---------- events ---------- */
+async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
+document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e.target.open},true);
+function addSel(ids){ids.forEach(i=>U.selected.add(i));keepUI();toast(ids.length===1?"Rotaya eklendi":ids.length+" durak eklendi")}
+document.addEventListener("click",async e=>{
+  if(M.dragged){M.dragged=false;return}
+  const tab=e.target.closest("nav.tabs button");if(tab){U.tab=tab.dataset.tab;U.detail=null;U.visitFor=null;U.editCust=null;keepUI();render();window.scrollTo(0,0);return}
+  const pin=e.target.closest("[data-pin]");if(pin){U.mapSel=pin.dataset.pin;render();return}
+  const b=e.target.closest("[data-act]");if(!b||b.matches("input,select"))return;const id=b.dataset.id,a=b.dataset.act;
+  if(a==="goto"){U.tab=b.dataset.v;U.editCust="new";keepUI()}
+  else if(a==="sample"){b.disabled=true;await loadSample();return}
+  else if(a==="newCust"){U.editCust="new"}
+  else if(a==="editCust"){U.tab="musteri";U.detail=null;U.editCust=id}
+  else if(a==="cancelCust"){U.editCust=null}
+  else if(a==="delCust"){if(b.dataset.sure){const c=S.customers.get(id);U.editCust=null;U.selected.delete(id);keepUI();if(c)await remove(c);toast("Müşteri silindi");return}b.dataset.sure="1";b.textContent="Emin misin? Tekrar bas";return}
+  else if(a==="detail"){U.detail=id;window.scrollTo(0,0)}
+  else if(a==="back"){U.detail=null}
+  else if(a==="visit"){U.tab="ziyaret";U.detail=null;U.visitFor=id;keepUI()}
+  else if(a==="cancelVisit"){U.visitFor=null}
+  else if(a==="startLive"){U.live={customerId:id,start:nowTime()};toast("Ziyaret başladı "+U.live.start)}
+  else if(a==="cancelLive"){U.live=null}
+  else if(a==="delVisit"){if(b.dataset.sure){const v=S.visits.get(id);if(v)await remove(v);return}b.dataset.sure="1";b.textContent="Emin misin?";return}
+  else if(a==="delOrd"){if(b.dataset.sure){const o=S.orders.get(id);if(o)await remove(o);return}b.dataset.sure="1";b.textContent="Sil?";return}
+  else if(a==="clearSel"){U.selected.clear();keepUI()}
+  else if(a==="backup"){backupNow();return}
+  else if(a==="clearStart"){U.start="";keepUI()}
+  else if(a==="geoHere"){const tgt=b.dataset.t;if(!navigator.geolocation){toast("Bu cihaz konum vermiyor.");return}b.disabled=true;b.textContent="Konum alınıyor…";
+    navigator.geolocation.getCurrentPosition(p=>{const v=p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);const el=document.getElementById(tgt);
+      if(tgt==="startIn"){U.start=v;keepUI();render()}else if(el){el.value=v}b.disabled=false;b.textContent="📍 Konum alındı ("+Math.round(p.coords.accuracy)+" m)"},
+      err=>{b.disabled=false;b.textContent="📍 Tekrar dene";toast(err.code===1?"Konum izni verilmedi. Tarayıcı ayarlarından izin ver.":"Konum alınamadı, açık alanda tekrar dene.")},{enableHighAccuracy:true,timeout:15000});return}
+  else if(a==="dropLate"){const r=buildRoute();r.plan.rows.filter(x=>x.late).forEach(x=>U.selected.delete(x.c.id));keepUI();toast("Sığmayan duraklar çıkarıldı")}
+  else if(a==="delLunch"){const D=day();const L=[...(D.lunchPlaces||[])];L.splice(Number(b.dataset.i),1);await saveDay({lunchPlaces:L});return}
+  else if(a==="addSel"){addSel([id])}
+  else if(a==="unSel"){U.selected.delete(id);keepUI()}
+  else if(a==="addPri"){addSel(custList().filter(c=>c.status!=="Pasif"&&!U.selected.has(c.id)).sort((x,y)=>priority(y).score-priority(x).score).slice(0,6).map(c=>c.id))}
+  else if(a==="addNear"){const r=buildRoute();addSel(custList().filter(c=>hasGeo(c)&&!U.selected.has(c.id)&&c.status!=="Pasif"&&r.order.some(s=>km(s,c)<=2.5)).map(c=>c.id))}
+  else if(a==="addRegion"){addSel(custList().filter(c=>(c.region||c.district)===U.region&&c.status!=="Pasif").map(c=>c.id))}
+  else if(a==="addVisible"){addSel(mapPoints().filter(c=>c.status!=="Pasif").map(c=>c.id))}
+  else if(a==="fchip"){const g=U.f[b.dataset.g],v=b.dataset.v;g.has(v)?g.delete(v):g.add(v)}
+  else if(a==="setStatus"){const c=S.customers.get(id);if(c){await save(Object.assign({},c,{status:b.dataset.v}));toast("Aşama: "+b.dataset.v)}return}
+  else if(a==="zin"||a==="zout"){const f=a==="zin"?1.6:1/1.6;M.z=Math.max(1,Math.min(40,M.z*f));M.px*=f;M.py*=f;if(M.z===1){M.px=0;M.py=0}redrawMap();return}
+  else if(a==="zreset"){M.z=1;M.px=0;M.py=0;redrawMap();return}
+  else if(a==="impCust"){U.import={kind:"customer"}}
+  else if(a==="impOrd"){U.import={kind:"order"}}
+  else if(a==="cancelImp"){U.import=null}
+  else if(a==="doImp"){b.disabled=true;await doImport();return}
+  else if(a==="expOrd"){exportX("order");return}
+  else if(a==="expVisits"){exportX("visit");return}
+  else if(a==="addUnmatched"){const names=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
+    await saveMany([...names].map(n=>({id:uid("c"),kind:"customer",name:n,status:"Aktif",tier:"B",freq:14,createdAt:Date.now()})));toast(names.size+" müşteri eklendi");return}
+  render()});
+/* map drag + wheel */
+let drag=null;
+document.addEventListener("pointerdown",e=>{const svg=e.target.closest("#mapSvg");if(!svg)return;drag={x:e.clientX,y:e.clientY,px:M.px,py:M.py,k:M.W/svg.getBoundingClientRect().width};M.dragged=false});
+document.addEventListener("pointermove",e=>{if(!drag)return;const dx=(e.clientX-drag.x)*drag.k,dy=(e.clientY-drag.y)*drag.k;if(Math.abs(dx)+Math.abs(dy)>6)M.dragged=true;if(M.dragged){M.px=drag.px+dx;M.py=drag.py+dy;redrawMap()}});
+document.addEventListener("pointerup",()=>{drag=null});
+document.addEventListener("wheel",e=>{if(!e.target.closest("#mapSvg"))return;e.preventDefault();const f=e.deltaY<0?1.25:0.8;M.z=Math.max(1,Math.min(40,M.z*f));M.px*=f;M.py*=f;if(M.z===1){M.px=0;M.py=0}redrawMap()},{passive:false});
+
+document.addEventListener("change",async e=>{const t=e.target;
+  if(t.dataset.act==="toggleSel"){t.checked?U.selected.add(t.dataset.id):U.selected.delete(t.dataset.id);keepUI();render()}
+  else if(t.id==="impFile"&&t.files[0]){U.import.type=$("#impType")?.value;await readFile(t.files[0])}
+  else if(t.id==="impType"){U.import.type=t.value}
+  else if(t.id==="restoreFile"&&t.files[0]){await restoreFrom(t.files[0])}
+  else if(t.dataset.map){U.import.map[t.dataset.map]=t.value;render()}
+  else if(t.id==="pickVisit"&&t.value){U.visitFor=t.value;render()}
+  else if(t.id==="ordType"){U.ordType=t.value;render()}
+  else if(t.id==="sortSel"){U.sort=t.value;render()}
+  else if(t.id==="regionSel"){U.region=t.value;render()}
+  else if(t.id==="startIn"){U.start=t.value;keepUI();if(t.value&&!parseCoords(t.value))toast("Koordinat okunamadı; enlem, boylam yaz.");render()}});
+document.addEventListener("input",e=>{const t=e.target;
+  if(t.id==="custQ"){U.custQ=t.value;render()}else if(t.id==="ordQ"){U.ordQ=t.value;render()}});
+document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target;const FD=new FormData(f);const fd=Object.fromEntries(FD);
+  if(f.id==="custForm"){const old=U.editCust!=="new"?S.customers.get(U.editCust):null;const g=parseCoords(fd.geo);
+    if(fd.geo&&!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
+    const c=Object.assign({},old||{id:uid("c"),kind:"customer",createdAt:Date.now()},{name:fd.name.trim(),contact:fd.contact,phone:fd.phone,type:fd.type,status:fd.status,tier:fd.tier,estMonthly:parseNum(fd.estMonthly),term:parseNum(fd.term)||"",brands:FD.getAll("brands"),city:fd.city,region:fd.region.trim(),address:fd.address,nextVisit:fd.nextVisit,freq:Number(fd.freq)||0,notes:fd.notes});
+    if(g){c.lat=g.lat;c.lng=g.lng}else{delete c.lat;delete c.lng}
+    U.editCust=null;await save(c);toast("Müşteri kaydedildi")}
+  else if(f.id==="dayForm"){const g=parseCoords(fd.geo);if(fd.geo&&!g){toast("Ev konumu okunamadı.");return}
+    await saveDay({home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
+  else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
+    await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:fd.name.trim(),lat:g.lat,lng:g.lng}]});toast("Yemek yeri eklendi")}
+  else if(f.id==="setForm"){await save(Object.assign({},settings(),{target:parseNum(fd.target)}));toast("Hedef kaydedildi")}
+  else if(f.id==="visitForm"){const c=S.customers.get(f.dataset.id);
+    const v={id:uid("v"),kind:"visit",customerId:c.id,customerName:c.name,date:fd.date,start:fd.start,end:fd.end,result:fd.result,amount:parseNum(fd.amount),parts:fd.parts,note:fd.note,nextVisit:fd.nextVisit};
+    U.visitFor=null;if(U.live&&U.live.customerId===c.id)U.live=null;U.selected.delete(c.id);keepUI();
+    let status=c.status||"Aday";if(fd.result==="Sipariş alındı")status="Aktif";else if(fd.result==="Teklif verildi"&&status!=="Aktif")status="Teklif";else if(status==="Aday"&&fd.result!=="Ulaşılamadı")status="Görüşülüyor";
+    await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});
+
+render();boot();
+let deferredInstall=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#installBtn").hidden=false});
+window.addEventListener("appinstalled",()=>{$("#installBtn").hidden=true;toast("Ana ekrana eklendi")});
+$("#installBtn").addEventListener("click",async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice.catch(()=>null);deferredInstall=null;$("#installBtn").hidden=true});
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+
+</body></html>

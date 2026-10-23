@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Saha Satış">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}
 /* Layout: sticky header + tab bar, single-column work surface (max 980px), cards only for records that are acted on */
@@ -177,10 +177,10 @@ let col=null;const LSK="saha-satis-v1";
 function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||"[]");o.forEach(put)}catch(e){}}
 function lsSave(){try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values()]))}catch(e){}}
 function bucket(k){return k==="customer"?S.customers:k==="visit"?S.visits:k==="setting"?S.settings:S.orders}
-function put(d){if(d&&d.id&&d.kind)bucket(d.kind).set(d.id,d)}
+let DV=0;function put(d){if(d&&d.id&&d.kind){bucket(d.kind).set(d.id,d);DV++}}
 async function save(d){put(d);render();
   if(col){try{await col.doc(d.id).set(d)}catch(e){toast("Kaydedilemedi: "+(e.message||e.code||"bağlantı"))}}else lsSave()}
-async function remove(d){bucket(d.kind).delete(d.id);render();
+async function remove(d){bucket(d.kind).delete(d.id);DV++;render();
   if(col){try{await col.doc(d.id).delete()}catch(e){toast("Silinemedi: "+(e.message||e.code))}}else lsSave()}
 async function saveMany(list){list.forEach(put);render();
   if(!col){lsSave();return}
@@ -199,10 +199,20 @@ const U={tab:"rota",editCust:null,custQ:"",selected:new Set(),start:"",live:null
 try{const s=JSON.parse(localStorage.getItem("saha-ui")||"{}");if(s.tab)U.tab=s.tab;if(s.sel)U.selected=new Set(s.sel);if(s.start)U.start=s.start}catch(e){}
 function keepUI(){try{localStorage.setItem("saha-ui",JSON.stringify({tab:U.tab,sel:[...U.selected],start:U.start}))}catch(e){}}
 
-const custList=()=>[...S.customers.values()].sort((a,b)=>a.name.localeCompare(b.name,"tr"));
-const custByName=n=>{const k=trLow(n);return custList().find(c=>trLow(c.name)===k)};
-const visitsOf=c=>[...S.visits.values()].filter(v=>v.customerId===c.id).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start));
-const ordersOf=c=>[...S.orders.values()].filter(o=>o.customerId===c.id||trLow(o.customer)===trLow(c.name));
+/* indexes rebuilt only when data changes (DV) or the day changes */
+let IX={v:-1};const COLL=new Intl.Collator("tr");
+function ix(){const t=today();if(IX.v===DV&&IX.t===t)return IX;
+  const cl=[...S.customers.values()].sort((a,b)=>COLL.compare(a.name||"",b.name||""));
+  const byName=new Map();cl.forEach(c=>byName.set(trLow(c.name),c));
+  const vb=new Map();for(const v of S.visits.values()){let a=vb.get(v.customerId);if(!a)vb.set(v.customerId,a=[]);a.push(v)}
+  vb.forEach(a=>a.sort((x,y)=>((y.date||"")+(y.start||"")).localeCompare((x.date||"")+(x.start||""))));
+  const ob=new Map();for(const o of S.orders.values()){const c=o.customerId&&S.customers.get(o.customerId)||byName.get(trLow(o.customer));if(!c)continue;let a=ob.get(c.id);if(!a)ob.set(c.id,a=[]);a.push(o)}
+  const rev=new Map();ob.forEach((a,k)=>rev.set(k,a.reduce((s,o)=>s+(o.amount||0),0)));
+  IX={v:DV,t,cl,byName,vb,ob,rev,pri:new Map()};return IX}
+const custList=()=>ix().cl.slice();
+const custByName=n=>ix().byName.get(trLow(n));
+const visitsOf=c=>ix().vb.get(c.id)||[];
+const ordersOf=c=>ix().ob.get(c.id)||[];
 const lastVisit=c=>visitsOf(c)[0];
 const STATUS=["Aday","Görüşülüyor","Teklif","Aktif","Pasif"];
 const STATUS_COL={"Aday":"var(--muted)","Görüşülüyor":"var(--steel)","Teklif":"var(--warn)","Aktif":"var(--ok)","Pasif":"var(--bad)"};
@@ -213,8 +223,9 @@ const BRANDS=["Ford","Fiat","PSA","Renault","VAG","Toyota","Hyundai","Diğer"];
 const settings=()=>S.settings.get("setting_main")||{id:"setting_main",kind:"setting",target:0};
 function waLink(p){let d=String(p||"").replace(/\D/g,"");if(d.startsWith("0"))d="90"+d.slice(1);else if(d.length===10)d="90"+d;return d.length>=11?"https://wa.me/"+d:""}
 function daysSince(d){if(!d)return null;return Math.floor((new Date(today())-new Date(d))/864e5)}
-function custRevenue(c){return ordersOf(c).reduce((a,o)=>a+(o.amount||0),0)}
-function priority(c){const t=today();let sc=0,why=[];
+function custRevenue(c){return ix().rev.get(c.id)||0}
+function priority(c){const I=ix();const hit=I.pri.get(c.id);if(hit)return hit;const r=priority0(c);I.pri.set(c.id,r);return r}
+function priority0(c){const t=today();let sc=0,why=[];
   const tw={A:30,B:16,C:6}[c.tier||"C"];sc+=tw;if(c.tier==="A")why.push("A potansiyel");
   const sw={"Teklif":22,"Görüşülüyor":12,"Aktif":10,"Aday":8,"Pasif":0}[c.status||"Aday"];sc+=sw;if(c.status==="Teklif")why.push("açık teklif");
   if(c.type==="Toptancı"){sc+=10;why.push("toptancı")}
@@ -572,7 +583,9 @@ function vOrders(){
   :`<div class="empty"><b>Henüz belge yok.</b><span>Muhasebe programından aldığın sipariş veya fatura dökümünü Excel olarak yükle. Müşteri kartlarında toplamlar otomatik görünür.</span><button class="btn pri" data-act="impOrd">Excel seç</button></div>`}`}
 
 /* ---------- excel ---------- */
-async function readFile(f){if(!window.XLSX){toast("Excel okuyucu yüklenemedi; sayfayı yenile.");return}
+let xlsxP=null;
+function loadXLSX(){if(window.XLSX)return Promise.resolve(true);if(!xlsxP)xlsxP=new Promise(r=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";sc.onload=()=>r(true);sc.onerror=()=>{xlsxP=null;r(false)};document.head.appendChild(sc)});return xlsxP}
+async function readFile(f){toast("Dosya okunuyor…");if(!await loadXLSX()){toast("Excel okuyucu yüklenemedi. İlk seferde internet gerekir.");return}
   const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:true});if(!rows.length){toast("Dosyada satır bulunamadı.");return}
   const headers=Object.keys(rows[0]);const I=U.import;I.file=f.name;I.rows=rows;I.headers=headers;I.map={};
@@ -594,7 +607,7 @@ async function doImport(){const I=U.import;const m=I.map;
     const type=I.type||"sipariş";const out=[];I.rows.forEach(r=>{const cust=String(r[m.customer]||"").trim();if(!cust)return;const c=custByName(cust);
       out.push({id:uid("o"),kind:"order",type,customer:cust,customerId:c?c.id:"",date:m.date?parseDate(r[m.date]):"",no:m.no?String(r[m.no]):"",amount:parseNum(r[m.amount]),item:m.item?String(r[m.item]):"",qty:m.qty?parseNum(r[m.qty]):"",importedFrom:I.file})});
     U.import=null;await saveMany(out);toast(out.length+" "+type+" kaydedildi")}}
-async function exportX(kind){if(!window.XLSX)return;
+async function exportX(kind){if(!await loadXLSX()){toast("Excel oluşturucu yüklenemedi. İlk seferde internet gerekir.");return}
   let rows,name;if(kind==="order"){rows=[...S.orders.values()].map(o=>({Tarih:fmtDate(o.date),Tür:o.type,"Belge no":o.no,Müşteri:o.customer,Parça:o.item,Adet:o.qty,Tutar:o.amount}));name="siparis-fatura"}
   else{rows=[...S.visits.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(v=>({Tarih:fmtDate(v.date),Başlangıç:v.start,Bitiş:v.end,Müşteri:S.customers.get(v.customerId)?.name||v.customerName,Sonuç:v.result,Tutar:v.amount||"",Parçalar:v.parts,Not:v.note,"Sonraki ziyaret":fmtDate(v.nextVisit)}));name="ziyaretler"}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Kayıtlar");
@@ -634,7 +647,7 @@ async function loadSample(){const t=today();const d=n=>{const x=new Date();x.set
 
 /* ---------- AI (Google Gemini, kullanıcının kendi ücretsiz anahtarı) ---------- */
 const AIK="saha-ai";
-const AI_MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-flash-lite-latest","gemini-2.5-flash-lite","gemini-2.0-flash","gemini-2.0-flash-lite"];
+const AI_MODELS=["gemini-flash-latest","gemini-flash-lite-latest","gemini-2.5-flash-lite"];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
 function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
@@ -647,7 +660,7 @@ async function geminiOnly(prompt,{system="",json=false,history=[]}={},log){
   for(let round=0;round<2;round++){
    for(const m of models){
     let res;
-    try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),45000);
+    try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),25000);
       res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cfg.key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal});clearTimeout(to)}
     catch(e){log.push(m+": bağlantı kesildi");continue}
     if(res.ok){const d=await res.json().catch(()=>({}));const t=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
@@ -656,7 +669,7 @@ async function geminiOnly(prompt,{system="",json=false,history=[]}={},log){
     const e=await res.json().catch(()=>({}));const msg=String(e.error?.message||"").slice(0,140);log.push(m+": "+res.status+" "+msg);
     if(res.status===400&&/API key/i.test(msg)){log.push("Gemini anahtarı geçersiz");return null}
     if(res.status===403){log.push("Anahtarın izni yok");return null}}
-   if(round===0)await sleep(2500)}
+   break}
   return null}
 const FALLBACKS=[
   {name:"Yedek AI",url:"https://text.pollinations.ai/openai",model:"openai"},
@@ -721,7 +734,7 @@ function vAI(){const ready=true;const hasKey=aiReady();
 async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.push({role:"user",text:q});U.aiBusy=true;render();scrollChat();
   try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
     const first=U.chat.filter(m=>m.role==="user").length===1;
-    const prompt=(first||U.chat.length%6===1?"VERİLER:\n"+dataContext()+"\n\nSORU: ":"")+q;
+    const prompt=q;
     const t=await gemini(prompt,{system:AI_SYS+"\n\nGÜNCEL VERİLER:\n"+dataContext(),history:hist});
     const m=t.match(/^ROTA:\s*(.+)$/m);let route=[];
     if(m)route=m[1].split("|").map(x=>x.trim()).map(n=>custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))).filter(Boolean).map(c=>c.id);
@@ -745,7 +758,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.2.0";
+const APP_VERSION="1.2.1";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -821,7 +834,7 @@ document.addEventListener("click",async e=>{
 /* map drag + wheel */
 let drag=null;
 document.addEventListener("pointerdown",e=>{const svg=e.target.closest("#mapSvg");if(!svg)return;drag={x:e.clientX,y:e.clientY,px:M.px,py:M.py,k:M.W/svg.getBoundingClientRect().width};M.dragged=false});
-document.addEventListener("pointermove",e=>{if(!drag)return;const dx=(e.clientX-drag.x)*drag.k,dy=(e.clientY-drag.y)*drag.k;if(Math.abs(dx)+Math.abs(dy)>6)M.dragged=true;if(M.dragged){M.px=drag.px+dx;M.py=drag.py+dy;redrawMap()}});
+document.addEventListener("pointermove",e=>{if(!drag)return;const dx=(e.clientX-drag.x)*drag.k,dy=(e.clientY-drag.y)*drag.k;if(Math.abs(dx)+Math.abs(dy)>6)M.dragged=true;if(M.dragged){M.px=drag.px+dx;M.py=drag.py+dy;if(!M.raf)M.raf=requestAnimationFrame(()=>{M.raf=0;redrawMap()})}});
 document.addEventListener("pointerup",()=>{drag=null});
 document.addEventListener("wheel",e=>{if(!e.target.closest("#mapSvg"))return;e.preventDefault();const f=e.deltaY<0?1.25:0.8;M.z=Math.max(1,Math.min(40,M.z*f));M.px*=f;M.py*=f;if(M.z===1){M.px=0;M.py=0}redrawMap()},{passive:false});
 
@@ -837,7 +850,7 @@ document.addEventListener("change",async e=>{const t=e.target;
   else if(t.id==="regionSel"){U.region=t.value;render()}
   else if(t.id==="startIn"){U.start=t.value;keepUI();if(t.value&&!parseCoords(t.value))toast("Koordinat okunamadı; enlem, boylam yaz.");render()}});
 document.addEventListener("input",e=>{const t=e.target;
-  if(t.id==="custQ"){U.custQ=t.value;render()}else if(t.id==="ordQ"){U.ordQ=t.value;render()}});
+  if(t.id==="custQ"||t.id==="ordQ"){U[t.id]=t.value;clearTimeout(U._qt);U._qt=setTimeout(render,180)}});
 document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target;const FD=new FormData(f);const fd=Object.fromEntries(FD);
   if(f.id==="custForm"){const old=U.editCust!=="new"?S.customers.get(U.editCust):null;const g=parseCoords(fd.geo);
     if(fd.geo&&!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}

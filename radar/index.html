@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kripto Radar</title>
+<meta name="theme-color" content="#0e1418">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kripto Radar">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: terminal-style single column; numbers in mono, one amber accent for the radar sweep */
+:root{
+  --bg:#0e1418; --panel:#151d23; --line:#25313a; --ink:#e4ebef; --muted:#8a9aa6;
+  --accent:#f2a33a; --up:#3ccf8e; --down:#ff6b5f; --up-bg:#123527; --down-bg:#3a1a18; --chip:#1d2830;
+  --f-display:"Archivo",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f1f4f6;--panel:#fff;--line:#d6dde2;--ink:#11191f;--muted:#5d6c77;--accent:#c97a0e;--up:#138a57;--down:#c8372c;--up-bg:#dcf3e8;--down-bg:#fbe1de;--chip:#e8edf0;color-scheme:light}}
+:root[data-theme="light"]{--bg:#f1f4f6;--panel:#fff;--line:#d6dde2;--ink:#11191f;--muted:#5d6c77;--accent:#c97a0e;--up:#138a57;--down:#c8372c;--up-bg:#dcf3e8;--down-bg:#fbe1de;--chip:#e8edf0;color-scheme:light}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0}
+body{font:15px/1.45 var(--f-display)}
+[hidden]{display:none!important}
+.wrap{max-width:900px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+header .wrap{display:flex;align-items:center;gap:10px;padding-block:12px}
+.logo{width:28px;height:28px;flex:none}
+h1{font-size:19px;font-weight:800;letter-spacing:.02em;margin:0;text-transform:uppercase}
+.mode{font:600 11px var(--f-mono);letter-spacing:.08em;padding:4px 7px;border-radius:5px;background:var(--accent);color:#1a1205}
+.ago{margin-left:auto;font:12px var(--f-mono);color:var(--muted);text-align:right}
+main{display:grid;gap:16px;padding-block:16px 60px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
+h2{font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
+.big{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.big{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.k .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.k .v{font:500 20px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)}.down{color:var(--down)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sp{flex:1}
+.chip{font:500 11px var(--f-mono);padding:4px 7px;border-radius:5px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.chip.up{background:var(--up-bg);color:var(--up)}.chip.down{background:var(--down-bg);color:var(--down)}.chip.acc{background:var(--accent);color:#1a1205}
+.tbl{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font:600 11px var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.pos{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px}
+.track{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--down-bg),var(--chip) 40%,var(--up-bg))}
+.track i{position:absolute;top:-3px;width:3px;height:14px;background:var(--ink);border-radius:2px}
+.why{font-size:12px;color:var(--muted)}
+.btn{font:600 13px var(--f-display);border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);padding:9px 12px;cursor:pointer;min-height:38px;text-decoration:none;display:inline-flex;align-items:center}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#1a1205}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.warn{border-left:3px solid var(--accent);padding:10px 12px;background:var(--chip);border-radius:8px;font-size:14px}
+svg.spark{width:100%;height:auto;display:block}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.best{outline:2px solid var(--up);outline-offset:-2px}
+code{font:13px var(--f-mono);background:var(--chip);padding:2px 6px;border-radius:5px;user-select:all;word-break:break-all}
+ol{margin:0;padding-left:20px;display:grid;gap:4px}
+@media (prefers-reduced-motion:no-preference){.sweep{transform-origin:14px 14px;animation:sw 4s linear infinite}@keyframes sw{to{transform:rotate(360deg)}}}
+</style>
+</head><body>
+<header><div class="wrap">
+  <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12.5" fill="none" stroke="var(--line)" stroke-width="1.5"/><circle cx="14" cy="14" r="7" fill="none" stroke="var(--line)" stroke-width="1.5"/><path class="sweep" d="M14 14 L14 1.5 A12.5 12.5 0 0 1 25 8 Z" fill="var(--accent)" opacity=".85"/><circle cx="19" cy="9" r="1.8" fill="var(--up)"/></svg>
+  <h1>Kripto Radar</h1><span class="mode" id="mode">SANAL</span>
+  <div class="ago" id="ago">yükleniyor…</div>
+</div></header>
+<main class="wrap" id="app"><section><div class="empty">Veriler yükleniyor…</div></section></main>
+<script>
+const RAW="https://raw.githubusercontent.com/drogo36/saha-satis/main/bot/";
+const VARIANTS=["A-destek","B-destek-trend","C-kirilim","D-kirilim-guclu","E-kirilim-hizli","F-kirilim-uzun"];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const tl=n=>(Number(n)||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₺";
+function px(n){n=Number(n);if(!isFinite(n))return "-";const d=n>=1000?0:n>=10?2:n>=1?3:n>=0.01?5:8;return n.toLocaleString("tr-TR",{minimumFractionDigits:d,maximumFractionDigits:d})}
+const pct=(n,d=2)=>(n>0?"+":"")+Number(n).toFixed(d).replace(".",",")+"%";
+const cls=n=>n>0?"up":n<0?"down":"";
+function ago(t){const s=Math.floor(Date.now()/1000-t);if(s<90)return "az önce";if(s<3600)return Math.round(s/60)+" dk önce";if(s<86400)return Math.round(s/3600)+" sa önce";return Math.round(s/86400)+" gün önce"}
+const dt=t=>new Date(t*1000).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+async function get(f){try{const r=await fetch(RAW+f+"?t="+Math.floor(Date.now()/60000),{cache:"no-store"});return r.ok?await r.json():null}catch(e){return null}}
+const D={state:null,scan:null,bt:[]};
+
+function spark(curve,start){if(!curve||curve.length<2)return `<div class="empty">Grafik için birkaç saatlik veri birikmesi gerekiyor.</div>`;
+  const W=600,H=120,P=6;const ys=curve.map(p=>p.e);const mn=Math.min(start,...ys),mx=Math.max(start,...ys),rg=(mx-mn)||1;
+  const X=i=>P+i*(W-2*P)/(curve.length-1),Y=v=>H-P-(v-mn)/rg*(H-2*P);
+  const pts=curve.map((p,i)=>X(i).toFixed(1)+","+Y(p.e).toFixed(1)).join(" ");const last=ys.at(-1);const col=last>=start?"var(--up)":"var(--down)";
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Özsermaye grafiği"><line x1="${P}" x2="${W-P}" y1="${Y(start)}" y2="${Y(start)}" stroke="var(--line)" stroke-dasharray="4 4"/>
+   <polygon points="${X(0)},${H-P} ${pts} ${X(curve.length-1)},${H-P}" fill="${col}" opacity=".12"/><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"/>
+   <circle cx="${X(curve.length-1)}" cy="${Y(last)}" r="4" fill="${col}"/></svg>`}
+
+function render(){const S=D.state,SC=D.scan;
+  if(!S){$("#app").innerHTML=`<section><div class="empty">Bot henüz veri yazmadı ya da bağlantı yok. Birkaç dakika sonra tekrar aç.</div></section>`;return}
+  $("#ago").innerHTML="son tarama<br>"+ago(S.lastRun);$("#mode").textContent=(S.mode||"sanal").toUpperCase();
+  const start=S.startEquity,eq=S.equity??start,ret=(eq/start-1)*100;const tr=S.trades||[];const w=tr.filter(t=>t.pnl>0).length;
+  const posv=(S.positions||[]).map(p=>{const now=p.now||p.entry;const pnl=(now*p.qty)-p.cost;return {...p,now,pnl,pnlPct:pnl/p.cost*100}});
+  const best=D.bt.filter(Boolean).sort((a,b)=>b.returnPct-a.returnPct)[0];
+  $("#app").innerHTML=`
+  <div class="warn">Bu bot <b>sanal parayla</b> işlem yapıyor; gerçek hesabına dokunmuyor. Amaç, stratejinin para kazandırıp kazandırmadığını riske girmeden görmek.</div>
+  <section><div class="big">
+    <div class="k"><div class="l">Sanal özsermaye</div><div class="v">${tl(eq)}</div></div>
+    <div class="k"><div class="l">Toplam getiri</div><div class="v ${cls(ret)}">${pct(ret)}</div></div>
+    <div class="k"><div class="l">İşlem / kazanma</div><div class="v">${tr.length} · ${tr.length?Math.round(w/tr.length*100):0}%</div></div>
+    <div class="k"><div class="l">Açık pozisyon</div><div class="v">${posv.length}</div></div></div>
+    ${spark(S.equityCurve,start)}
+    <div class="why">Başlangıç ${tl(start)} · ${dt(S.startedAt)} · ${S.runs||0} tarama</div></section>
+
+  <section><h2>Açık pozisyonlar</h2>${posv.length?posv.map(p=>{const span=p.target-p.initStop;const at=Math.max(0,Math.min(100,(p.now-p.initStop)/span*100));const en=(p.entry-p.initStop)/span*100;
+    return `<div class="pos"><div class="row"><b>${esc(p.sym||p.pair)}/TL</b><span class="chip ${cls(p.pnl)}">${pct(p.pnlPct)} · ${tl(p.pnl)}</span><span class="sp"></span><span class="mono muted" style="font-size:12px">${dt(p.openT)}</span></div>
+     <div class="track" title="stop → hedef"><i style="left:${en}%;background:var(--muted)"></i><i style="left:${at}%"></i></div>
+     <div class="row mono" style="font-size:12px;justify-content:space-between"><span class="down">stop ${px(p.stop)}</span><span>giriş ${px(p.entry)} · şimdi ${px(p.now)}</span><span class="up">hedef ${px(p.target)}</span></div>
+     <div class="why">${esc(p.why)}</div></div>`}).join(""):`<div class="empty">Açık pozisyon yok. Koşullar oluşunca bot kendisi girer.</div>`}</section>
+
+  <section><div class="row"><h2>Radar · en oynak ${SC?SC.list.length:0} coin</h2><span class="sp"></span>${SC?`<span class="chip">${SC.count} parite tarandı</span>`:""}</div>
+   ${SC&&SC.list.length?`<div class="tbl"><table><thead><tr><th>Coin</th><th class="n">Fiyat</th><th class="n">24s</th><th class="n">Oynaklık</th><th class="n">RSI</th><th class="n">Destek</th><th class="n">Direnç</th><th>Durum</th></tr></thead><tbody>
+    ${SC.list.map(x=>`<tr><td><b>${esc(x.sym)}</b></td><td class="n">${px(x.last)}</td><td class="n ${cls(x.dailyPercent)}">${pct(x.dailyPercent,1)}</td><td class="n">${String(x.atrPct).replace(".",",")}%</td><td class="n">${Math.round(x.rsi)}</td>
+     <td class="n">${x.supports[0]?px(x.supports[0].p):"-"}</td><td class="n">${x.resistances[0]?px(x.resistances[0].p):"-"}</td><td>${x.signal?`<span class="chip acc">AL</span> `:""}<span class="why">${esc(x.why||"")}</span></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Tarama verisi yok.</div>`}
+   <div class="why">Oynaklık: saatlik ortalama gerçek aralık (ATR) / fiyat. Destek ve direnç son 8 günün saatlik dip ve tepelerinden hesaplanır.</div></section>
+
+  <section><h2>Strateji testi · son 120 gün gerçek veri</h2>${D.bt.some(Boolean)?`<div class="tbl"><table><thead><tr><th>Strateji</th><th class="n">Getiri</th><th class="n">İşlem</th><th class="n">Kazanma</th><th class="n">K/Z oranı</th><th class="n">En kötü düşüş</th><th class="n">1. yarı</th><th class="n">2. yarı</th></tr></thead><tbody>
+    ${D.bt.filter(Boolean).sort((a,b)=>b.returnPct-a.returnPct).map(b=>`<tr class="${b===best&&b.returnPct>0?"best":""}"><td>${esc(b.name)}</td><td class="n ${cls(b.returnPct)}">${pct(b.returnPct,1)}</td><td class="n">${b.trades}</td><td class="n">${b.winRate}%</td><td class="n">${b.profitFactor??"-"}</td><td class="n down">-${b.maxDrawdownPct}%</td><td class="n ${cls(b.firstHalf?.pnlTL)}">${b.firstHalf?tl(b.firstHalf.pnlTL):"-"}</td><td class="n ${cls(b.secondHalf?.pnlTL)}">${b.secondHalf?tl(b.secondHalf.pnlTL):"-"}</td></tr>`).join("")}
+    </tbody></table></div><div class="why">Karşılaştırma: aynı coinleri test başında alıp tutmak ${pct(best?.buyHoldPct??0,1)} getirdi. K/Z oranı 1'in altındaysa strateji zarar ettirir. İki yarıda da kârlı olmayan strateji güvenilir değildir.</div>`:`<div class="empty">Test sonuçları hazırlanıyor.</div>`}</section>
+
+  <section><h2>İşlem geçmişi</h2>${tr.length?`<div class="tbl"><table><thead><tr><th>Coin</th><th>Açılış</th><th class="n">Giriş</th><th class="n">Çıkış</th><th class="n">K/Z</th><th>Neden</th></tr></thead><tbody>
+    ${tr.slice(0,60).map(t=>`<tr><td><b>${esc(t.pair.replace("TRY",""))}</b></td><td class="mono muted">${dt(t.openT)}</td><td class="n">${px(t.entry)}</td><td class="n">${px(t.exit)}</td><td class="n ${cls(t.pnl)}">${pct(t.pnlPct,1)}</td><td class="muted">${esc(t.reason)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Henüz kapanmış işlem yok.</div>`}</section>
+
+  <section><h2>Telefona bildirim</h2>
+   <ol><li>App Store'dan ücretsiz <b>ntfy</b> uygulamasını indir.</li><li><b>+</b> → <b>Subscribe to topic</b> → şu adı yaz: <code>${esc(D.topic||"")}</code></li><li>Bot her sanal alım ve satışta telefonuna bildirim gönderir.</li></ol>
+   <div class="why">Bu konu adı sana özel; kimseyle paylaşma.</div></section>`}
+
+async function load(){const [s,sc,cfg,...bt]=await Promise.all([get("state.json"),get("scan.json"),get("config.json"),...VARIANTS.map(v=>get("bt/"+v+".json"))]);
+  D.state=s;D.scan=sc;D.bt=bt;D.topic=cfg?.ntfyTopic;render()}
+load();setInterval(load,5*60*1000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load()});
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>

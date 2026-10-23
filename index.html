@@ -639,29 +639,52 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
 function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
 const aiReady=()=>!!aiCfg().key;
-async function gemini(prompt,{system="",json=false,history=[]}={}){
-  const cfg=aiCfg();if(!cfg.key)throw new Error("Önce Asistan sekmesinden ücretsiz Gemini anahtarını gir.");
+async function geminiOnly(prompt,{system="",json=false,history=[]}={},log){
+  const cfg=aiCfg();if(!cfg.key){log.push("Gemini: anahtar yok");return null}
   const models=cfg.model?[cfg.model,...AI_MODELS.filter(m=>m!==cfg.model)]:AI_MODELS;
   const body={contents:[...history,{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:json?0.2:0.5,...(json?{responseMimeType:"application/json"}:{})}};
   if(system)body.systemInstruction={parts:[{text:system}]};
-  let lastErr="",busy=0,quota=0;
   for(let round=0;round<2;round++){
    for(const m of models){
-    let res;try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cfg.key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})}
-    catch(e){throw new Error("İnternet bağlantısı yok. Asistan çevrimdışı çalışmaz.")}
-    if(res.ok){const d=await res.json();const t=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
-      if(!t){lastErr="boş yanıt";continue}if(cfg.model!==m)aiSave({model:m});return t}
-    const e=await res.json().catch(()=>({}));const msg=String(e.error?.message||res.status);lastErr=msg;
-    if(res.status===400&&/API key/i.test(msg))throw new Error("Anahtar geçersiz. Asistan sekmesinden kontrol et.");
-    if(res.status===403)throw new Error("Anahtarın bu hizmete izni yok. aistudio.google.com/apikey adresinden yeni anahtar oluştur.");
-    if(res.status===429){quota++;continue}            // bu modelin kotası doldu → diğer modele geç
-    if(res.status>=500||/demand|overload|unavailable|try again/i.test(msg)){busy++;continue} // yoğun → diğer modele geç
-    if(res.status===404||/not found|not supported/i.test(msg))continue;
-    throw new Error("Yapay zekâ hatası: "+msg)}
-   if(round===0){toast("Google sunucuları yoğun, tekrar deniyorum…");await sleep(4000)}}
-  if(busy)throw new Error("Google'ın ücretsiz yapay zekâ sunucuları şu an çok yoğun. 1-2 dakika sonra tekrar dene.");
-  if(quota)throw new Error("Bugünkü ücretsiz kullanım sınırı doldu. Yarın sıfırlanır.");
-  throw new Error("Yapay zekâya ulaşılamadı: "+lastErr)}
+    let res;
+    try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),45000);
+      res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cfg.key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal});clearTimeout(to)}
+    catch(e){log.push(m+": bağlantı kesildi");continue}
+    if(res.ok){const d=await res.json().catch(()=>({}));const t=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
+      if(!t){log.push(m+": boş yanıt ("+(d.candidates?.[0]?.finishReason||d.promptFeedback?.blockReason||"?")+")");continue}
+      if(cfg.model!==m)aiSave({model:m});aiSave({last:"Gemini · "+m});return t}
+    const e=await res.json().catch(()=>({}));const msg=String(e.error?.message||"").slice(0,140);log.push(m+": "+res.status+" "+msg);
+    if(res.status===400&&/API key/i.test(msg)){log.push("Gemini anahtarı geçersiz");return null}
+    if(res.status===403){log.push("Anahtarın izni yok");return null}}
+   if(round===0)await sleep(2500)}
+  return null}
+const FALLBACKS=[
+  {name:"Yedek AI",url:"https://text.pollinations.ai/openai",model:"openai"},
+  {name:"Yedek AI 2",url:"https://gen.pollinations.ai/v1/chat/completions",model:"openai"}];
+async function fallbackAI(prompt,{system="",json=false,history=[]}={},log){
+  const messages=[...(system?[{role:"system",content:system.slice(0,24000)}]:[]),...history.map(h=>({role:h.role==="model"?"assistant":"user",content:h.parts[0].text})),{role:"user",content:prompt+(json?"\n\nYalnızca geçerli JSON döndür.":"")}];
+  for(const f of FALLBACKS){
+    try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),60000);
+      const res=await fetch(f.url+"?referrer=saha-satis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:f.model,messages,temperature:json?0.2:0.5,referrer:"saha-satis"}),signal:ctl.signal});clearTimeout(to);
+      if(!res.ok){log.push(f.name+": "+res.status);continue}
+      const ct=res.headers.get("content-type")||"";let t;
+      if(ct.includes("json")){const d=await res.json();t=d.choices?.[0]?.message?.content||d.content||""}else t=await res.text();
+      t=String(t||"").trim();if(!t){log.push(f.name+": boş");continue}
+      aiSave({last:f.name});return t}
+    catch(e){log.push(f.name+": bağlantı kesildi")}}
+  return null}
+async function gemini(prompt,opts={}){
+  if(navigator.onLine===false)throw new Error("Telefon internete bağlı değil. Wi-Fi veya mobil veriyi kontrol et.");
+  const log=[];
+  let t=await geminiOnly(prompt,opts,log);
+  if(t)return t;
+  t=await fallbackAI(prompt,opts,log);
+  if(t)return t;
+  U.aiLog=log;
+  throw new Error("Yapay zekâ şu an yanıt vermiyor. Ayrıntı: "+log.slice(-4).join(" · "))}
+async function aiTest(){U.aiTest="Test ediliyor…";render();const log=[];
+  const g=await geminiOnly("Sadece 'tamam' yaz.",{},log);let f=null;if(!g)f=await fallbackAI("Sadece 'tamam' yaz.",{},log);
+  U.aiTest=(g?"✓ Gemini çalışıyor ("+aiCfg().model+")":f?"✓ Yedek AI çalışıyor, Gemini çalışmıyor":"✗ Hiçbiri yanıt vermedi")+"\n"+log.join("\n");render()}
 function aiJSON(t){try{return JSON.parse(t)}catch(e){const m=t.match(/\{[\s\S]*\}/);if(m)try{return JSON.parse(m[0])}catch(_){}}return null}
 function dataContext(){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
   const lines=cs.slice(0,250).map(c=>{const lv=lastVisit(c);const p=priority(c);
@@ -683,17 +706,18 @@ function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yap
    <ol class="sub" style="margin:0;padding-left:20px;display:grid;gap:4px"><li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> adresine Google hesabınla gir.</li><li><b>Create API key</b>'e bas, çıkan anahtarı kopyala.</li><li>Aşağıya yapıştır, <b>Kaydet</b>'e bas.</li></ol>
    <form id="aiForm" class="row"><input id="ai_key" name="key" type="password" autocomplete="off" placeholder="AIza..." value="${esc(cfg.key)}" style="flex:1 1 240px"><button class="btn pri" type="submit">Kaydet</button>${cfg.key?`<button class="btn ghost" type="button" data-act="aiClear">Sil</button>`:""}</form>
    <span class="why">Anahtar sadece bu telefonda saklanır. Asistana soru sorduğunda müşteri özetlerin Google'a gönderilir.${cfg.model?" Model: "+esc(cfg.model):""}</span></section>`}
-function vAI(){const ready=aiReady();
+function vAI(){const ready=true;const hasKey=aiReady();
   const quick=["Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
   return `<div class="row"><h2>Asistan</h2><span class="sp"></span>${U.chat.length?`<button class="btn sm ghost" data-act="aiReset">Yeni sohbet</button>`:""}</div>
-  ${ready?"":aiSetupPanel()}
+  ${hasKey?"":`<div class="banner">Anahtar girmeden de çalışır (yedek yapay zekâ ile, daha yavaş). Daha iyi sonuç için aşağıdaki <b>Anahtar ayarı</b>ndan ücretsiz Gemini anahtarı ekle.</div>`}
   ${ready?`<div class="list" id="chatList">${U.chat.length?U.chat.map(m=>m.role==="user"?`<div class="item" style="background:var(--steel-bg);border-color:transparent;justify-self:end;max-width:90%"><div class="note">${esc(m.text)}</div></div>`
      :`<div class="item"><div class="note">${esc(m.text.replace(/^ROTA:.*$/m,"").trim())}</div>${m.route&&m.route.length?`<div class="row"><button class="btn sm pri" data-act="aiRoute" data-i="${U.chat.indexOf(m)}">Önerilen ${m.route.length} durağı rotaya ekle</button></div>`:""}<div class="row"><button class="btn sm ghost" data-act="aiCopy" data-i="${U.chat.indexOf(m)}">Kopyala</button></div></div>`).join("")
      :`<div class="empty"><b>Verilerini bilen satış asistanın.</b><span>Müşterilerin, ziyaretlerin ve siparişlerin üzerinden çalışır. Bir soru seç ya da yaz.</span></div>`}
     ${U.aiBusy?`<div class="item"><span class="muted">Düşünüyor…</span></div>`:""}</div>
    <div class="chips">${quick.map(q=>`<button class="fchip" data-act="aiAsk" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
    <form id="chatForm" class="row" style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px))"><textarea id="chatIn" name="q" rows="2" placeholder="Sor: “Topkapı'da PSA satan teklif bekleyenler kim?” (klavyedeki mikrofonla sesli de yazabilirsin)" style="flex:1 1 220px;min-height:52px"></textarea><button class="btn pri" type="submit" ${U.aiBusy?"disabled":""}>Gönder</button></form>
-   <details class="panel"><summary style="cursor:pointer"><b>Anahtar ayarı</b></summary>${aiSetupPanel()}</details>`:""}`}
+   <details class="panel" ${hasKey?"":"open"}><summary style="cursor:pointer"><b>Anahtar ayarı ve bağlantı testi</b>${aiCfg().last?` <span class="muted">· son yanıt: ${esc(aiCfg().last)}</span>`:""}</summary>${aiSetupPanel()}
+     <div class="row"><button class="btn sm" data-act="aiTest">Bağlantıyı test et</button></div>${U.aiTest?`<pre class="note mono" style="font-size:12px;background:var(--sunk);padding:10px;border-radius:8px;margin:0">${esc(U.aiTest)}</pre>`:""}</details>`:""}`}
 async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.push({role:"user",text:q});U.aiBusy=true;render();scrollChat();
   try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
     const first=U.chat.filter(m=>m.role==="user").length===1;
@@ -721,7 +745,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.1.1";
+const APP_VERSION="1.2.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -758,6 +782,7 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="aiTest"){aiTest();return}
   else if(a==="aiClear"){aiSave({key:"",model:""});toast("Anahtar silindi")}
   else if(a==="aiRoute"){const m=U.chat[Number(b.dataset.i)];if(m&&m.route)addSel(m.route);U.tab="rota";keepUI();window.scrollTo(0,0)}
   else if(a==="aiCopy"){const m=U.chat[Number(b.dataset.i)];try{await navigator.clipboard.writeText(m.text);toast("Kopyalandı")}catch(e){toast("Kopyalanamadı")}return}

@@ -1,1 +1,1 @@
-{"version":"1.1.1","notes":"Asistan, Google yoğunken otomatik olarak başka modele geçip tekrar dener."}
+{"version":"1.2.0","notes":"Asistan düzeltildi: Gemini yoğunsa yedek yapay zekâya geçer, anahtarsız da çalışır, bağlantı testi eklendi."}

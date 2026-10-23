@@ -137,6 +137,7 @@ svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sun
   <button role="tab" data-tab="musteri" aria-selected="false">Müşteriler</button>
   <button role="tab" data-tab="ziyaret" aria-selected="false">Ziyaretler</button>
   <button role="tab" data-tab="siparis" aria-selected="false">Sipariş / Fatura</button>
+  <button role="tab" data-tab="asistan" aria-selected="false">Asistan ✨</button>
   <button role="tab" data-tab="rapor" aria-selected="false">Rapor</button>
 </div></nav>
 <main class="wrap" id="app"></main>
@@ -229,7 +230,7 @@ function render(){
   const app=$("#app");
   if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
-  app.innerHTML=U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():vOrders();
+  app.innerHTML=updateBanner()+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():vOrders());
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
 
@@ -453,7 +454,8 @@ function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return
    ${p.why.length?`<div class="why">Öncelik nedeni: ${esc(p.why.join(" · "))}</div>`:""}
    ${c.notes?`<div class="note">${esc(c.notes)}</div>`:""}
    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sipariş toplamı</div><div class="v">${tl(sip)}</div></div><div class="kpi"><div class="l">Fatura toplamı</div><div class="v">${tl(fat)}</div></div><div class="kpi"><div class="l">Ziyaret</div><div class="v">${vs.length}</div></div></div>
-   <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Haritada aç</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button></div></section>
+   <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="aiMsg" data-id="${c.id}">✨ Mesaj yaz</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Haritada aç</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button></div></section>
+  ${U.msg&&U.msg.id===c.id?`<section class="panel"><h3>Mesaj taslağı</h3><textarea id="msgTxt" rows="5">${esc(U.msg.text)}</textarea><div class="row"><button class="btn sm" data-act="msgCopy">Kopyala</button>${wa?`<a class="btn sm pri" href="${esc(wa)}?text=${encodeURIComponent(U.msg.text)}" target="_blank" rel="noopener">WhatsApp'ta aç</a>`:""}<button class="btn sm ghost" data-act="msgClose">Kapat</button></div></section>`:""}
   <h3>Ziyaret geçmişi</h3><div class="list">${vs.length?vs.map(visitItem).join(""):`<div class="empty">Bu müşteriye henüz ziyaret notu yok.</div>`}</div>
   <h3>Sipariş ve faturalar</h3>${os.length?ordTable(os):`<div class="empty">Bu müşteriyle eşleşen belge yok. Excel yüklerken müşteri adı, buradaki firma adıyla aynı yazılmalı.</div>`}`}
 
@@ -498,6 +500,7 @@ function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=
   const bmx=Math.max(1,...Object.values(brandRev));
   return `${kpis()}
   ${backupPanel()}
+  ${versionPanel()}
   <section class="panel"><h2>Aylık hedef</h2><form id="setForm" class="row"><label class="f" style="flex:1 1 200px">Satış hedefi (₺/ay)<input id="sf_target" name="target" inputmode="numeric" value="${esc(st.target||"")}" placeholder="örn. 750000"></label><button class="btn pri" type="submit" style="align-self:end">Kaydet</button></form></section>
   <section class="panel"><h2>Satış hunisi</h2><div class="funnel">${cnt.map(([s,n])=>`<div class="r"><span>${s}</span><div class="bar"><i style="width:${n/mx*100}%;background:${STATUS_COL[s]}"></i></div><span class="mono">${n}</span></div>`).join("")}</div></section>
   <section class="panel"><h2>Bu ayın ziyaretleri</h2><div class="row"><span class="chip st mono">${vm.length} ziyaret</span><span class="chip ok mono">%${conv.toFixed(0)} siparişe döndü</span></div>
@@ -520,6 +523,7 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
    <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
    <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return d.toISOString().slice(0,10)})()}"></label>
    <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no<input id="vf_parts" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label>
+   <div class="row" style="grid-column:1/-1"><span class="why" style="flex:1 1 200px">Notu serbestçe yaz ya da klavyedeki mikrofonla söyle; AI sonucu, tutarı, parçaları ve sonraki ziyareti doldursun.</span><button class="btn sm" type="button" data-act="aiFill">✨ AI ile düzenle</button></div>
    <label class="f" style="grid-column:1/-1">Görüşme notu<textarea id="vf_note" name="note" placeholder="Rakip fiyatı, stok durumu, ödeme vadesi, söz verilenler…"></textarea></label>
    <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Kaydet</button><button class="btn ghost" type="button" data-act="cancelVisit">Vazgeç</button></div>
   </form></section>`}
@@ -604,6 +608,7 @@ function backupNow(){const all=[...S.customers.values(),...S.visits.values(),...
   try{localStorage.setItem(BK,today())}catch(e){}setSync();render();toast("Yedek hazır: "+fn)}
 async function restoreFrom(file){try{const o=JSON.parse(await file.text());const arr=Array.isArray(o)?o:o.data;if(!Array.isArray(arr))throw 0;
   const n=arr.filter(d=>d&&d.id&&d.kind).length;await saveMany(arr.filter(d=>d&&d.id&&d.kind));toast(n+" kayıt geri yüklendi")}catch(e){toast("Bu dosya bir Saha Satış yedeği değil.")}}
+function versionPanel(){return `<section class="panel"><h2>Uygulama</h2><div class="row"><span class="chip mono">sürüm ${APP_VERSION}</span><span class="sp"></span><button class="btn sm" data-act="checkUpd">Güncellemeleri denetle</button></div><span class="why">Uygulama açıldığında ve her 30 dakikada bir yeni sürümü kendisi kontrol eder.</span></section>`}
 function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.size+S.orders.size;
   return `<section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
    <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span></div>
@@ -626,6 +631,98 @@ async function loadSample(){const t=today();const d=n=>{const x=new Date();x.set
   const ym=t.slice(0,8);const os=[[0,"sipariş","SP-2026-0412",48450,"Fren balatası seti",120],[0,"fatura","FT-2026-1180",47890,"Fren balatası seti",120],[5,"fatura","FT-2026-1176",22300,"Debriyaj seti",6],[1,"sipariş","SP-2026-0415",31200,"Marş motoru",12],[5,"fatura","FT-2026-1184",6750,"Fren hidroliği",30]]
    .map((o,i)=>({id:uid("o"),kind:"order",type:o[1],customer:cs[o[0]].name,customerId:cs[o[0]].id,date:ym+String(Math.max(1,Number(t.slice(8))-i*2)).padStart(2,"0"),no:o[2],amount:o[3],item:o[4],qty:o[5],importedFrom:"örnek"}));
   await saveMany([...cs,...vs,...os]);toast("Örnek veriler yüklendi; hepsi “(örnek)” etiketli")}
+
+/* ---------- AI (Google Gemini, kullanıcının kendi ücretsiz anahtarı) ---------- */
+const AIK="saha-ai";
+const AI_MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.0-flash"];
+function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
+function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
+const aiReady=()=>!!aiCfg().key;
+async function gemini(prompt,{system="",json=false,history=[]}={}){
+  const cfg=aiCfg();if(!cfg.key)throw new Error("Önce Asistan sekmesinden ücretsiz Gemini anahtarını gir.");
+  const models=cfg.model?[cfg.model,...AI_MODELS.filter(m=>m!==cfg.model)]:AI_MODELS;
+  const body={contents:[...history,{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:json?0.2:0.5,...(json?{responseMimeType:"application/json"}:{})}};
+  if(system)body.systemInstruction={parts:[{text:system}]};
+  let lastErr;
+  for(const m of models){
+    let res;try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(cfg.key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})}
+    catch(e){throw new Error("İnternet bağlantısı yok. Asistan çevrimdışı çalışmaz.")}
+    if(res.ok){const d=await res.json();const t=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
+      if(!t)throw new Error("Yapay zekâ boş yanıt verdi, tekrar dene.");if(cfg.model!==m)aiSave({model:m});return t}
+    const e=await res.json().catch(()=>({}));const msg=e.error?.message||res.status;
+    if(res.status===404||/not found|not supported/i.test(msg)){lastErr=msg;continue}
+    if(res.status===400&&/API key/i.test(msg))throw new Error("Anahtar geçersiz. Asistan sekmesinden kontrol et.");
+    if(res.status===429)throw new Error("Ücretsiz kullanım sınırına ulaşıldı. Biraz bekleyip tekrar dene.");
+    throw new Error("Yapay zekâ hatası: "+msg)}
+  throw new Error("Uygun model bulunamadı: "+lastErr)}
+function aiJSON(t){try{return JSON.parse(t)}catch(e){const m=t.match(/\{[\s\S]*\}/);if(m)try{return JSON.parse(m[0])}catch(_){}}return null}
+function dataContext(){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
+  const lines=cs.slice(0,250).map(c=>{const lv=lastVisit(c);const p=priority(c);
+    return [c.name,"pot:"+(c.tier||"C"),c.status||"Aday",c.type||"",c.region||c.district||"",(c.brands||[]).join("/"),c.estMonthly?"aylık~"+Math.round(c.estMonthly/1000)+"b":"",
+      c.nextVisit?"ziyaret:"+c.nextVisit:"",lv?"son:"+lv.date+" "+lv.result:"hiç ziyaret yok","ciro:"+Math.round(custRevenue(c)),"öncelik:"+p.score,c.notes?"not:"+String(c.notes).slice(0,80):""].filter(Boolean).join(" | ")});
+  const vs=[...S.visits.values()].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,40).map(v=>`${v.date} ${(S.customers.get(v.customerId)||{}).name||v.customerName}: ${v.result}${v.amount?" "+Math.round(v.amount)+"₺":""} ${v.parts||""} ${String(v.note||"").slice(0,120)}`);
+  const ym=t.slice(0,7);const sip=[...S.orders.values()].filter(o=>(o.date||"").startsWith(ym)).reduce((a,o)=>a+(o.amount||0),0);
+  return `Bugün: ${t}. Ev: ${D.home}, eve en geç ${D.arriveBy}. Öğle ${D.lunchFrom}-${D.lunchTo} (TokenFlex geçen yer). Aylık hedef: ${settings().target||"yok"} ₺, bu ay belge toplamı: ${Math.round(sip)} ₺.
+Şu an rotada: ${custList().filter(c=>U.selected.has(c.id)).map(c=>c.name).join(", ")||"boş"}.
+MÜŞTERİLER (ad | potansiyel | aşama | tip | bölge | markalar | aylık alım | sonraki ziyaret | son ziyaret | ciro | öncelik | not):
+${lines.join("\n")||"(müşteri yok)"}
+SON ZİYARETLER:
+${vs.join("\n")||"(yok)"}`}
+const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir).`;
+
+U.chat=[];U.aiBusy=false;
+function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yapay zekâ anahtarı</h2>
+   <span class="sub">Asistan Google Gemini ile çalışır. Kişisel kullanımda ücretsizdir ve kart bilgisi istemez. Anahtarı bir kez alırsın:</span>
+   <ol class="sub" style="margin:0;padding-left:20px;display:grid;gap:4px"><li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> adresine Google hesabınla gir.</li><li><b>Create API key</b>'e bas, çıkan anahtarı kopyala.</li><li>Aşağıya yapıştır, <b>Kaydet</b>'e bas.</li></ol>
+   <form id="aiForm" class="row"><input id="ai_key" name="key" type="password" autocomplete="off" placeholder="AIza..." value="${esc(cfg.key)}" style="flex:1 1 240px"><button class="btn pri" type="submit">Kaydet</button>${cfg.key?`<button class="btn ghost" type="button" data-act="aiClear">Sil</button>`:""}</form>
+   <span class="why">Anahtar sadece bu telefonda saklanır. Asistana soru sorduğunda müşteri özetlerin Google'a gönderilir.${cfg.model?" Model: "+esc(cfg.model):""}</span></section>`}
+function vAI(){const ready=aiReady();
+  const quick=["Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
+  return `<div class="row"><h2>Asistan</h2><span class="sp"></span>${U.chat.length?`<button class="btn sm ghost" data-act="aiReset">Yeni sohbet</button>`:""}</div>
+  ${ready?"":aiSetupPanel()}
+  ${ready?`<div class="list" id="chatList">${U.chat.length?U.chat.map(m=>m.role==="user"?`<div class="item" style="background:var(--steel-bg);border-color:transparent;justify-self:end;max-width:90%"><div class="note">${esc(m.text)}</div></div>`
+     :`<div class="item"><div class="note">${esc(m.text.replace(/^ROTA:.*$/m,"").trim())}</div>${m.route&&m.route.length?`<div class="row"><button class="btn sm pri" data-act="aiRoute" data-i="${U.chat.indexOf(m)}">Önerilen ${m.route.length} durağı rotaya ekle</button></div>`:""}<div class="row"><button class="btn sm ghost" data-act="aiCopy" data-i="${U.chat.indexOf(m)}">Kopyala</button></div></div>`).join("")
+     :`<div class="empty"><b>Verilerini bilen satış asistanın.</b><span>Müşterilerin, ziyaretlerin ve siparişlerin üzerinden çalışır. Bir soru seç ya da yaz.</span></div>`}
+    ${U.aiBusy?`<div class="item"><span class="muted">Düşünüyor…</span></div>`:""}</div>
+   <div class="chips">${quick.map(q=>`<button class="fchip" data-act="aiAsk" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+   <form id="chatForm" class="row" style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px))"><textarea id="chatIn" name="q" rows="2" placeholder="Sor: “Topkapı'da PSA satan teklif bekleyenler kim?” (klavyedeki mikrofonla sesli de yazabilirsin)" style="flex:1 1 220px;min-height:52px"></textarea><button class="btn pri" type="submit" ${U.aiBusy?"disabled":""}>Gönder</button></form>
+   <details class="panel"><summary style="cursor:pointer"><b>Anahtar ayarı</b></summary>${aiSetupPanel()}</details>`:""}`}
+async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.push({role:"user",text:q});U.aiBusy=true;render();scrollChat();
+  try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
+    const first=U.chat.filter(m=>m.role==="user").length===1;
+    const prompt=(first||U.chat.length%6===1?"VERİLER:\n"+dataContext()+"\n\nSORU: ":"")+q;
+    const t=await gemini(prompt,{system:AI_SYS+"\n\nGÜNCEL VERİLER:\n"+dataContext(),history:hist});
+    const m=t.match(/^ROTA:\s*(.+)$/m);let route=[];
+    if(m)route=m[1].split("|").map(x=>x.trim()).map(n=>custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))).filter(Boolean).map(c=>c.id);
+    U.chat.push({role:"model",text:t,route:[...new Set(route)]})}
+  catch(e){U.chat.push({role:"model",text:"⚠ "+e.message})}
+  U.aiBusy=false;render();scrollChat()}
+function scrollChat(){setTimeout(()=>{const f=$("#chatForm");if(f)f.scrollIntoView({block:"end"})},30)}
+async function aiFillVisit(btn){const f=$("#visitForm");if(!f)return;const note=$("#vf_note").value.trim();if(!note){toast("Önce görüşme notunu serbestçe yaz ya da sesle söyle.");return}
+  const c=S.customers.get(f.dataset.id);btn.disabled=true;btn.textContent="Düzenleniyor…";
+  try{const t=await gemini(`Saha satış ziyaret notunu yapılandır. Bugün ${today()}. Müşteri: ${c.name}.
+Not: """${note}"""
+Sadece şu JSON'u döndür: {"result": "Sipariş alındı"|"Teklif verildi"|"Bilgi / tanıtım"|"Tahsilat"|"Şikayet"|"Ulaşılamadı", "amount": sayı (₺, yoksa 0), "parts": "parça adları, OEM no ve adetler, virgülle", "note": "düzgün Türkçe ile 1-3 cümlelik özet + sonraki adım", "nextVisit": "YYYY-MM-DD veya boş"}`,{json:true});
+    const o=aiJSON(t);if(!o)throw new Error("Yanıt okunamadı, tekrar dene.");
+    if(o.result&&RESULTS[o.result]!==undefined)$("#vf_res").value=o.result;
+    if(o.amount)$("#vf_amt").value=String(o.amount);if(o.parts)$("#vf_parts").value=o.parts;if(o.note)$("#vf_note").value=o.note;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(o.nextVisit||""))$("#vf_next").value=o.nextVisit;toast("Form dolduruldu, kontrol edip kaydet")}
+  catch(e){toast(e.message)}btn.disabled=false;btn.textContent="✨ AI ile düzenle"}
+async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
+  const vs=visitsOf(c).slice(0,3).map(v=>`${v.date} ${v.result} ${v.parts||""} ${v.note||""}`).join("\n");
+  try{const t=await gemini(`${c.name} firmasının yetkilisi ${c.contact||""} için kısa, samimi ama profesyonel bir WhatsApp mesajı yaz. Ben Muhammed, yedek parça (Ford/Fiat/PSA) saha satış danışmanıyım. Firma aşaması: ${c.status||"Aday"}, tipi: ${c.type||""}, markaları: ${(c.brands||[]).join(", ")}. Son görüşmeler:\n${vs||"yok"}\nAmaç: bir sonraki adımı (teklifi netleştirme, sipariş, ziyaret randevusu) almak. En fazla 4 cümle, emoji kullanma, sadece mesaj metnini yaz.`);
+    U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
+
+/* ---------- self update ---------- */
+const APP_VERSION="1.1.0";
+U.update=null;
+async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
+  if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
+function cmpVer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0}
+async function applyUpdate(){toast("Güncelleniyor…");try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];await Promise.all(regs.map(r=>r.update().catch(()=>{})));
+  const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
+  location.replace(location.pathname+"?v="+encodeURIComponent((U.update&&U.update.version)||Date.now()))}
+function updateBanner(){const u=U.update;if(!u)return "";return `<div class="banner" style="background:var(--steel-bg);color:var(--steel)"><b>Yeni sürüm ${esc(u.version)}</b>${u.notes?": "+esc(u.notes):""} <button class="btn sm pri" data-act="doUpdate">Şimdi güncelle</button><span class="why">Kayıtların silinmez.</span></div>`}
 
 /* ---------- events ---------- */
 async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
@@ -652,6 +749,17 @@ document.addEventListener("click",async e=>{
   else if(a==="delOrd"){if(b.dataset.sure){const o=S.orders.get(id);if(o)await remove(o);return}b.dataset.sure="1";b.textContent="Sil?";return}
   else if(a==="clearSel"){U.selected.clear();keepUI()}
   else if(a==="backup"){backupNow();return}
+  else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
+  else if(a==="aiReset"){U.chat=[]}
+  else if(a==="aiClear"){aiSave({key:"",model:""});toast("Anahtar silindi")}
+  else if(a==="aiRoute"){const m=U.chat[Number(b.dataset.i)];if(m&&m.route)addSel(m.route);U.tab="rota";keepUI();window.scrollTo(0,0)}
+  else if(a==="aiCopy"){const m=U.chat[Number(b.dataset.i)];try{await navigator.clipboard.writeText(m.text);toast("Kopyalandı")}catch(e){toast("Kopyalanamadı")}return}
+  else if(a==="aiFill"){aiFillVisit(b);return}
+  else if(a==="aiMsg"){const c=S.customers.get(id);if(c)aiMessage(c,b);return}
+  else if(a==="msgCopy"){const v=$("#msgTxt").value;try{await navigator.clipboard.writeText(v);toast("Kopyalandı")}catch(e){$("#msgTxt").select();toast("Seçildi, kopyala'ya bas")}return}
+  else if(a==="msgClose"){U.msg=null}
+  else if(a==="checkUpd"){checkUpdate(true);return}
+  else if(a==="doUpdate"){applyUpdate();return}
   else if(a==="clearStart"){U.start="";keepUI()}
   else if(a==="geoHere"){const tgt=b.dataset.t;if(!navigator.geolocation){toast("Bu cihaz konum vermiyor.");return}b.disabled=true;b.textContent="Konum alınıyor…";
     navigator.geolocation.getCurrentPosition(p=>{const v=p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);const el=document.getElementById(tgt);
@@ -704,6 +812,8 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     const c=Object.assign({},old||{id:uid("c"),kind:"customer",createdAt:Date.now()},{name:fd.name.trim(),contact:fd.contact,phone:fd.phone,type:fd.type,status:fd.status,tier:fd.tier,estMonthly:parseNum(fd.estMonthly),term:parseNum(fd.term)||"",brands:FD.getAll("brands"),city:fd.city,region:fd.region.trim(),address:fd.address,nextVisit:fd.nextVisit,freq:Number(fd.freq)||0,notes:fd.notes});
     if(g){c.lat=g.lat;c.lng=g.lng}else{delete c.lat;delete c.lng}
     U.editCust=null;await save(c);toast("Müşteri kaydedildi")}
+  else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
+  else if(f.id==="chatForm"){aiAsk(fd.q);return}
   else if(f.id==="dayForm"){const g=parseCoords(fd.geo);if(fd.geo&&!g){toast("Ev konumu okunamadı.");return}
     await saveDay({home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
   else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
@@ -716,6 +826,9 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});
 
 render();boot();
+checkUpdate(false);setInterval(()=>checkUpdate(false),30*60*1000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate(false)});
+if("serviceWorker" in navigator){let reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded)return;reloaded=true;if(!document.querySelector("#visitForm,#custForm"))location.reload()})}
 let deferredInstall=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#installBtn").hidden=false});
 window.addEventListener("appinstalled",()=>{$("#installBtn").hidden=true;toast("Ana ekrana eklendi")});

@@ -275,10 +275,11 @@ const toMin=s=>{const [h,m]=String(s||"0:0").split(":").map(Number);return (h||0
 const hhmm=m=>{m=Math.round(m);return String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
 const homePt=()=>{const D=day();return typeof D.homeLat==="number"&&typeof D.homeLng==="number"?{lat:D.homeLat,lng:D.homeLng,name:"Ev",home:true}:null};
 function travelMin(a,b){const D=day();return km(a,b)*1.35/(Number(D.speed)||22)*60+5}
-function buildRoute(){
-  const sel=custList().filter(c=>U.selected.has(c.id));
+function buildRoute(){return routeFor([...U.selected],U.start)}
+function routeFor(ids,startStr){const idset=new Set(ids);
+  const sel=custList().filter(c=>idset.has(c.id));
   const geo=sel.filter(hasGeo),nogeo=sel.filter(c=>!hasGeo(c));
-  const home=homePt();const start=parseCoords(U.start)||home;const end=home;
+  const home=homePt();const start=parseCoords(startStr)||home;const end=home;
   let order=[],rest=[...geo],cur=start;
   if(!cur&&rest.length){rest.sort((a,b)=>a.lng-b.lng);cur=rest.shift();order.push(cur)}
   while(rest.length){let bi=0,bd=1e9;rest.forEach((c,i)=>{const d=km(cur,c);if(d<bd){bd=d;bi=i}});cur=rest.splice(bi,1)[0];order.push(cur)}
@@ -365,6 +366,7 @@ function vRoute(){
   ${pri.length?`<section class="panel"><div class="row"><h2>Bugün kime gitmeli?</h2><span class="sp"></span><button class="btn sm" data-act="addPri">Hepsini rotaya ekle</button></div>
    <span class="sub">Potansiyel, toptan hacim, açık teklif ve geciken ziyarete göre sıralandı.</span>
    <div class="list">${pri.map(({c,p})=>`<div class="item stop" style="grid-template-columns:auto minmax(0,1fr) auto">${tierBadge(c)}<div style="min-width:0"><div class="t">${esc(c.name)}</div><div class="why">${esc([c.region||c.district,...p.why].filter(Boolean).join(" · "))}</div></div><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div></section>`:""}
+  ${cs.length?planPanel():""}
   ${cs.length?`<section class="panel"><div class="row"><h2>Günün rotası</h2><span class="sp"></span><span class="chip st mono">${U.selected.size} durak · ~${r.dist.toFixed(1)} km kuş uçuşu</span></div>
   <div class="row"><button class="btn sm" type="button" data-act="geoHere" data-t="startIn">📍 Bulunduğum yerden başla</button>${U.start?`<button class="btn sm ghost" type="button" data-act="clearStart">Evden başla</button>`:""}</div>
   <label class="f">Başlangıç noktası<input id="startIn" placeholder="Boş bırakırsan evden ${esc(day().dayStart)}'da çıkıyorsun sayılır. Başka yerden başlıyorsan Maps linki ya da koordinat yapıştır." value="${esc(U.start)}"></label>
@@ -405,11 +407,12 @@ function dayPanel(){const D=day();const L=D.lunchPlaces||[];
   </details>`}
 function stopRow(c,n,x){const lv=lastVisit(c);return `<div class="item stop" ${x&&x.late?'style="border-color:var(--bad)"':""}><div class="num ${n==="?"?"x":""}" ${x&&x.late?'style="background:var(--bad)"':""}>${n}</div>
   <div style="min-width:0"><div class="t">${x?`<span class="mono" style="font-weight:500">${hhmm(x.arrive)}–${hhmm(x.depart)}</span> `:""}${esc(c.name)}</div><div class="meta">${x?`<span class="mono">${Math.round(x.tr)} dk yol</span>`:""}${x&&x.late?'<span class="chip bad">eve geç kalırsın</span>':""}<span>${esc([c.region||c.district,c.city].filter(Boolean).join(" / ")||c.address||"")}</span>${c.status?`<span class="chip ${STATUS_CHIP[c.status]||""}">${esc(c.status)}</span>`:""}${lv?`<span>son ziyaret ${fmtDate(lv.date)}</span>`:""}</div></div>
-  <div class="row" style="gap:6px"><button class="btn sm pri" data-act="startLive" data-id="${c.id}">Başla</button><a class="btn sm" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Yol</a><button class="btn sm ghost" data-act="unSel" data-id="${c.id}" aria-label="Rotadan çıkar">×</button></div></div>`}
+  <div class="row" style="gap:6px"><button class="btn sm pri" data-act="startLive" data-id="${c.id}">Başla</button><a class="btn sm" href="${esc(dirLink(c))}" target="_blank" rel="noopener">Yol tarifi</a><button class="btn sm ghost" data-act="unSel" data-id="${c.id}" aria-label="Rotadan çıkar">×</button></div></div>`}
 
 /* ---- customers ---- */
 function custForm(c){c=c||{status:"Aday",tier:"B",freq:14};const br=new Set(c.brands||[]);return `<section class="panel"><h2>${c.id?"Müşteriyi düzenle":"Yeni müşteri"}</h2>
   <form id="custForm" class="grid2">
+   ${c.id?"":`<div style="grid-column:1/-1;display:grid;gap:6px"><label class="f">Adres veya firma ara (otomatik doldurur)<input id="addrQ" placeholder="örn. Topkapı Teknik Oto Sanayi, İkitelli 10. Sokak" autocomplete="off"></label><div id="addrHits" class="list"></div></div>`}
    <label class="f">Firma adı *<input id="cf_name" name="name" required value="${esc(c.name)}"></label>
    <label class="f">Yetkili<input id="cf_contact" name="contact" value="${esc(c.contact)}"></label>
    <label class="f">Telefon<input id="cf_phone" name="phone" inputmode="tel" value="${esc(c.phone)}"></label>
@@ -422,7 +425,7 @@ function custForm(c){c=c||{status:"Aday",tier:"B",freq:14};const br=new Set(c.br
    <label class="f">İl<input id="cf_city" name="city" value="${esc(c.city)}"></label>
    <label class="f">Bölge / sanayi sitesi<input id="cf_region" name="region" list="rgList" value="${esc(c.region||c.district)}" placeholder="örn. Topkapı, İkitelli"><datalist id="rgList">${regions().map(r=>`<option value="${esc(r)}">`).join("")}</datalist></label>
    <label class="f" style="grid-column:1/-1">Açık adres<input id="cf_addr" name="address" value="${esc(c.address)}"></label>
-   <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="cf_geo">📍 Şu an buradayım, konumu al</button></div>
+   <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="cf_geo">📍 Şu an buradayım: konumu ve adresi al</button></div>
    <label class="f" style="grid-column:1/-1">Konum: Google Maps linki veya enlem, boylam<input id="cf_geo" name="geo" placeholder="https://www.google.com/maps/place/...@41.07,28.80,17z  ya da  41.07, 28.80" value="${hasGeo(c)?c.lat+", "+c.lng:""}"></label>
    <label class="f">Sonraki ziyaret<input id="cf_next" type="date" name="nextVisit" value="${esc(c.nextVisit)}"></label>
    <label class="f">Ziyaret sıklığı (gün)<input id="cf_freq" type="number" min="0" name="freq" value="${esc(c.freq||14)}"></label>
@@ -441,14 +444,14 @@ function custCard(c){const t=today();const lv=lastVisit(c);const rev=custRevenue
      ${c.nextVisit?`<span class="chip ${c.nextVisit<=t?"warn":"st"}">ziyaret ${fmtDate(c.nextVisit)}</span>`:""}</div>
      <div class="meta"><span>${esc([c.type,c.contact,c.region||c.district].filter(Boolean).join(" · "))}</span>${(c.brands||[]).length?`<span>${esc(c.brands.join(", "))}</span>`:""}${c.estMonthly?`<span class="mono">~${tl(c.estMonthly)}/ay</span>`:""}</div>
      <div class="meta"><span>${lv?"son ziyaret "+fmtDate(lv.date)+" ("+esc(lv.result)+")":"henüz ziyaret yok"}</span>${rev?`<span class="mono">ciro ${tl(rev)}</span>`:""}<span class="mono">öncelik ${p.score}</span></div>
-     <div class="row" style="gap:6px"><button class="btn sm pri" data-act="visit" data-id="${c.id}">Ziyaret notu</button><button class="btn sm" data-act="detail" data-id="${c.id}">Kart</button><button class="btn sm" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rota"}</button><a class="btn sm" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Harita</a></div></div>`}
+     <div class="row" style="gap:6px"><button class="btn sm pri" data-act="visit" data-id="${c.id}">Ziyaret notu</button><button class="btn sm" data-act="detail" data-id="${c.id}">Kart</button><button class="btn sm" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rota"}</button><button class="btn sm ghost" data-act="delCust" data-id="${c.id}" style="color:var(--bad)">Sil</button><a class="btn sm" href="${esc(dirLink(c))}" target="_blank" rel="noopener">Yol tarifi</a></div></div>`}
 function vCustomers(){
   if(U.editCust!==null)return custForm(U.editCust==="new"?null:S.customers.get(U.editCust));
   let cs=filtered();
   const sorters={"öncelik":(a,b)=>priority(b).score-priority(a).score,"ad":(a,b)=>a.name.localeCompare(b.name,"tr"),"ciro":(a,b)=>custRevenue(b)-custRevenue(a),"potansiyel":(a,b)=>(Number(b.estMonthly)||0)-(Number(a.estMonthly)||0),"son ziyaret":(a,b)=>((lastVisit(a)||{}).date||"").localeCompare((lastVisit(b)||{}).date||"")};
   cs.sort(sorters[U.sort]||sorters["öncelik"]);
   return `<div class="row"><h2>Müşteriler <span class="muted mono" style="font-size:16px">${cs.length}/${S.customers.size}</span></h2><span class="sp"></span>
-   <button class="btn" data-act="impCust">Excel'den yükle</button><button class="btn pri" data-act="newCust">+ Müşteri</button></div>
+   <button class="btn" data-act="impCust">Excel'den yükle</button>${custList().some(c=>!hasGeo(c)&&(c.address||c.region||c.district))?`<button class="btn" data-act="geoMissing">Konumları adresten bul</button>`:""}<button class="btn pri" data-act="newCust">+ Müşteri</button></div>
    ${impPanel("customer")}
    ${sampleCTA()}
    ${S.customers.size?`<div class="row"><input id="custQ" placeholder="Ara: firma, bölge, yetkili, tip" value="${esc(U.custQ)}" style="flex:1 1 220px"><select id="sortSel" style="flex:0 1 170px">${Object.keys(sorters).map(k=>`<option ${U.sort===k?"selected":""}>${k}</option>`).join("")}</select></div>${filterChips()}`:""}
@@ -466,7 +469,7 @@ function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return
    ${p.why.length?`<div class="why">Öncelik nedeni: ${esc(p.why.join(" · "))}</div>`:""}
    ${c.notes?`<div class="note">${esc(c.notes)}</div>`:""}
    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sipariş toplamı</div><div class="v">${tl(sip)}</div></div><div class="kpi"><div class="l">Fatura toplamı</div><div class="v">${tl(fat)}</div></div><div class="kpi"><div class="l">Ziyaret</div><div class="v">${vs.length}</div></div></div>
-   <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="aiMsg" data-id="${c.id}">✨ Mesaj yaz</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(mapsLink(c))}" target="_blank" rel="noopener">Haritada aç</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button></div></section>
+   <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="aiMsg" data-id="${c.id}">✨ Mesaj yaz</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(dirLink(c))}" target="_blank" rel="noopener">Yol tarifi</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button><button class="btn ghost" data-act="delCust" data-id="${c.id}" style="color:var(--bad)">Müşteriyi sil</button></div></section>
   ${U.msg&&U.msg.id===c.id?`<section class="panel"><h3>Mesaj taslağı</h3><textarea id="msgTxt" rows="5">${esc(U.msg.text)}</textarea><div class="row"><button class="btn sm" data-act="msgCopy">Kopyala</button>${wa?`<a class="btn sm pri" href="${esc(wa)}?text=${encodeURIComponent(U.msg.text)}" target="_blank" rel="noopener">WhatsApp'ta aç</a>`:""}<button class="btn sm ghost" data-act="msgClose">Kapat</button></div></section>`:""}
   <h3>Ziyaret geçmişi</h3><div class="list">${vs.length?vs.map(visitItem).join(""):`<div class="empty">Bu müşteriye henüz ziyaret notu yok.</div>`}</div>
   <h3>Sipariş ve faturalar</h3>${os.length?ordTable(os):`<div class="empty">Bu müşteriyle eşleşen belge yok. Excel yüklerken müşteri adı, buradaki firma adıyla aynı yazılmalı.</div>`}`}
@@ -759,7 +762,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.3.0";
+const APP_VERSION="1.4.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -808,6 +811,64 @@ function scheduleLunchNotif(){clearTimeout(U._lt);const D=day();const n=new Date
   const diff=target-n;if(diff>0&&diff<12*3600e3)U._lt=setTimeout(()=>notifyLunch(false),diff);
   else if(inLunchWindow())notifyLunch(false)}
 
+/* ---------- adres bulma (OpenStreetMap, ücretsiz) ---------- */
+const dirLink=c=>"https://www.google.com/maps/dir/?api=1&travelmode=driving&destination="+encodeURIComponent(placeStr(c)||c.name);
+let geoLast=0;async function geoWait(){const w=1100-(Date.now()-geoLast);if(w>0)await sleep(w);geoLast=Date.now()}
+async function reverseGeo(lat,lng){await geoWait();
+  const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=tr&addressdetails=1&zoom=18`);if(!r.ok)throw new Error("Adres bulunamadı");
+  const d=await r.json();const a=d.address||{};
+  const street=[a.road||a.pedestrian||a.street,a.house_number?"No:"+a.house_number:""].filter(Boolean).join(" ");
+  const mah=a.quarter||a.neighbourhood||a.suburb||"";
+  return {address:[mah&&mah!==street?mah:"",street,a.industrial||""].filter(Boolean).join(", ")||d.display_name?.split(",").slice(0,3).join(","),
+    region:a.town||a.city_district||a.district||a.county||a.suburb||"",city:a.province||a.city||a.state||"",name:d.name||a.shop||a.amenity||""}}
+async function forwardGeo(q){await geoWait();
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tr&accept-language=tr&q=${encodeURIComponent(q)}`);if(!r.ok)return null;
+  const d=await r.json();return d[0]?{lat:+(+d[0].lat).toFixed(6),lng:+(+d[0].lon).toFixed(6)}:null}
+async function searchPlaces(q){const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=41.02&lon=29.0&limit=6`);if(!r.ok)return [];
+  const d=await r.json();return (d.features||[]).filter(f=>(f.properties.countrycode||"TR")==="TR").map(f=>{const p=f.properties;const [lng,lat]=f.geometry.coordinates;
+    return {name:p.name||"",address:[p.locality||p.district,p.street,p.housenumber?"No:"+p.housenumber:""].filter(Boolean).join(", "),region:p.county||p.city||"",city:p.state||p.city||"",lat:+lat.toFixed(6),lng:+lng.toFixed(6)}})}
+function setVal(id,v,onlyEmpty){const el=document.getElementById(id);if(!el||!v)return;if(onlyEmpty&&el.value.trim())return;el.value=v}
+async function fillAddrFrom(lat,lng){try{const a=await reverseGeo(lat,lng);setVal("cf_addr",a.address);setVal("cf_region",a.region);setVal("cf_city",a.city);setVal("cf_name",a.name,true);toast("Adres bulundu: "+[a.region,a.city].filter(Boolean).join(", "))}catch(e){toast("Konum alındı ama adres bulunamadı; elle yazabilirsin.")}}
+async function addrSearch(q){const box=$("#addrHits");if(!box)return;q=q.trim();if(q.length<3){box.innerHTML="";return}
+  box.innerHTML=`<span class="why">Aranıyor…</span>`;let hits=[];try{hits=await searchPlaces(q+" İstanbul")}catch(e){}
+  if(($("#addrQ")||{}).value?.trim()!==q)return;
+  U._hits=hits;box.innerHTML=hits.length?hits.map((h,i)=>`<button type="button" class="item" data-act="pickAddr" data-i="${i}" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><b>${esc(h.name||h.address)}</b><span class="meta"><span>${esc([h.address,h.region,h.city].filter(Boolean).join(" · "))}</span></span></button>`).join(""):`<span class="why">Sonuç yok. Firma adı yerine sokak ya da sanayi sitesi adıyla dene.</span>`}
+async function geocodeMissing(btn){const miss=custList().filter(c=>!hasGeo(c)&&(c.address||c.region||c.district));if(!miss.length){toast("Konumu eksik müşteri yok");return}
+  btn.disabled=true;let ok=0;for(let i=0;i<miss.length;i++){const c=miss[i];btn.textContent=`Bulunuyor ${i+1}/${miss.length}…`;
+    let g=await forwardGeo([c.address,c.region||c.district,c.city||"İstanbul"].filter(Boolean).join(", ")).catch(()=>null);
+    if(!g)g=await forwardGeo([c.name,c.region||c.district,c.city||"İstanbul"].filter(Boolean).join(", ")).catch(()=>null);
+    if(g){await save(Object.assign({},c,g,{geoApprox:true}));ok++}}
+  toast(`${ok}/${miss.length} müşterinin konumu adresinden bulundu`);render()}
+
+/* ---------- gün aşırı plan: Avrupa / Anadolu dönüşümlü, evden çıkış-eve dönüş ---------- */
+const side=c=>{const lng=c.lng,lat=c.lat;const cut=lat>41.07?29.06:lat>41.03?29.02:29.01;return lng<cut?"Avrupa":"Anadolu"};
+function planDays(n){const out=[];const d=new Date();if(d.getHours()>=11)d.setDate(d.getDate()+1);while(out.length<n){if(d.getDay()!==0)out.push(new Date(d));d.setDate(d.getDate()+1)}
+  return out.map(x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"))}
+const DAYN=["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"];
+function buildPlan(){const cs=custList().filter(c=>hasGeo(c)&&c.status!=="Pasif");const days=planDays(6);
+  const pr=c=>priority(c).score;const bySide={Avrupa:[],Anadolu:[]};cs.forEach(c=>bySide[side(c)].push(c));
+  const weight=s=>bySide[s].reduce((a,c)=>a+pr(c),0);let cur=weight("Avrupa")>=weight("Anadolu")?"Avrupa":"Anadolu";
+  const used=new Map();const plan=[];
+  for(const date of days){
+    const pool=bySide[cur].filter(c=>{const last=used.get(c.id);const f=Number(c.freq)||14;return !last||daysBetween(last,date)>=Math.max(2,f)}).sort((a,b)=>pr(b)-pr(a));
+    const chosen=[];
+    while(pool.length){let best=-1,bs=-1e9;pool.forEach((c,i)=>{const dmin=chosen.length?Math.min(...chosen.map(x=>km(x,c))):0;const sc=pr(c)-dmin*4;if(sc>bs){bs=sc;best=i}});
+      const c=pool.splice(best,1)[0];const r=routeFor([...chosen,c].map(x=>x.id),null);if(r.plan.ok&&r.plan.rows.filter(x=>x.c).length===chosen.length+1)chosen.push(c);if(chosen.length>=12)break}
+    chosen.forEach(c=>used.set(c.id,date));
+    const r=routeFor(chosen.map(c=>c.id),null);
+    plan.push({date,side:cur,ids:r.order.map(c=>c.id),homeAt:r.plan.homeAt,km:r.dist});
+    cur=cur==="Avrupa"?"Anadolu":"Avrupa"}
+  return plan}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/864e5)}
+function planPanel(){const P=(settings().plan)||null;
+  if(!P||!P.days)return `<section class="panel"><div class="row"><h2>Gün aşırı plan</h2></div><span class="sub">Önümüzdeki 6 iş gününü Avrupa ve Anadolu yakası dönüşümlü olacak şekilde planlarım. Her gün evden çıkıp ${esc(day().arriveBy)}'da eve dönen bir rota olur; öncelikli ve yakın müşteriler aynı güne toplanır.</span><div class="row"><button class="btn pri" data-act="mkPlan">Planı oluştur</button></div></section>`;
+  const t=today();
+  return `<section class="panel"><div class="row"><h2>Gün aşırı plan</h2><span class="sp"></span><button class="btn sm" data-act="mkPlan">Yeniden oluştur</button></div>
+   <div class="list">${P.days.map((d,i)=>{const dt=new Date(d.date);const names=d.ids.map(id=>S.customers.get(id)).filter(Boolean);
+     return `<div class="item" ${d.date===t?'style="border-color:var(--accent)"':""}><div class="row"><b>${DAYN[dt.getDay()]} ${fmtDate(d.date).slice(0,5)}</b><span class="chip ${d.side==="Avrupa"?"st":"warn"}">${d.side} yakası</span><span class="chip mono">${names.length} durak</span>${names.length?`<span class="chip ok mono">eve ${hhmm(d.homeAt)}</span>`:""}<span class="sp"></span>${names.length?`<button class="btn sm ${d.date===t?"pri":""}" data-act="loadPlan" data-i="${i}">Rotaya yükle</button>`:""}</div>
+      <div class="why">${names.length?esc(names.map(c=>c.name).join(" → ")):"Bu yakada sırası gelen müşteri yok."}</div></div>`}).join("")}</div>
+   <span class="why">Bir müşterinin plana tekrar girmesi için “ziyaret sıklığı” gününün geçmesi gerekir; 2 yazarsan gün aşırı her turda gelir.</span></section>`}
+
 /* ---------- events ---------- */
 async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
 document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e.target.open},true);
@@ -822,7 +883,7 @@ document.addEventListener("click",async e=>{
   else if(a==="newCust"){U.editCust="new"}
   else if(a==="editCust"){U.tab="musteri";U.detail=null;U.editCust=id}
   else if(a==="cancelCust"){U.editCust=null}
-  else if(a==="delCust"){if(b.dataset.sure){const c=S.customers.get(id);U.editCust=null;U.selected.delete(id);keepUI();if(c)await remove(c);toast("Müşteri silindi");return}b.dataset.sure="1";b.textContent="Emin misin? Tekrar bas";return}
+  else if(a==="delCust"){if(b.dataset.sure){const c=S.customers.get(id);U.editCust=null;U.detail=null;U.selected.delete(id);keepUI();if(c)await remove(c);toast("Müşteri silindi");return}b.dataset.sure="1";b.textContent="Emin misin? Tekrar bas";return}
   else if(a==="detail"){U.detail=id;window.scrollTo(0,0)}
   else if(a==="back"){U.detail=null}
   else if(a==="visit"){U.tab="ziyaret";U.detail=null;U.visitFor=id;keepUI()}
@@ -835,6 +896,10 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="pickAddr"){const h=(U._hits||[])[Number(b.dataset.i)];if(h){setVal("cf_name",h.name,true);setVal("cf_addr",h.address);setVal("cf_region",h.region);setVal("cf_city",h.city);setVal("cf_geo",h.lat+", "+h.lng);$("#addrHits").innerHTML=`<span class="why">✓ Adres ve konum dolduruldu. Kontrol edip kaydet.</span>`}return}
+  else if(a==="geoMissing"){geocodeMissing(b);return}
+  else if(a==="mkPlan"){b.disabled=true;b.textContent="Planlanıyor…";await sleep(30);const days=buildPlan();await save(Object.assign({},settings(),{plan:{at:today(),days}}));toast("6 günlük plan hazır");return}
+  else if(a==="loadPlan"){const d=settings().plan.days[Number(b.dataset.i)];U.selected=new Set(d.ids.filter(id=>S.customers.has(id)));U.start="";keepUI();toast(d.side+" yakası rotası yüklendi");window.scrollTo(0,0)}
   else if(a==="lunchLocate"){locateLunch();return}
   else if(a==="notifOn"){try{const r=await Notification.requestPermission();if(r==="granted"){toast("Bildirim açıldı");scheduleLunchNotif();try{const reg=await navigator.serviceWorker.ready;if(reg.periodicSync)await reg.periodicSync.register("ogle",{minInterval:6*3600e3})}catch(e){}}else toast("Bildirim izni verilmedi")}catch(e){toast("Bu cihaz bildirim desteklemiyor")}}
   else if(a==="aiTest"){aiTest();return}
@@ -850,7 +915,7 @@ document.addEventListener("click",async e=>{
   else if(a==="clearStart"){U.start="";keepUI()}
   else if(a==="geoHere"){const tgt=b.dataset.t;if(!navigator.geolocation){toast("Bu cihaz konum vermiyor.");return}b.disabled=true;b.textContent="Konum alınıyor…";
     navigator.geolocation.getCurrentPosition(p=>{const v=p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);const el=document.getElementById(tgt);
-      if(tgt==="startIn"){U.start=v;keepUI();render()}else if(el){el.value=v}b.disabled=false;b.textContent="📍 Konum alındı ("+Math.round(p.coords.accuracy)+" m)"},
+      if(tgt==="startIn"){U.start=v;keepUI();render()}else if(el){el.value=v;if(tgt==="cf_geo")fillAddrFrom(p.coords.latitude,p.coords.longitude)}b.disabled=false;b.textContent="📍 Konum alındı ("+Math.round(p.coords.accuracy)+" m)"},
       err=>{b.disabled=false;b.textContent="📍 Tekrar dene";toast(err.code===1?"Konum izni verilmedi. Tarayıcı ayarlarından izin ver.":"Konum alınamadı, açık alanda tekrar dene.")},{enableHighAccuracy:true,timeout:15000});return}
   else if(a==="dropLate"){const r=buildRoute();r.plan.rows.filter(x=>x.late).forEach(x=>U.selected.delete(x.c.id));keepUI();toast("Sığmayan duraklar çıkarıldı")}
   else if(a==="delLunch"){const D=day();const L=[...(D.lunchPlaces||[])];L.splice(Number(b.dataset.i),1);await saveDay({lunchPlaces:L});return}
@@ -892,13 +957,16 @@ document.addEventListener("change",async e=>{const t=e.target;
   else if(t.id==="regionSel"){U.region=t.value;render()}
   else if(t.id==="startIn"){U.start=t.value;keepUI();if(t.value&&!parseCoords(t.value))toast("Koordinat okunamadı; enlem, boylam yaz.");render()}});
 document.addEventListener("input",e=>{const t=e.target;
+  if(t.id==="addrQ"){clearTimeout(U._at);const v=t.value;U._at=setTimeout(()=>addrSearch(v),450);return}
   if(t.id==="custQ"||t.id==="ordQ"){U[t.id]=t.value;clearTimeout(U._qt);U._qt=setTimeout(render,180)}});
 document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target;const FD=new FormData(f);const fd=Object.fromEntries(FD);
   if(f.id==="custForm"){const old=U.editCust!=="new"?S.customers.get(U.editCust):null;const g=parseCoords(fd.geo);
     if(fd.geo&&!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
     const c=Object.assign({},old||{id:uid("c"),kind:"customer",createdAt:Date.now()},{name:fd.name.trim(),contact:fd.contact,phone:fd.phone,type:fd.type,status:fd.status,tier:fd.tier,estMonthly:parseNum(fd.estMonthly),term:parseNum(fd.term)||"",brands:FD.getAll("brands"),city:fd.city,region:fd.region.trim(),address:fd.address,nextVisit:fd.nextVisit,freq:Number(fd.freq)||0,notes:fd.notes});
-    if(g){c.lat=g.lat;c.lng=g.lng}else{delete c.lat;delete c.lng}
-    U.editCust=null;await save(c);toast("Müşteri kaydedildi")}
+    if(g){c.lat=g.lat;c.lng=g.lng;delete c.geoApprox}else{delete c.lat;delete c.lng}
+    U.editCust=null;await save(c);toast("Müşteri kaydedildi")
+    if(!g&&(c.address||c.region)){const fg=await forwardGeo([c.address,c.region,c.city||"İstanbul"].filter(Boolean).join(", ")).catch(()=>null);
+      if(fg){await save(Object.assign({},S.customers.get(c.id)||c,fg,{geoApprox:true}));toast("Konum adresten bulundu (yaklaşık)")}}}
   else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
   else if(f.id==="chatForm"){aiAsk(fd.q);return}
   else if(f.id==="lunchHere"){let pos=U.lunch.pos;try{pos=await getPos();U.lunch.pos=pos}catch(e){if(!pos){toast(e.message);return}}

@@ -1,0 +1,18 @@
+{
+ "mode": "sanal",
+ "startEquity": 10000,
+ "cash": 10000,
+ "positions": [],
+ "trades": [],
+ "equityCurve": [
+  {
+   "k": "2026-10-23T21",
+   "t": 1792791089,
+   "e": 10000
+  }
+ ],
+ "startedAt": 1792791089,
+ "runs": 1,
+ "equity": 10000,
+ "lastRun": 1792791089
+}

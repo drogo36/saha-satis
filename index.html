@@ -819,7 +819,7 @@ SON ZİYARETLER:
 ${vs.join("\n")||"(yok)"}
 ${stockContext(q)}
 GECİKEN ÖDEMELER: ${overdueList().slice(0,20).map(g=>g.name+" "+Math.round(g.total)+"₺ "+g.maxDays+" gün").join("; ")||"yok"}`}
-const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir). Stok sorularında yalnızca STOK listesini kullan: ürünün adını, OEM kodunu, stok adedini ve fiyatını yaz; listede yoksa açıkça "stokta kayıtlı değil" de, kod ya da muadil uydurma. Kritik stokları ve en çok satanları satış önerilerinde kullan; bir ürünü önerirken o markayla çalışan müşterileri seç.`;
+const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir). Stok sorularında yalnızca STOK listesini kullan: ürünün adını, OEM kodunu, stok adedini ve fiyatını yaz; listede yoksa açıkça "stokta kayıtlı değil" de, kod ya da muadil uydurma. Kritik stokları ve en çok satanları satış önerilerinde kullan; bir ürünü önerirken o markayla çalışan müşterileri seç. Uygulamayı güncelleme isteğinde update_app işlemini, yeni özellik ya da hata bildirimi isteğinde request_feature işlemini öner.`;
 
 U.chat=[];U.aiBusy=false;
 function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yapay zekâ anahtarı</h2>
@@ -837,9 +837,17 @@ function vAI(){const ready=true;const hasKey=aiReady();
     ${U.aiBusy?`<div class="item"><span class="muted">Düşünüyor…</span></div>`:""}</div>
    <div class="chips">${quick.map(q=>`<button class="fchip" data-act="aiAsk" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
    <form id="chatForm" class="row" style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px))"><textarea id="chatIn" name="q" rows="2" placeholder="Sor: “Topkapı'da PSA satan teklif bekleyenler kim?” (klavyedeki mikrofonla sesli de yazabilirsin)" style="flex:1 1 220px;min-height:52px"></textarea><button class="btn pri" type="submit" ${U.aiBusy?"disabled":""}>Gönder</button></form>
+   <details class="panel"><summary style="cursor:pointer"><b>💡 Uygulamaya özellik iste / hata bildir</b></summary>
+     <form id="featForm" style="display:grid;gap:8px;margin-top:10px"><label class="f">Başlık<input id="ft_title" name="title" required placeholder="örn. Stok listesine raf yeri sütunu"></label><label class="f">Ayrıntı<textarea id="ft_det" name="details" rows="3" placeholder="Ne olsun, nerede görünsün, neden lazım?"></textarea></label>
+     <div class="row"><button class="btn pri sm" type="submit">İsteği gönder</button></div>
+     <span class="why">İstek GitHub'daki uygulama sayfana kaydedilir (telefonda GitHub'a giriş yapmış olman yeterli). Geliştirilip test edildikten sonra yeni sürüm uygulamana kendiliğinden gelir.</span></form></details>
    <details class="panel" ${hasKey?"":"open"}><summary style="cursor:pointer"><b>Anahtar ayarı ve bağlantı testi</b>${aiCfg().last?` <span class="muted">· son yanıt: ${esc(aiCfg().last)}</span>`:""}</summary>${aiSetupPanel()}
      <div class="row"><button class="btn sm" data-act="aiTest">Bağlantıyı test et</button></div>${U.aiTest?`<pre class="note mono" style="font-size:12px;background:var(--sunk);padding:10px;border-radius:8px;margin:0">${esc(U.aiTest)}</pre>`:""}</details>`:""}`}
 async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.push({role:"user",text:q});U.aiBusy=true;render();scrollChat();
+  if(/(uygulama|kendini|sürüm|surum|versiyon|güncelleme var)/i.test(q)&&/(güncelle|guncelle|sürüm|surum|versiyon|yenile)/i.test(q)&&!/(stok|fiyat|müşteri|musteri)/i.test(q)){
+    const v=await checkUpdate(false,false);
+    U.chat.push({role:"model",text:v?`Yeni sürüm hazır: ${v.version}${v.notes?" — "+v.notes:""}. Kayıtların silinmeden şimdi yüklüyorum.`:v===null?`Uygulama zaten güncel (sürüm ${APP_VERSION}). Yeni sürüm çıktığında uygulamayı açtığında kendiliğinden yüklenir.`:"Güncellemeyi kontrol edemedim, internet bağlantını kontrol edip tekrar sor."});
+    U.aiBusy=false;render();scrollChat();if(v){lsFlush();setTimeout(applyUpdate,1200)}return}
   try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
     const first=U.chat.filter(m=>m.role==="user").length===1;
     const prompt=q;
@@ -869,10 +877,17 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.0.1";
+const APP_VERSION="2.1.0";
 U.update=null;
-async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
-  if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
+function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
+async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
+  if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;
+    // aynı sürüm için 10 dakikada en fazla bir otomatik deneme (önbellek eski dosyayı verirse sonsuz yenilemeyi önler)
+    let tried=null;try{tried=JSON.parse(localStorage.getItem("saha-guncel-deneme")||"null")}catch(e){}
+    const recent=tried&&tried.v===v.version&&Date.now()-tried.t<10*60e3;
+    if(auto&&!recent&&safeToReload()){try{localStorage.setItem("saha-guncel-not",JSON.stringify(v));localStorage.setItem("saha-guncel-deneme",JSON.stringify({v:v.version,t:Date.now()}))}catch(e){}lsFlush();toast("Yeni sürüm yükleniyor: "+v.version);setTimeout(applyUpdate,700);return v}
+    render();if(manual)toast("Yeni sürüm: "+v.version);return v}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")");return null}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.");return false}}
+function updatedNotice(){try{const v=JSON.parse(localStorage.getItem("saha-guncel-not")||"null");if(v&&v.version===APP_VERSION){localStorage.removeItem("saha-guncel-not");setTimeout(()=>toast("✓ "+APP_VERSION+" sürümüne güncellendi"+(v.notes?": "+v.notes:""),{ms:6000}),1200)}}catch(e){}}
 function cmpVer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0}
 async function applyUpdate(){toast("Güncelleniyor…");
   try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html?t="+Date.now(),{cache:"no-store"});if(r.ok){const h=await r.text();if(h.includes("APP_VERSION"))localStorage.setItem("saha-app-html",h)}}catch(e){}
@@ -1406,6 +1421,8 @@ Kullanılabilen işlemler (kodlar stok kodu ya da OEM olabilir, müşteri adlar�
 {"type":"add_product","sku":"","name":"","oem":"","brand":"","price":0,"stock":0}
 {"type":"add_route","customers":["..."]} | {"type":"mark_paid","customers":["..."]} | {"type":"set_next_visit","customer":"...","date":"YYYY-MM-DD"}
 {"type":"add_customer","name":"","phone":"","region":"","contact":""}
+{"type":"update_app"} (uygulamanın yeni sürümünü yükle)
+{"type":"request_feature","title":"kısa başlık","details":"isteğin ayrıntısı"} — kullanıcı uygulamaya yeni bir özellik, değişiklik ya da hata düzeltmesi isterse bunu kullan. Sen uygulamanın kodunu değiştiremezsin; bu istek geliştiriciye iletilir.
 Veride olmayan kod ya da müşteri için işlem üretme; emin değilsen soru sor.`;
 function findProdByCode(code){const k=normCode(code);return prodIndex().byCode.get(k)||products().find(p=>normCode(p.sku)===k||normCode(p.oem)===k)||null}
 function findCust(n){return custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))||null}
@@ -1422,11 +1439,17 @@ function planActions(acts){const steps=[];const miss=[];
     else if(a.type==="add_route"){const cs=(a.customers||[]).map(n=>findCust(n)||(miss.push(n),null)).filter(Boolean);if(cs.length)steps.push({kind:"route",ids:cs.map(c=>c.id),text:`Rotaya ekle: ${cs.map(c=>c.name).join(", ")}`})}
     else if(a.type==="mark_paid"){(a.customers||[]).forEach(n=>{const c=findCust(n);if(!c){miss.push(n);return}const inv=overdueList().find(g=>g.c&&g.c.id===c.id);if(inv)steps.push({kind:"save",items:inv.inv.map(o=>Object.assign({},o,{paid:true,paidAt:today()})),text:`${c.name}: ${inv.inv.length} fatura ödendi (${tl(inv.total)})`});else miss.push(n+" için geciken fatura yok")})}
     else if(a.type==="set_next_visit"){const c=findCust(a.customer);if(!c||!/^\d{4}-\d{2}-\d{2}$/.test(a.date||"")){miss.push(a.customer);continue}steps.push({kind:"save",items:[Object.assign({},c,{nextVisit:a.date})],text:`${c.name} sonraki ziyaret: ${fmtDate(a.date)}`})}
+    else if(a.type==="update_app"){steps.push({kind:"update",text:"Uygulamanın yeni sürümünü kontrol et ve yükle"})}
+    else if(a.type==="request_feature"){const ti=String(a.title||"Geliştirme isteği").slice(0,120),de=String(a.details||"");steps.push({kind:"feature",title:ti,details:de,text:`Geliştirme isteği gönder: ${ti}`})}
     else if(a.type==="add_customer"){if(!a.name||findCust(a.name)){miss.push((a.name||"?")+" zaten var");continue}steps.push({kind:"save",items:[{id:uid("c"),kind:"customer",name:String(a.name),phone:String(a.phone||""),region:String(a.region||""),contact:String(a.contact||""),status:"Aday",tier:"B",freq:14,createdAt:Date.now()}],text:`Yeni müşteri: ${a.name}`})}
   }catch(e){}}
   return {steps,miss}}
-async function applyPlan(P){let n=0;const dels=[];for(const s of P.steps){if(s.kind==="del"){dels.push(...s.items)}else if(s.kind==="save"){await saveMany(s.items);n+=s.items.length}else if(s.kind==="route"){s.ids.forEach(id=>U.selected.add(id));keepUI();n+=s.ids.length}}
-  if(dels.length)await removeMany(dels,`${dels.length} ürün silindi`+(n?` · ${n} işlem yapıldı`:""));else toast(`${n} işlem uygulandı`)}
+function featureUrl(title,details){const body=`${details}\n\n— Uygulamadan gönderildi · sürüm ${APP_VERSION} · ${new Date().toLocaleString("tr-TR")}`;
+  return "https://github.com/drogo36/saha-satis/issues/new?labels=istek&title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)}
+function openLink(u){const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
+async function applyPlan(P){let n=0;const dels=[];let upd=false;for(const s of P.steps){if(s.kind==="update"){upd=true;continue}if(s.kind==="feature"){U.featureLink=featureUrl(s.title,s.details);openLink(U.featureLink);n++;continue}if(s.kind==="del"){dels.push(...s.items)}else if(s.kind==="save"){await saveMany(s.items);n+=s.items.length}else if(s.kind==="route"){s.ids.forEach(id=>U.selected.add(id));keepUI();n+=s.ids.length}}
+  if(dels.length)await removeMany(dels,`${dels.length} ürün silindi`+(n?` · ${n} işlem yapıldı`:""));else if(n)toast(`${n} işlem uygulandı`);
+  if(upd){const v=await checkUpdate(false,false);if(v){lsFlush();toast("Yeni sürüm yükleniyor: "+v.version);setTimeout(applyUpdate,900)}else toast("Uygulama zaten güncel ("+APP_VERSION+")")}}
 // Yapay zekâ olmadan da cevap: stok kodu ve kritik stok soruları
 function localAnswer(q){const r=findCodes(q);const lines=[];
   r.hits.forEach(h=>{const p=h.p;lines.push(`• ${p.sku?"["+p.sku+"] ":""}${p.name}${p.oem?" · OEM "+p.oem:""} — stok: ${p.stock===""||p.stock==null?"bilinmiyor":p.stock+" adet"}${p.price?" · "+tl(p.price):""}${lowOf(p)?" · KRİTİK":""}`)});
@@ -1629,6 +1652,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
       if(fg){await save(Object.assign({},S.customers.get(c.id)||c,fg,{geoApprox:true}));toast("Konum adresten bulundu (yaklaşık)")}}}
   else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
   else if(f.id==="chatForm"){aiAsk(fd.q);return}
+  else if(f.id==="featForm"){openLink(featureUrl(String(fd.title).trim(),String(fd.details||"").trim()));toast("GitHub açıldı: sayfanın altındaki \"Submit new issue\" düğmesine bas");f.reset();return}
   else if(f.id==="delAllForm"){if(String(fd.t||"").trim().toLocaleUpperCase("tr-TR")!=="SİL"){toast("Onay için SİL yaz");return}U.stkConfirmAll=false;U.stkSel.clear();U.stk.edit=null;await removeMany(products(),"Tüm stok silindi");return}
   else if(f.id==="loginForm"){fd.act=(e.submitter&&e.submitter.value)||"in";doLogin(fd);return}
   else if(f.id==="freeLine"){const h=findCodes(fd.name).hits[0];if(h){const L=U.cart.lines;const ex=L.find(l=>l.pid===h.p.id);if(ex)ex.qty++;else L.push({pid:h.p.id,name:h.p.name,oem:h.p.oem||"",price:Number(h.p.price)||0,qty:1});toast("Kod stokta bulundu: "+h.p.name);render();return}
@@ -1653,11 +1677,11 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});
 
 render();boot();setTimeout(cloudInit,0);addEventListener("online",setSync);addEventListener("offline",setSync);
-checkUpdate(false);setInterval(()=>checkUpdate(false),30*60*1000);
+updatedNotice();setTimeout(()=>checkUpdate(false,true),1500);setInterval(()=>checkUpdate(false),30*60*1000);
 setTimeout(checkOverdue,1500);setTimeout(()=>{nightCheck();detectHome()},2500);setInterval(()=>{if(document.visibilityState==="visible"&&U.tab==="rota"&&!document.querySelector("input:focus,textarea:focus,select:focus")){ensurePos();scheduleHomeNotif();render()}},5*60e3);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkOverdue();arrivalWatch()});
 setTimeout(()=>{scheduleLunchNotif();if(location.hash==="#ogle"||inLunchWindow()){U.tab="rota";U.lunch.open=true;if(location.hash==="#ogle"||notifState()==="granted")locateLunch(true)}},800);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleLunchNotif()});
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate(false)});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate(false,true)});
 if("serviceWorker" in navigator){let reloaded=false;const hadCtl=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloaded||!hadCtl)return;reloaded=true;if(!document.querySelector("#visitForm,#custForm"))location.reload()})}
 let deferredInstall=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#installBtn").hidden=false});

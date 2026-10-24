@@ -1,18 +1,40 @@
 {
  "mode": "sanal",
  "startEquity": 10000,
- "cash": 10000,
- "positions": [],
+ "cash": 7495,
+ "positions": [
+  {
+   "pair": "ENATRY",
+   "sym": "ENA",
+   "openT": 1792800180,
+   "lastT": 1792796400,
+   "entry": 9.867858,
+   "qty": 253.34778834474514,
+   "cost": 2505,
+   "stop": 9.683607006103161,
+   "initStop": 9.683607006103161,
+   "target": 10.293982484742099,
+   "rr": 2.499999999999995,
+   "why": "destek 9,839 (24 dokunuş), hedef 10,58, RSI 44, K/R 2.5",
+   "be": false,
+   "now": 9.858
+  }
+ ],
  "trades": [],
  "equityCurve": [
   {
    "k": "2026-10-23T21",
    "t": 1792791089,
    "e": 10000
+  },
+  {
+   "k": "2026-10-24T00",
+   "t": 1792800180,
+   "e": 9992.5
   }
  ],
  "startedAt": 1792791089,
- "runs": 2,
- "equity": 10000,
- "lastRun": 1792791271
+ "runs": 3,
+ "equity": 9992.502497502497,
+ "lastRun": 1792800180
 }

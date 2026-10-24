@@ -3,7 +3,7 @@
   "short_name": "Saha Satış",
   "description": "Yedek parça saha satışı: müşteri, ziyaret, sipariş/fatura ve günlük rota",
   "lang": "tr",
-  "start_url": "./",
+  "start_url": "./boot.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

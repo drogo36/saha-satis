@@ -762,12 +762,15 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.4.0";
+const APP_VERSION="1.4.1";
 U.update=null;
-async function checkUpdate(manual){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
+async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
 function cmpVer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0}
-async function applyUpdate(){toast("Güncelleniyor…");try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];await Promise.all(regs.map(r=>r.update().catch(()=>{})));
+async function applyUpdate(){toast("Güncelleniyor…");
+  try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html?t="+Date.now(),{cache:"no-store"});if(r.ok){const h=await r.text();if(h.includes("APP_VERSION"))localStorage.setItem("saha-app-html",h)}}catch(e){}
+  if(/boot\.html$/.test(location.pathname)){location.reload();return}
+  try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];await Promise.all(regs.map(r=>r.update().catch(()=>{})));
   const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
   location.replace(location.pathname+"?v="+encodeURIComponent((U.update&&U.update.version)||Date.now()))}
 function updateBanner(){const u=U.update;if(!u)return "";return `<div class="banner" style="background:var(--steel-bg);color:var(--steel)"><b>Yeni sürüm ${esc(u.version)}</b>${u.notes?": "+esc(u.notes):""} <button class="btn sm pri" data-act="doUpdate">Şimdi güncelle</button><span class="why">Kayıtların silinmez.</span></div>`}

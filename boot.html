@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Saha Satış Defteri</title>
+<meta name="theme-color" content="#24465f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Saha Satış">
+<style>html,body{margin:0;height:100%;background:#24465f;color:#fff;font:15px system-ui,sans-serif}#s{display:grid;place-items:center;height:100%;text-align:center;padding:24px}</style>
+</head><body><div id="s">Saha Satış Defteri<br><small style="opacity:.7">açılıyor…</small></div>
+<script>
+/* Kalıcı açılış sayfası: uygulamanın güncel halini GitHub'dan alır, internet yoksa son kopyayı açar.
+   Bu dosya hiç değişmez; güncellemeler index.html üzerinden gelir. */
+(async function(){
+  var SRC="https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html", K="saha-app-html";
+  var cached=null; try{cached=localStorage.getItem(K)}catch(e){}
+  function show(h){document.open();document.write(h);document.close()}
+  async function fresh(ms){var c=new AbortController();var t=setTimeout(function(){c.abort()},ms);
+    try{var r=await fetch(SRC+"?t="+Date.now(),{cache:"no-store",signal:c.signal});clearTimeout(t);if(!r.ok)return null;var h=await r.text();
+      if(h.indexOf("APP_VERSION")<0)return null;try{localStorage.setItem(K,h)}catch(e){}return h}catch(e){return null}}
+  if(cached){show(cached);fresh(15000);return}          // anında aç, arka planda yenile
+  var h=await fresh(20000);
+  if(h){show(h);return}
+  document.getElementById("s").innerHTML="İlk açılış için internet gerekiyor.<br><br><button onclick='location.reload()' style='font:inherit;padding:10px 16px;border-radius:8px;border:0'>Tekrar dene</button>";
+})();
+</script>
+</body></html>

@@ -114,6 +114,7 @@ textarea{min-height:80px;resize:vertical}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .chip{font:500 11px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;padding:5px 7px;border-radius:5px;background:var(--sunk);color:var(--muted);white-space:nowrap}
 .chip.ok{background:var(--ok-bg);color:var(--ok)}.chip.warn{background:var(--warn-bg);color:var(--warn)}.chip.bad{background:var(--bad-bg);color:var(--bad)}.chip.st{background:var(--steel-bg);color:var(--steel)}
+.chip.nc{text-transform:none;letter-spacing:0;font-size:12px}
 .note{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
 .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
@@ -172,6 +173,7 @@ svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sun
   <button role="tab" data-tab="daha" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>Daha</button>
 </div></nav>
 <div id="sheet"></div>
+<input id="scanFile" type="file" accept="image/*" capture="environment" hidden>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -274,13 +276,13 @@ const RESULTS={"Sipariş alındı":"ok","Teklif verildi":"st","Bilgi / tanıtım
 
 /* ---------- render ---------- */
 function render(){
-  const MORE=["harita","ziyaret","siparis","asistan","rapor","yakin","gunsonu","daha"];document.querySelectorAll("nav.bottom [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===U.tab||(b.dataset.tab==="daha"&&MORE.includes(U.tab))));
+  const MORE=["harita","ziyaret","siparis","asistan","rapor","yakin","gunsonu","daha","stok"];document.querySelectorAll("nav.bottom [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===U.tab||(b.dataset.tab==="daha"&&MORE.includes(U.tab))));
   const app=$("#app");
   if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
   const locked=CLOUD.on&&!CLOUD.user;document.querySelector("nav.bottom").hidden=locked;$(".iconbtn[data-act=openSearch]").hidden=locked;
   if(locked){app.innerHTML=lockScreen();U.sheet=null;renderSheet();return}
-  app.innerHTML=updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
+  app.innerHTML=updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="stok"?vStockPage():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
   renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
@@ -599,7 +601,7 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
    <label class="f">Sonuç<select id="vf_res" name="result">${Object.keys(RESULTS).map(k=>`<option>${k}</option>`).join("")}</select></label>
    <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
    <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return ymd(d)})()}"></label>
-   <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no<input id="vf_parts" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label>
+   <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no (kodlar stokla otomatik eşleşir)<input id="vf_parts" autocomplete="off" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label><div id="vfCodes" style="grid-column:1/-1"></div>
    <div class="row" style="grid-column:1/-1"><span class="why" style="flex:1 1 200px">Notu serbestçe yaz ya da klavyedeki mikrofonla söyle; AI sonucu, tutarı, parçaları ve sonraki ziyareti doldursun.</span><button class="btn sm" type="button" data-act="aiFill">✨ AI ile düzenle</button></div>
    <div style="grid-column:1/-1;display:grid;gap:6px"><label class="btn sm" for="vf_photo" style="justify-self:start">📷 Fotoğraf ekle (raf, fatura, kartvizit)</label><input id="vf_photo" type="file" accept="image/*" capture="environment" multiple hidden><div class="thumbs" id="vfPhotos">${U.pendingPhotos.map(id=>`<img data-ph="${id}" alt="Fotoğraf">`).join("")}</div></div>
    <label class="f" style="grid-column:1/-1">Görüşme notu<textarea id="vf_note" name="note" placeholder="Rakip fiyatı, stok durumu, ödeme vadesi, söz verilenler…"></textarea></label>
@@ -730,10 +732,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
 function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
 const aiReady=()=>!!aiCfg().key;
-async function geminiOnly(prompt,{system="",json=false,history=[]}={},log){
+async function geminiOnly(prompt,{system="",json=false,history=[],images=[]}={},log){
   const cfg=aiCfg();if(!cfg.key){log.push("Gemini: anahtar yok");return null}
   const models=cfg.model?[cfg.model,...AI_MODELS.filter(m=>m!==cfg.model)]:AI_MODELS;
-  const body={contents:[...history,{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:json?0.2:0.5,...(json?{responseMimeType:"application/json"}:{})}};
+  const body={contents:[...history,{role:"user",parts:[{text:prompt},...images.map(i=>({inline_data:{mime_type:i.mime,data:i.data}}))]}],generationConfig:{temperature:json?0.2:0.5,...(json?{responseMimeType:"application/json"}:{})}};
   if(system)body.systemInstruction={parts:[{text:system}]};
   for(let round=0;round<2;round++){
    for(const m of models){
@@ -769,6 +771,7 @@ async function gemini(prompt,opts={}){
   const log=[];
   let t=await geminiOnly(prompt,opts,log);
   if(t)return t;
+  if(opts.images&&opts.images.length){U.aiLog=log;throw new Error("Fotoğraf okuma şu an yanıt vermiyor (Google yoğun olabilir). Biraz sonra tekrar dene. "+log.slice(-2).join(" · "))}
   t=await fallbackAI(prompt,opts,log);
   if(t)return t;
   U.aiLog=log;
@@ -777,7 +780,19 @@ async function aiTest(){U.aiTest="Test ediliyor…";render();const log=[];
   const g=await geminiOnly("Sadece 'tamam' yaz.",{},log);let f=null;if(!g)f=await fallbackAI("Sadece 'tamam' yaz.",{},log);
   U.aiTest=(g?"✓ Gemini çalışıyor ("+aiCfg().model+")":f?"✓ Yedek AI çalışıyor, Gemini çalışmıyor":"✗ Hiçbiri yanıt vermedi")+"\n"+log.join("\n");render()}
 function aiJSON(t){try{return JSON.parse(t)}catch(e){const m=t.match(/\{[\s\S]*\}/);if(m)try{return JSON.parse(m[0])}catch(_){}}return null}
-function dataContext(){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
+function stockContext(q){const all=products();if(!all.length)return "STOK: (stok listesi yüklenmemiş)";
+  const line=p=>[p.oem||"-",p.name,p.brand||"",p.price?Math.round(p.price)+"₺":"fiyat yok",p.stock===""||p.stock==null?"stok ?":p.stock+" adet",lowOf(p)?"KRİTİK":""].filter(Boolean).join(" | ");
+  let pick=all;if(all.length>300){const words=String(q||"").split(/\s+/).filter(w=>w.length>=3);const set=new Set();
+    findCodes(q).hits.forEach(h=>set.add(h.p));words.forEach(w=>matchProducts(w).slice(0,40).forEach(p=>set.add(p)));all.filter(lowOf).slice(0,80).forEach(p=>set.add(p));pick=[...set].slice(0,250)}
+  const sold=new Map();for(const o of S.orders.values())for(const l of (o.lines||[]))if(l.pid)sold.set(l.pid,(sold.get(l.pid)||0)+l.qty);
+  const top=[...sold.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15).map(([id,n])=>{const p=S.products.get(id);return p?`${p.name} (${p.oem||"-"}): ${n} adet`:""}).filter(Boolean);
+  const qc=findCodes(q);
+  return `STOK (${all.length} ürün${pick.length<all.length?", soruyla ilgili "+pick.length+" tanesi":""}; OEM | ad | marka | fiyat | stok):
+${pick.map(line).join("\n")}
+KRİTİK STOK: ${all.filter(lowOf).map(p=>p.name+" ("+(p.stock??"?")+")").join(", ")||"yok"}
+EN ÇOK SATILAN (uygulamadan alınan siparişler): ${top.join("; ")||"veri yok"}
+${qc.hits.length||qc.unknown.length?"SORUDA GEÇEN KODLAR: "+[...qc.hits.map(h=>h.raw+" = "+line(h.p)),...qc.unknown.map(u=>u+" = stok listesinde YOK")].join("; "):""}`}
+function dataContext(q){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
   const lines=cs.slice(0,250).map(c=>{const lv=lastVisit(c);const p=priority(c);
     return [c.name,"pot:"+(c.tier||"C"),c.status||"Aday",c.type||"",c.region||c.district||"",(c.brands||[]).join("/"),c.estMonthly?"aylık~"+Math.round(c.estMonthly/1000)+"b":"",
       c.nextVisit?"ziyaret:"+c.nextVisit:"",lv?"son:"+lv.date+" "+lv.result:"hiç ziyaret yok","ciro:"+Math.round(custRevenue(c)),"öncelik:"+p.score,c.notes?"not:"+String(c.notes).slice(0,80):""].filter(Boolean).join(" | ")});
@@ -788,8 +803,10 @@ function dataContext(){const t=today();const cs=custList().filter(c=>c.status!==
 MÜŞTERİLER (ad | potansiyel | aşama | tip | bölge | markalar | aylık alım | sonraki ziyaret | son ziyaret | ciro | öncelik | not):
 ${lines.join("\n")||"(müşteri yok)"}
 SON ZİYARETLER:
-${vs.join("\n")||"(yok)"}`}
-const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir).`;
+${vs.join("\n")||"(yok)"}
+${stockContext(q)}
+GECİKEN ÖDEMELER: ${overdueList().slice(0,20).map(g=>g.name+" "+Math.round(g.total)+"₺ "+g.maxDays+" gün").join("; ")||"yok"}`}
+const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir). Stok sorularında yalnızca STOK listesini kullan: ürünün adını, OEM kodunu, stok adedini ve fiyatını yaz; listede yoksa açıkça "stokta kayıtlı değil" de, kod ya da muadil uydurma. Kritik stokları ve en çok satanları satış önerilerinde kullan; bir ürünü önerirken o markayla çalışan müşterileri seç.`;
 
 U.chat=[];U.aiBusy=false;
 function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yapay zekâ anahtarı</h2>
@@ -798,7 +815,7 @@ function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yap
    <form id="aiForm" class="row"><input id="ai_key" name="key" type="password" autocomplete="off" placeholder="AIza..." value="${esc(cfg.key)}" style="flex:1 1 240px"><button class="btn pri" type="submit">Kaydet</button>${cfg.key?`<button class="btn ghost" type="button" data-act="aiClear">Sil</button>`:""}</form>
    <span class="why">Anahtar sadece bu telefonda saklanır. Asistana soru sorduğunda müşteri özetlerin Google'a gönderilir.${cfg.model?" Model: "+esc(cfg.model):""}</span></section>`}
 function vAI(){const ready=true;const hasKey=aiReady();
-  const quick=["Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
+  const quick=["Stokta kritik seviyedeki ürünler hangileri?","Stoktaki ürünleri hangi müşterilere önermeliyim?","Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
   return `<div class="row"><h2>Asistan</h2><span class="sp"></span>${U.chat.length?`<button class="btn sm ghost" data-act="aiReset">Yeni sohbet</button>`:""}</div>
   ${hasKey?"":`<div class="banner">Anahtar girmeden de çalışır (yedek yapay zekâ ile, daha yavaş). Daha iyi sonuç için aşağıdaki <b>Anahtar ayarı</b>ndan ücretsiz Gemini anahtarı ekle.</div>`}
   ${ready?`<div class="list" id="chatList">${U.chat.length?U.chat.map(m=>m.role==="user"?`<div class="item" style="background:var(--steel-bg);border-color:transparent;justify-self:end;max-width:90%"><div class="note">${esc(m.text)}</div></div>`
@@ -813,7 +830,7 @@ async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.pus
   try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
     const first=U.chat.filter(m=>m.role==="user").length===1;
     const prompt=q;
-    const t=await gemini(prompt,{system:AI_SYS+"\n\nGÜNCEL VERİLER:\n"+dataContext(),history:hist});
+    const t=await gemini(prompt,{system:AI_SYS+"\n\nGÜNCEL VERİLER:\n"+dataContext(q),history:hist});
     const m=t.match(/^ROTA:\s*(.+)$/m);let route=[];
     if(m)route=m[1].split("|").map(x=>x.trim()).map(n=>custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))).filter(Boolean).map(c=>c.id);
     U.chat.push({role:"model",text:t,route:[...new Set(route)]})}
@@ -836,7 +853,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.8.0";
+const APP_VERSION="1.9.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1035,7 +1052,8 @@ function queuePanel(){const Q=U.msg2.queue;const it=Q.items[Q.i];if(!it){return 
 function startQueue(ch,items,kind){items=items.filter(x=>ch==="mail"?chan(x.c).mail:chan(x.c).sms);if(!items.length){toast("Bu kanal için iletişim bilgisi olan müşteri yok");return}
   U.msg2.queue={ch,items,i:0,done:0,kind};render();window.scrollTo(0,0)}
 
-function vStock(){const ps=products();return `<section class="panel"><div class="row"><h3>Stok / kampanya ürünleri</h3><span class="sp"></span><button class="btn sm" data-act="impProd">Excel'den yükle</button></div>
+function vStock(){return `<div class="empty"><b>Stok artık kendi ekranında.</b><span>Arama, kritik stok, kod okuma ve ürün detayları orada.</span><button class="btn pri" data-goto-tab="stok">Stok ekranına git</button></div>`}
+function vStockOld(){const ps=products();return `<section class="panel"><div class="row"><h3>Stok / kampanya ürünleri</h3><span class="sp"></span><button class="btn sm" data-act="impProd">Excel'den yükle</button></div>
    ${impPanel("product")}
    <form id="prodForm" class="grid3"><label class="f">Ürün adı *<input id="pf_name" name="name" required placeholder="Fren balatası ön"></label><label class="f">OEM / kod<input id="pf_oem" name="oem"></label><label class="f">Marka / araç<input id="pf_brand" name="brand" placeholder="Ford Transit"></label>
     <label class="f">Fiyat (₺)<input id="pf_price" name="price" inputmode="decimal"></label><label class="f">Stok adedi<input id="pf_stock" name="stock" inputmode="numeric"></label><div class="row" style="align-self:end"><button class="btn pri" type="submit">Ekle</button></div></form></section>
@@ -1088,13 +1106,16 @@ function renderSheet(){const el=$("#sheet");if(!el)return;const S2=U.sheet;if(!S
     <button data-act="qaCust"><span class="ic">${ic("user")}</span>Yeni müşteri</button>
     <button data-act="qaPhoto"><span class="ic">${ic("cam")}</span>Fotoğraflı not</button>
     <button data-goto-tab="yakin"><span class="ic">${ic("radar")}</span>Yakındaki potansiyeller</button>
-    <button data-goto-tab="gunsonu"><span class="ic">${ic("report")}</span>Gün sonu raporu</button></div>`;
+    <button data-goto-tab="gunsonu"><span class="ic">${ic("report")}</span>Gün sonu raporu</button>
+    <button data-act="qaScan"><span class="ic">${ic("doc")}</span>Etiketten kod oku</button>
+    <button data-goto-tab="stok"><span class="ic">${ic("cart")}</span>Stok</button>
+    <button data-act="goOverdue"><span class="ic">${ic("chart")}</span>Geciken ödemeler</button></div>`;
   else if(S2==="pickVisit"||S2==="pickOrder"){const L=U.nearList||custList().map(c=>({c,d:null}));
     body=`<h2>${S2==="pickVisit"?"Hangi müşteridesin?":"Kimden sipariş?"}</h2>${U.nearBusy?`<span class="why">Konumuna göre sıralanıyor…</span>`:""}
      <input id="pickQ" placeholder="Ara" value="${esc(U.pickQ||"")}" autocomplete="off">
      <div class="list">${L.filter(x=>!U.pickQ||trLow(x.c.name).includes(trLow(U.pickQ))).slice(0,30).map(x=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="${S2==="pickVisit"?"pickVisitGo":"pickOrderGo"}" data-id="${x.c.id}"><span class="row"><b style="flex:1;min-width:0">${esc(x.c.name)}</b>${x.d!=null?`<span class="chip mono">${x.d<1?Math.round(x.d*1000)+" m":x.d.toFixed(1).replace(".",",")+" km"}</span>`:""}</span><span class="meta">${esc(x.c.region||x.c.district||"")}</span></button>`).join("")||`<div class="empty">Müşteri yok.</div>`}</div>`}
   else if(S2==="search"){const q=trLow(U.sq||"");const cs=q?custList().filter(c=>trLow([c.name,c.contact,c.phone,c.region,c.district,c.address].join(" ")).includes(q)).slice(0,12):[];
-    const ps=q?products().filter(p=>trLow([p.name,p.oem,p.brand].join(" ")).includes(q)).slice(0,8):[];const os=q?[...S.orders.values()].filter(o=>trLow([o.no,o.item,o.customer].join(" ")).includes(q)).slice(0,8):[];
+    const ps=q?matchProducts(U.sq).slice(0,8):[];const os=q?[...S.orders.values()].filter(o=>trLow([o.no,o.item,o.customer].join(" ")).includes(q)).slice(0,8):[];
     body=`<h2>Ara</h2><input id="sq" placeholder="Müşteri, telefon, OEM, fatura no…" value="${esc(U.sq||"")}" autocomplete="off">
      ${q?`${cs.length?`<h3>Müşteriler</h3><div class="list">${cs.map(c=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="detail" data-id="${c.id}"><b>${esc(c.name)}</b><span class="meta">${esc([c.contact,c.phone,c.region||c.district].filter(Boolean).join(" · "))}</span></button>`).join("")}</div>`:""}
       ${ps.length?`<h3>Stok</h3><div class="list">${ps.map(p=>`<div class="item"><b>${esc(p.name)}</b><span class="meta mono">${esc([p.oem,p.brand,p.price?tl(p.price):"",p.stock!==""&&p.stock!=null?p.stock+" adet":""].filter(Boolean).join(" · "))}</span></div>`).join("")}</div>`:""}
@@ -1109,7 +1130,7 @@ async function nearSorted(){U.nearList=custList().map(c=>({c,d:null}));U.nearBus
   U.nearBusy=false;renderSheet()}
 
 /* Daha menüsü */
-function vMore(){const items=[["harita","map","Harita"],["ziyaret","list","Ziyaretler"],["siparis","doc","Sipariş / Fatura"],["yakin","radar","Yakındaki potansiyeller"],["gunsonu","report","Gün sonu raporu"],["asistan","spark","Asistan"],["rapor","chart","Rapor ve ayarlar"]];
+function vMore(){const items=[["stok","cart","Stok ve kod okuma"],["harita","map","Harita"],["ziyaret","list","Ziyaretler"],["siparis","doc","Sipariş / Fatura"],["yakin","radar","Yakındaki potansiyeller"],["gunsonu","report","Gün sonu raporu"],["asistan","spark","Asistan"],["rapor","chart","Rapor ve ayarlar"]];
   return `<h2>Daha fazla</h2><div class="qa">${items.map(([t,i,l])=>`<button data-goto-tab="${t}"><span class="ic">${ic(i)}</span>${l}</button>`).join("")}</div>`}
 
 /* Sipariş alma */
@@ -1119,7 +1140,8 @@ function vSales(){const C=U.cart;if(!C)return vMore();const c=S.customers.get(C.
   return `<div class="row"><button class="btn sm ghost" data-act="cartCancel">← Vazgeç</button></div>
   <div class="hero"><span style="opacity:.8;font-size:13px">Sipariş · ${esc(c?c.name:"")}</span><span class="big">${tl(total)}</span><span style="font-size:13px;opacity:.85">${lines.reduce((s,l)=>s+l.qty,0)} kalem${disc?` · %${C.disc} iskonto`:""}</span></div>
   <section class="panel"><h3>Ürün ekle</h3><input id="cartQ" placeholder="Ürün adı ya da OEM ara" value="${esc(C.q||"")}" autocomplete="off">
-   <div class="list">${(q?ps.filter(p=>trLow([p.name,p.oem,p.brand].join(" ")).includes(q)):ps).slice(0,8).map(p=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="cartAdd" data-id="${p.id}"><span class="row"><b style="flex:1;min-width:0">${esc(p.name)}</b><span class="mono">${p.price?tl(p.price):"fiyat yok"}</span></span><span class="meta mono">${esc([p.oem,p.brand,p.stock!==""&&p.stock!=null?"stok "+p.stock:""].filter(Boolean).join(" · "))}</span></button>`).join("")||`<span class="why">Stokta ürün yok; aşağıdan serbest kalem ekleyebilirsin.</span>`}</div>
+   ${codeChips(C.q,"cart")}
+   <div class="list">${(C.q?matchProducts(C.q):ps).slice(0,8).map(p=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="cartAdd" data-id="${p.id}"><span class="row"><b style="flex:1;min-width:0">${esc(p.name)}</b><span class="mono">${p.price?tl(p.price):"fiyat yok"}</span></span><span class="meta mono">${esc([p.oem,p.brand,p.stock!==""&&p.stock!=null?"stok "+p.stock:""].filter(Boolean).join(" · "))}</span></button>`).join("")||`<span class="why">Stokta ürün yok; aşağıdan serbest kalem ekleyebilirsin.</span>`}</div>
    <form id="freeLine" class="grid3"><label class="f">Serbest kalem<input name="name" placeholder="Parça adı / OEM" required></label><label class="f">Birim fiyat<input name="price" inputmode="decimal"></label><div class="row" style="align-self:end"><button class="btn" type="submit">Ekle</button></div></form></section>
   <section class="panel lines"><h3>Sepet</h3>${lines.length?lines.map((l,i)=>`<div class="ln"><div style="min-width:0"><b>${esc(l.name)}</b><div class="meta mono">${l.oem?esc(l.oem)+" · ":""}${tl(l.price)}</div></div><span class="qty"><button data-act="cartQty" data-i="${i}" data-d="-1" aria-label="Azalt">−</button><span>${l.qty}</span><button data-act="cartQty" data-i="${i}" data-d="1" aria-label="Arttır">+</button></span><span class="mono">${tl(l.qty*l.price)}</span></div>`).join(""):`<span class="why">Henüz ürün eklenmedi.</span>`}
    <div class="grid2"><label class="f">İskonto (%)<input id="cartDisc" inputmode="decimal" value="${esc(C.disc||"")}"></label><label class="f">Not<input id="cartNote" value="${esc(C.note||"")}" placeholder="Teslimat, vade…"></label></div>
@@ -1276,6 +1298,63 @@ async function doLogin(fd){U.loginErr="";U.loginBusy=true;const mail=String(fd.m
   catch(e){U.loginErr=AUTH_ERR[e.code]||("Giriş yapılamadı: "+(e.message||e.code))}
   U.loginBusy=false;render()}
 
+/* ---------- v1.9: stok merkezi, kod tanıma, etiket fotoğrafından kod okuma ---------- */
+const normCode=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+let _pix=null;function prodIndex(){if(_pix&&_pix.v===DV)return _pix;const byCode=new Map();for(const p of S.products.values()){const k=normCode(p.oem);if(k.length>=4)byCode.set(k,p)}_pix={v:DV,byCode};return _pix}
+const lowOf=p=>p.stock!==""&&p.stock!=null&&Number(p.stock)<=(p.min!==""&&p.min!=null?Number(p.min):5);
+// Metindeki stok kodlarını bul: boşluk, nokta, tire ile yazılmış kodları da tanır (1K0 698 151 = 1K0698151)
+function findCodes(text){const ix=prodIndex().byCode;const toks=String(text||"").toUpperCase().split(/[\s,;\/|+]+/).map(t=>t.replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/g,"")).filter(Boolean);
+  const hits=new Map(),unknown=new Set();const used=new Set();
+  for(let n=4;n>=1;n--)for(let i=0;i+n<=toks.length;i++){if([...Array(n).keys()].some(k=>used.has(i+k)))continue;const k=normCode(toks.slice(i,i+n).join(""));
+    if(k.length>=5&&ix.has(k)){const p=ix.get(k);hits.set(p.id,{p,raw:toks.slice(i,i+n).join(" ")});for(let j=0;j<n;j++)used.add(i+j)}}
+  toks.forEach((t,i)=>{if(used.has(i))return;const k=normCode(t);if(k.length>=6&&/\d/.test(k)&&/[A-Z]/.test(k)||/^\d{7,13}$/.test(k))unknown.add(t)});
+  return {hits:[...hits.values()],unknown:[...unknown].slice(0,6)}}
+function codeChips(text,ctx){const r=findCodes(text);if(!r.hits.length&&!r.unknown.length)return "";
+  return `<div class="chips" style="margin-top:6px">${r.hits.map(h=>`<span class="chip nc ${lowOf(h.p)?"warn":"ok"}" title="${esc(h.p.name)}">✓ ${esc(h.p.oem)} · ${esc(h.p.name.slice(0,24))} · ${h.p.stock===""||h.p.stock==null?"stok ?":esc(h.p.stock)+" ad."}${h.p.price?" · "+tl(h.p.price):""}</span>${ctx==="cart"?`<button class="fchip" data-act="cartAdd" data-id="${h.p.id}">+ sepete</button>`:""}`).join("")}${r.unknown.map(u=>`<span class="chip nc">? ${esc(u)} stokta kayıtlı değil</span>`).join("")}</div>`}
+function prodSales(p){let q=0,n=0;const who=new Map();for(const o of S.orders.values()){for(const l of (o.lines||[])){if(l.pid===p.id||(p.oem&&normCode(l.oem)===normCode(p.oem))){q+=l.qty;n++;const c=o.customerId&&S.customers.get(o.customerId);if(c)who.set(c.id,(who.get(c.id)||0)+l.qty)}}}
+  return {q,n,who:[...who.entries()].sort((a,b)=>b[1]-a[1]).map(([id,q])=>({c:S.customers.get(id),q}))}}
+function matchProducts(q){const k=normCode(q),t=trLow(q);if(!q)return products();return products().filter(p=>(k.length>=3&&normCode(p.oem).includes(k))||trLow([p.name,p.brand].join(" ")).includes(t))}
+
+U.stk={q:"",low:false,edit:null,detail:null,scan:null};
+function vStockPage(){const K=U.stk;if(K.detail){const p=S.products.get(K.detail);if(p)return prodDetail(p);K.detail=null}
+  const all=products();const low=all.filter(lowOf);const val=all.reduce((s,p)=>s+(Number(p.price)||0)*(Number(p.stock)||0),0);
+  let ps=matchProducts(K.q);if(K.low)ps=ps.filter(lowOf);
+  return `<div class="row"><h2>Stok</h2><span class="sp"></span><button class="btn sm" data-act="impProd2">Excel'den yükle</button></div>
+  <div class="hero"><span style="font-size:13px;opacity:.85">${all.length} ürün · ${low.length} kritik seviyede</span><span class="big">${tl(val)}</span><span style="font-size:13px;opacity:.85">toplam stok değeri (fiyat × adet)</span></div>
+  ${U.import&&U.import.kind==="product"?impPanel("product"):""}
+  ${scanPanel()}
+  <section class="panel"><div class="row"><input id="stkQ" placeholder="Ürün adı ya da OEM ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
+   <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div></section>
+  ${K.edit?prodForm(K.edit==="new"?null:S.products.get(K.edit)):""}
+  ${(()=>{const pg=pageOf("stk2",ps,40);return `<div class="list">${pg.items.map(p=>`<div class="item"><div class="row"><b style="flex:1 1 160px;min-width:0">${esc(p.name)}</b><span class="chip ${lowOf(p)?"bad":"ok"} mono">${p.stock===""||p.stock==null?"stok ?":esc(p.stock)+" adet"}</span>${p.price?`<span class="chip mono">${tl(p.price)}</span>`:""}</div>
+     <div class="meta">${p.oem?`<span class="mono">${esc(p.oem)}</span>`:""}${p.brand?`<span>${esc(p.brand)}</span>`:""}${lowOf(p)?`<span class="chip warn">kritik ≤ ${esc(p.min??5)}</span>`:""}</div>
+     <div class="row" style="gap:6px"><span class="qty"><button data-act="stkAdj" data-id="${p.id}" data-d="-1" aria-label="Stoktan düş">−</button><span>${esc(p.stock??"")}</span><button data-act="stkAdj" data-id="${p.id}" data-d="1" aria-label="Stoğa ekle">+</button></span><button class="btn sm" data-act="stkDetail" data-id="${p.id}">Detay</button><button class="btn sm" data-act="stkEdit" data-id="${p.id}">Düzenle</button></div></div>`).join("")||`<div class="empty">${all.length?"Aramayla eşleşen ürün yok.":"Henüz ürün yok. Stok listeni Excel'den yükle ya da etiketi fotoğraflayarak ekle."}</div>`}</div>${pg.more}`})()}`}
+function prodForm(p){p=p||{};return `<section class="panel"><h3>${p.id?"Ürünü düzenle":"Yeni ürün"}</h3><form id="prodForm2" class="grid3" data-id="${esc(p.id||"")}">
+   <label class="f">Ürün adı *<input id="p2_name" name="name" required value="${esc(p.name||"")}"></label><label class="f">OEM / stok kodu<input id="p2_oem" name="oem" value="${esc(p.oem||"")}" autocapitalize="characters"></label><label class="f">Marka / araç<input id="p2_brand" name="brand" value="${esc(p.brand||"")}"></label>
+   <label class="f">Fiyat (₺)<input id="p2_price" name="price" inputmode="decimal" value="${esc(p.price??"")}"></label><label class="f">Stok adedi<input id="p2_stock" name="stock" inputmode="numeric" value="${esc(p.stock??"")}"></label><label class="f">Kritik seviye<input id="p2_min" name="min" inputmode="numeric" value="${esc(p.min??5)}"></label>
+   <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Kaydet</button><button class="btn ghost" type="button" data-act="stkCancel">Vazgeç</button>${p.id?`<span class="sp"></span><button class="btn ghost" type="button" data-act="delProd" data-id="${p.id}" style="color:var(--bad)">Sil</button>`:""}</div></form></section>`}
+function prodDetail(p){const s=prodSales(p);return `<div class="row"><button class="btn ghost sm" data-act="stkBack">← Stok</button></div>
+  <section class="panel"><div class="row"><h2 style="flex:1">${esc(p.name)}</h2><span class="chip ${lowOf(p)?"bad":"ok"} mono">${esc(p.stock??"?")} adet</span></div>
+   <div class="meta">${p.oem?`<span class="mono">${esc(p.oem)}</span>`:""}${p.brand?`<span>${esc(p.brand)}</span>`:""}${p.price?`<span class="mono">${tl(p.price)}</span>`:""}</div>
+   <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi"><div class="l">Uygulamadan satılan</div><div class="v">${s.q} adet</div></div><div class="kpi"><div class="l">Sipariş sayısı</div><div class="v">${s.n}</div></div></div>
+   <div class="row"><button class="btn sm" data-act="stkEdit" data-id="${p.id}">Düzenle</button><button class="btn sm" data-act="stkAsk" data-id="${p.id}">✨ Kime önerebilirim?</button></div></section>
+  <section class="panel"><h3>Bu ürünü alanlar</h3>${s.who.length?`<div class="list">${s.who.map(x=>`<div class="row"><span style="flex:1;min-width:0">${esc(x.c.name)}</span><span class="chip mono">${x.q} adet</span><button class="btn sm" data-act="detail" data-id="${x.c.id}">Kart</button></div>`).join("")}</div>`:`<span class="why">Uygulamadan alınan siparişlerde bu ürün henüz yok.</span>`}</section>`}
+
+/* Etiket / kutu / fatura fotoğrafından kod okuma (Gemini görüntü tanıma) */
+function scanPanel(){const R=U.stk.scan;if(!R)return "";if(R.busy)return `<section class="panel live"><b>📷 Etiket okunuyor…</b><span class="why">Fotoğraftaki parça kodları ve ürün bilgisi çıkarılıyor.</span></section>`;
+  if(R.err)return `<section class="panel"><div class="banner">${esc(R.err)}</div><div class="row"><button class="btn sm" data-act="scanClose">Kapat</button></div></section>`;
+  return `<section class="panel live"><div class="row"><b>📷 Okunan kodlar</b><span class="sp"></span><button class="btn sm ghost" data-act="scanClose">Kapat</button></div>
+   ${R.items.length?`<div class="list">${R.items.map((x,i)=>`<div class="item"><div class="row"><b class="mono" style="flex:1 1 140px">${esc(x.code||"kod yok")}</b>${x.p?`<span class="chip ${lowOf(x.p)?"warn":"ok"}">stokta ${esc(x.p.stock??"?")} adet</span>`:`<span class="chip">stokta kayıtlı değil</span>`}</div>
+     <div class="meta"><span>${esc([x.name,x.brand,x.qty?x.qty+" adet":""].filter(Boolean).join(" · "))}</span>${x.p?`<span>→ ${esc(x.p.name)}${x.p.price?" · "+tl(x.p.price):""}</span>`:""}</div>
+     <div class="row" style="gap:6px">${x.p?`<button class="btn sm" data-act="stkDetail" data-id="${x.p.id}">Detay</button><button class="btn sm" data-act="scanIn" data-i="${i}">+${x.qty||1} stok girişi</button>${U.cart?`<button class="btn sm pri" data-act="cartAdd" data-id="${x.p.id}">+ sepete</button>`:""}`:`<button class="btn sm pri" data-act="scanNew" data-i="${i}">Stoğa yeni ürün olarak ekle</button>`}</div></div>`).join("")}</div>`:`<span class="sub">Fotoğrafta parça kodu bulunamadı. Etiketi daha yakından ve net çek.</span>`}</section>`}
+async function scanLabel(file){U.stk.scan={busy:true};render();
+  try{if(!aiReady())throw new Error("Etiket okuma için Asistan sekmesinden ücretsiz Gemini anahtarını gir.");
+    const data=(await shrink(file,1600,.85)).split(",")[1];
+    const t=await gemini(`Bu fotoğraf bir oto yedek parça kutusu, etiketi, faturası ya da sipariş listesi. İçindeki tüm parça/OEM/stok kodlarını çıkar. Her kalem için: code (kodu etikette yazdığı gibi), name (Türkçe parça adı, yoksa boş), brand (üretici veya araç markası), qty (adet, yoksa 0). Barkod numaralarını (EAN) code olarak verme. Sadece şu JSON'u döndür: {"items":[{"code":"","name":"","brand":"","qty":0}]}`,{json:true,images:[{mime:"image/jpeg",data}]});
+    const o=aiJSON(t);if(!o||!Array.isArray(o.items))throw new Error("Okunamadı, tekrar dene.");
+    const ix=prodIndex().byCode;U.stk.scan={items:o.items.filter(x=>x&&(x.code||x.name)).slice(0,20).map(x=>({code:String(x.code||"").trim(),name:String(x.name||""),brand:String(x.brand||""),qty:Number(x.qty)||0,p:ix.get(normCode(x.code))||null}))}}
+  catch(e){U.stk.scan={err:e.message}}render()}
+
 /* ---------- events ---------- */
 async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
 document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e.target.open},true);
@@ -1303,6 +1382,19 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="stkLow"){U.stk.low=!U.stk.low}
+  else if(a==="stkNew"){U.stk.edit="new";render();setTimeout(()=>{const f=$("#prodForm2");if(f){f.scrollIntoView({block:"center"});$("#p2_name").focus()}},50);return}
+  else if(a==="stkEdit"){U.stk.detail=null;U.stk.edit=id;U.tab="stok";window.scrollTo(0,0)}
+  else if(a==="stkCancel"){U.stk.edit=null}
+  else if(a==="stkDetail"){U.stk.detail=id;U.tab="stok";window.scrollTo(0,0)}
+  else if(a==="stkBack"){U.stk.detail=null}
+  else if(a==="stkAdj"){const p=S.products.get(id);if(p){const n=Math.max(0,(Number(p.stock)||0)+Number(b.dataset.d));await save(Object.assign({},p,{stock:n}))}return}
+  else if(a==="stkAsk"){const p=S.products.get(id);U.tab="asistan";U.stk.detail=null;aiAsk(`${p.name} (${p.oem||"kodsuz"}, ${p.brand||""}) ürününü stoğumdaki adede ve fiyata göre hangi müşterilerime önermeliyim? Neden?`);return}
+  else if(a==="scanLabel"||a==="qaScan"){U.sheet=null;renderSheet();$("#scanFile").click();return}
+  else if(a==="scanClose"){U.stk.scan=null}
+  else if(a==="scanIn"){const x=U.stk.scan.items[Number(b.dataset.i)];const n=Math.max(1,x.qty||1);await save(Object.assign({},x.p,{stock:(Number(x.p.stock)||0)+n}));x.p=S.products.get(x.p.id);toast(`${x.p.name}: +${n} stok girişi`);render();return}
+  else if(a==="scanNew"){const x=U.stk.scan.items[Number(b.dataset.i)];const p={id:uid("p"),kind:"product",name:x.name||x.code,oem:x.code,brand:x.brand,price:"",stock:x.qty||"",min:5};await save(p);x.p=p;U.stk.edit=p.id;toast("Ürün eklendi; fiyatını yazıp kaydet");render();setTimeout(()=>{const f=$("#prodForm2");if(f){f.scrollIntoView({block:"center"});$("#p2_price").focus()}},50);return}
+  else if(a==="impProd2"){U.import={kind:"product"}}
   else if(a==="signOut"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Emin misin? Bu cihazdaki kopya silinir, bulut kalır";return}
     lsFlush();await firebase.auth().signOut();try{localStorage.removeItem(LSK);Object.keys(localStorage).filter(k=>k.startsWith("saha-sync-")).forEach(k=>localStorage.removeItem(k))}catch(e){}
     [S.customers,S.visits,S.orders,S.settings,S.products].forEach(m=>m.clear());DV++;toast("Çıkış yapıldı")}
@@ -1409,6 +1501,7 @@ document.addEventListener("change",async e=>{const t=e.target;
   else if(t.id==="impFile"&&t.files[0]){U.import.type=$("#impType")?.value;await readFile(t.files[0])}
   else if(t.id==="impType"){U.import.type=t.value}
   else if(t.id==="vf_photo"&&t.files.length){await addPhotos([...t.files]);t.value=""}
+  else if(t.id==="scanFile"&&t.files.length){const f=t.files[0];t.value="";U.tab="stok";U.stk.detail=null;window.scrollTo(0,0);scanLabel(f)}
   else if(t.id==="repDate"){U.repDate=t.value;render()}
   else if(t.id==="cartDisc"){U.cart.disc=t.value;render()}
   else if(t.id==="cartNote"){U.cart.note=t.value;render()}
@@ -1427,6 +1520,8 @@ document.addEventListener("input",e=>{const t=e.target;
   if(t.id==="pickQ"){U.pickQ=t.value;clearTimeout(U._pq);U._pq=setTimeout(()=>{renderSheet();const f=$("#pickQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
   if(t.id==="sq"){U.sq=t.value;clearTimeout(U._sqt);U._sqt=setTimeout(()=>{renderSheet();const f=$("#sq");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
   if(t.id==="cartQ"){U.cart.q=t.value;clearTimeout(U._cq);U._cq=setTimeout(()=>{render();const f=$("#cartQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
+  if(t.id==="vf_parts"){clearTimeout(U._vfc);U._vfc=setTimeout(()=>{const box=$("#vfCodes");if(box)box.innerHTML=codeChips(t.value,"visit")},250);return}
+  if(t.id==="stkQ"){U.stk.q=t.value;clearTimeout(U._skq);U._skq=setTimeout(()=>{render();const f=$("#stkQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},250);return}
   if(t.id==="addrQ"){clearTimeout(U._at);const v=t.value;U._at=setTimeout(()=>addrSearch(v),450);return}
   if(t.id==="custQ"||t.id==="ordQ"){U[t.id]=t.value;clearTimeout(U._qt);U._qt=setTimeout(render,180)}});
 document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target;const FD=new FormData(f);const fd=Object.fromEntries(FD);
@@ -1440,7 +1535,11 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
   else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
   else if(f.id==="chatForm"){aiAsk(fd.q);return}
   else if(f.id==="loginForm"){fd.act=(e.submitter&&e.submitter.value)||"in";doLogin(fd);return}
-  else if(f.id==="freeLine"){U.cart.lines.push({pid:"",name:String(fd.name).trim(),oem:"",price:parseNum(fd.price),qty:1});render();return}
+  else if(f.id==="freeLine"){const h=findCodes(fd.name).hits[0];if(h){const L=U.cart.lines;const ex=L.find(l=>l.pid===h.p.id);if(ex)ex.qty++;else L.push({pid:h.p.id,name:h.p.name,oem:h.p.oem||"",price:Number(h.p.price)||0,qty:1});toast("Kod stokta bulundu: "+h.p.name);render();return}
+    U.cart.lines.push({pid:"",name:String(fd.name).trim(),oem:"",price:parseNum(fd.price),qty:1});render();return}
+  else if(f.id==="prodForm2"){const old=f.dataset.id&&S.products.get(f.dataset.id);const oem=String(fd.oem||"").trim();
+    const dup=oem&&products().find(p=>p.id!==(old&&old.id)&&normCode(p.oem)===normCode(oem));if(dup){toast("Bu OEM kodu zaten kayıtlı: "+dup.name);return}
+    await save(Object.assign({},old||{id:uid("p"),kind:"product"},{name:String(fd.name).trim(),oem,brand:String(fd.brand||"").trim(),price:fd.price===""?"":parseNum(fd.price),stock:fd.stock===""?"":parseNum(fd.stock),min:fd.min===""?5:parseNum(fd.min)}));U.stk.edit=null;toast("Ürün kaydedildi");return}
   else if(f.id==="prodForm"){await save({id:uid("p"),kind:"product",name:String(fd.name).trim(),oem:String(fd.oem||"").trim(),brand:String(fd.brand||"").trim(),price:parseNum(fd.price)||"",stock:fd.stock===""?"":parseNum(fd.stock)});toast("Ürün eklendi");return}
   else if(f.id==="msgCfgForm"){await saveMsgCfg({depot:String(fd.depot||"").trim(),sender:String(fd.sender||"").trim(),defaultTerm:Number(fd.defaultTerm)||30,optOut:!!fd.optOut,tpl:{odeme:fd.odeme,kampanya:fd.kampanya,ret:fd.ret}});toast("Şablonlar kaydedildi");return}
   else if(f.id==="lunchHere"){let pos=U.lunch.pos;try{pos=await getPos();U.lunch.pos=pos}catch(e){if(!pos){toast(e.message);return}}

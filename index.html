@@ -214,20 +214,17 @@ function lsSaveNow(){_lsT=null;try{localStorage.setItem(LSK,JSON.stringify([...S
   catch(e){if(typeof U!=="undefined"&&!U.storeFull){U.storeFull=true;setTimeout(()=>toast("⚠ Telefon hafızası doldu, son değişiklik kaydedilemedi. Rapor → Yedek al, sonra eski fatura/sipariş kayıtlarını sil."),50)}}}
 function bucket(k){return k==="customer"?S.customers:k==="visit"?S.visits:k==="setting"?S.settings:k==="product"?S.products:S.orders}
 let DV=0;function put(d){if(d&&d.id&&d.kind){bucket(d.kind).set(d.id,d);DV++}}
-async function save(d){put(d);render();
-  if(col){try{await col.doc(d.id).set(d)}catch(e){toast("Kaydedilemedi: "+(e.message||e.code||"bağlantı"))}}else lsSave()}
-async function remove(d){bucket(d.kind).delete(d.id);DV++;render();
-  if(col){try{await col.doc(d.id).delete()}catch(e){toast("Silinemedi: "+(e.message||e.code))}}else lsSave()}
-async function saveMany(list){list.forEach(put);render();
-  if(!col){lsSave();return}
-  for(let i=0;i<list.length;i+=10){await Promise.all(list.slice(i,i+10).map(d=>col.doc(d.id).set(d).catch(()=>null)))}}
+async function save(d){put(d);render();lsSave();if(typeof CLOUD!=="undefined"&&CLOUD.col)cloudPush([d])}
+async function remove(d){bucket(d.kind).delete(d.id);DV++;render();lsSave();if(typeof CLOUD!=="undefined"&&CLOUD.col)cloudPush([d],true)}
+async function saveMany(list){list.forEach(put);render();lsSave();if(typeof CLOUD!=="undefined"&&CLOUD.col)cloudPush(list)}
 async function boot(){
   lsLoad();S.mode="cihaz";S.ready=true;setSync();render();
   try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
 }
 const BK="saha-son-yedek";
 function lastBackup(){try{return localStorage.getItem(BK)||""}catch(e){return ""}}
-function setSync(){const lb=lastBackup();$("#sync").innerHTML="● bu telefonda kayıtlı<br>"+(lb?"son yedek "+fmtDate(lb):"yedek alınmadı")}
+function setSync(){const lb=lastBackup();const c=typeof CLOUD!=="undefined"&&CLOUD.user;
+  $("#sync").innerHTML=c?(navigator.onLine===false?"● çevrimdışı<br>sonra eşitlenecek":"● bulutta eşit<br>"+esc((CLOUD.user.email||"").split("@")[0])):"● bu telefonda kayıtlı<br>"+(lb?"son yedek "+fmtDate(lb):"yedek alınmadı")}
 
 function labelTables(){document.querySelectorAll("#app .tbl").forEach(box=>{if(box.closest(".panel")&&box.closest(".panel").querySelector("[data-map]"))return;const t=box.querySelector("table");if(!t)return;
   const hs=[...t.querySelectorAll("thead th")].map(th=>th.textContent.trim());box.classList.add("rt");t.querySelectorAll("tbody tr").forEach(tr=>[...tr.children].forEach((td,i)=>td.setAttribute("data-l",hs[i]||"")))})}
@@ -281,6 +278,8 @@ function render(){
   const app=$("#app");
   if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
+  const locked=CLOUD.on&&!CLOUD.user;document.querySelector("nav.bottom").hidden=locked;$(".iconbtn[data-act=openSearch]").hidden=locked;
+  if(locked){app.innerHTML=lockScreen();U.sheet=null;renderSheet();return}
   app.innerHTML=updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
   renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
@@ -576,6 +575,7 @@ function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=
   const brandRev={};[...S.orders.values()].forEach(o=>{const c=o.customerId?S.customers.get(o.customerId):custByName(o.customer);(c&&c.brands&&c.brands.length?c.brands:["Belirsiz"]).forEach(b=>brandRev[b]=(brandRev[b]||0)+(o.amount||0)/((c&&c.brands&&c.brands.length)||1))});
   const bmx=Math.max(1,...Object.values(brandRev));
   return `${kpis()}
+  ${cloudPanel()}
   ${backupPanel()}
   ${versionPanel()}
   <section class="panel"><h2>Aylık hedef</h2><form id="setForm" class="row"><label class="f" style="flex:1 1 200px">Satış hedefi (₺/ay)<input id="sf_target" name="target" inputmode="numeric" value="${esc(st.target||"")}" placeholder="örn. 750000"></label><button class="btn pri" type="submit" style="align-self:end">Kaydet</button></form></section>
@@ -836,7 +836,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.7.3";
+const APP_VERSION="1.8.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1218,6 +1218,64 @@ function moveBanner(){if(location.hostname==="drogo36.github.io"||location.proto
 function arrivalBanner(){const c=U.arrived&&S.customers.get(U.arrived);if(!c||U.tab!=="rota")return "";
   return `<div class="hero" style="gap:10px"><span style="font-size:13px;opacity:.85">📍 Vardın</span><b style="font-size:18px">${esc(c.name)}</b><div class="row"><button class="btn" style="background:#fff;color:var(--navy);border:0" data-act="startLive" data-id="${c.id}">Ziyareti başlat</button><button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.4)" data-act="arrClose">Kapat</button></div></div>`}
 
+/* ---------- bulut eşitleme + tek seferlik giriş (Firebase) ---------- */
+const FB_CONFIG=null; // Firebase projesi bağlanınca doldurulur
+const FBV="10.12.2";
+const CLOUD={on:false,ready:false,user:null,db:null,col:null,unsub:null,last:0,err:"",synced:0,busy:false};
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("yüklenemedi"));document.head.appendChild(s)})}
+const cleanDoc=d=>JSON.parse(JSON.stringify(d));
+async function cloudInit(){if(!FB_CONFIG)return;CLOUD.on=true;render();
+  try{for(const m of ["app","auth","firestore"])await loadScript(`https://www.gstatic.com/firebasejs/${FBV}/firebase-${m}-compat.js`)}
+  catch(e){CLOUD.on=false;CLOUD.err="Bulut bağlantısı kurulamadı; bu cihazdaki kayıtlarla çalışıyorsun.";render();return}
+  try{firebase.initializeApp(FB_CONFIG)}catch(e){}
+  CLOUD.db=firebase.firestore();try{await CLOUD.db.enablePersistence({synchronizeTabs:true})}catch(e){}
+  firebase.auth().onAuthStateChanged(u=>{CLOUD.user=u;CLOUD.ready=true;if(u)cloudStart(u);else{cloudStop();render()}})}
+function syncMeta(uid,patch){const k="saha-sync-"+uid;let m={};try{m=JSON.parse(localStorage.getItem(k)||"{}")}catch(e){}if(patch){m=Object.assign(m,patch);try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}return m}
+const tsMs=v=>v&&typeof v.toMillis==="function"?v.toMillis():0;
+function applyRemote(d){const {_u,_del,...rest}=d;if(!rest.id||!rest.kind)return;if(_del)bucket(rest.kind).delete(rest.id);else bucket(rest.kind).set(rest.id,rest);DV++}
+async function cloudStart(u){CLOUD.col=CLOUD.db.collection("users").doc(u.uid).collection("items");const meta=syncMeta(u.uid);CLOUD.busy=true;render();
+  try{
+    if(!meta.migrated){ // bu cihazda ilk giriş: buluttakileri al, sadece bu cihazda olanları yükle
+      const snap=await CLOUD.col.get();const cloudIds=new Set();let mx=0;
+      snap.forEach(doc=>{const d=doc.data();cloudIds.add(doc.id);mx=Math.max(mx,tsMs(d._u));applyRemote(d)});
+      const local=[...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()].filter(d=>!cloudIds.has(d.id));
+      await cloudPush(local);syncMeta(u.uid,{migrated:true,last:mx});lsSave();toast(local.length?`${local.length} kayıt buluta yüklendi`:"Bulut kayıtları bu cihaza alındı")}
+    cloudListen(u)}
+  catch(e){CLOUD.err="Eşitleme başlatılamadı: "+(e.message||e.code)}
+  CLOUD.busy=false;render()}
+function cloudListen(u){if(CLOUD.unsub)CLOUD.unsub();const last=syncMeta(u.uid).last||0;
+  CLOUD.unsub=CLOUD.col.where("_u",">",firebase.firestore.Timestamp.fromMillis(last)).onSnapshot(snap=>{let mx=syncMeta(u.uid).last||0,n=0;
+    snap.docChanges().forEach(ch=>{if(ch.type==="removed")return;if(ch.doc.metadata.hasPendingWrites)return;const d=ch.doc.data();mx=Math.max(mx,tsMs(d._u));applyRemote(d);n++});
+    if(n){syncMeta(u.uid,{last:mx});lsSave();clearTimeout(CLOUD._rt);CLOUD._rt=setTimeout(()=>{if(!document.querySelector("form input:focus,form textarea:focus,form select:focus"))render()},150)}
+    CLOUD.synced=Date.now();setSync()},e=>{CLOUD.err="Eşitleme durdu: "+(e.message||e.code);render()})}
+function cloudStop(){if(CLOUD.unsub)CLOUD.unsub();CLOUD.unsub=null;CLOUD.col=null}
+async function cloudPush(list,del){if(!CLOUD.col||!list.length)return;const ts=firebase.firestore.FieldValue.serverTimestamp();
+  for(let i=0;i<list.length;i+=400){const b=CLOUD.db.batch();list.slice(i,i+400).forEach(d=>b.set(CLOUD.col.doc(d.id),del?{id:d.id,kind:d.kind,_del:true,_u:ts}:Object.assign(cleanDoc(d),{_del:false,_u:ts})));
+    b.commit().catch(e=>{CLOUD.err="Buluta yazılamadı: "+(e.message||e.code);setSync()})}}
+const AUTH_ERR={"auth/invalid-credential":"E-posta ya da şifre hatalı.","auth/wrong-password":"Şifre hatalı.","auth/user-not-found":"Bu e-postayla hesap yok. İlk kez giriyorsan \"Hesap oluştur\"a bas.","auth/invalid-email":"E-posta adresi geçersiz.","auth/email-already-in-use":"Bu e-postayla zaten hesap var; \"Giriş yap\"a bas.","auth/weak-password":"Şifre en az 6 karakter olmalı.","auth/network-request-failed":"İnternet bağlantısı yok. İlk giriş için internet gerekir.","auth/too-many-requests":"Çok fazla deneme yapıldı, birkaç dakika sonra tekrar dene."};
+function lockScreen(){const e=$(".emblem");return `<section class="panel" style="max-width:420px;margin:24px auto;gap:14px;text-align:center">
+  ${e?`<img src="${e.src}" alt="" style="width:72px;height:72px;border-radius:18px;justify-self:center">`:""}
+  <h2>Saha Satış Defteri</h2>
+  ${!CLOUD.ready?`<span class="sub">Giriş kontrol ediliyor…</span>`:`<span class="sub">Kayıtların telefon ve bilgisayar arasında eşitlensin diye bir kez giriş yap. Bu cihaz seni hatırlar.</span>
+  <form id="loginForm" style="display:grid;gap:10px;text-align:left">
+   <label class="f">E-posta<input id="lg_mail" name="mail" type="email" autocomplete="username" required value="${esc(U.loginMail||"")}"></label>
+   <label class="f">Şifre<input id="lg_pass" name="pass" type="password" autocomplete="current-password" minlength="6" required></label>
+   ${U.loginErr?`<div class="banner" style="background:var(--bad-bg);color:var(--bad)">${esc(U.loginErr)}</div>`:""}
+   <button class="btn pri" type="submit" name="act" value="in" ${U.loginBusy?"disabled":""}>${U.loginBusy?"Bekle…":"Giriş yap"}</button>
+   <button class="btn" type="submit" name="act" value="up" ${U.loginBusy?"disabled":""}>İlk kez: hesap oluştur</button>
+   <button class="btn ghost sm" type="button" data-act="forgot">Şifremi unuttum</button></form>`}</section>`}
+function cloudPanel(){if(!FB_CONFIG)return "";const u=CLOUD.user;
+  return `<section class="panel"><h2>Hesap ve eşitleme</h2>
+   ${u?`<div class="row"><span class="chip ok">bağlı</span><span class="mono" style="font-size:13px">${esc(u.email||"")}</span></div>
+    <span class="why">${CLOUD.busy?"İlk eşitleme yapılıyor…":CLOUD.synced?"Son eşitleme "+new Date(CLOUD.synced).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):"Eşitleniyor…"}${navigator.onLine===false?" · çevrimdışı, bağlantı gelince gönderilecek":""}</span>
+    ${CLOUD.err?`<div class="banner">${esc(CLOUD.err)}</div>`:""}
+    <span class="why">Bu hesapla giriş yaptığın her cihazda kayıtlar aynı. Fotoğraflar sadece çekildiği cihazda durur.</span>
+    <div class="row"><button class="btn ghost sm" data-act="signOut" style="color:var(--bad)">Bu cihazdan çıkış yap</button></div>`:`<span class="sub">Giriş yapılmadı.</span>`}</section>`}
+async function doLogin(fd){U.loginErr="";U.loginBusy=true;const mail=String(fd.mail||"").trim(),pass=String(fd.pass||"");U.loginMail=mail;render();
+  try{if(fd.act==="up")await firebase.auth().createUserWithEmailAndPassword(mail,pass);else await firebase.auth().signInWithEmailAndPassword(mail,pass);U.loginErr=""}
+  catch(e){U.loginErr=AUTH_ERR[e.code]||("Giriş yapılamadı: "+(e.message||e.code))}
+  U.loginBusy=false;render()}
+
 /* ---------- events ---------- */
 async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
 document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e.target.open},true);
@@ -1245,6 +1303,11 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="signOut"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Emin misin? Bu cihazdaki kopya silinir, bulut kalır";return}
+    lsFlush();await firebase.auth().signOut();try{localStorage.removeItem(LSK);Object.keys(localStorage).filter(k=>k.startsWith("saha-sync-")).forEach(k=>localStorage.removeItem(k))}catch(e){}
+    [S.customers,S.visits,S.orders,S.settings,S.products].forEach(m=>m.clear());DV++;toast("Çıkış yapıldı")}
+  else if(a==="forgot"){const m=($("#lg_mail")||{}).value||"";if(!m){U.loginErr="Önce e-posta adresini yaz.";render();return}
+    try{await firebase.auth().sendPasswordResetEmail(m.trim());U.loginErr="";toast("Şifre sıfırlama bağlantısı e-postana gönderildi")}catch(e){U.loginErr=AUTH_ERR[e.code]||e.message;render()}return}
   else if(a==="moveLater"){try{localStorage.setItem("saha-tasi-gizle",today())}catch(e){}}
   else if(a==="more"){U.lim=U.lim||{};U.lim[b.dataset.k]=((U.lim[b.dataset.k])||Number(b.dataset.n))+Number(b.dataset.n)*2}
   else if(a==="forceAll"){U.forceAll=true}
@@ -1376,6 +1439,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
       if(fg){await save(Object.assign({},S.customers.get(c.id)||c,fg,{geoApprox:true}));toast("Konum adresten bulundu (yaklaşık)")}}}
   else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
   else if(f.id==="chatForm"){aiAsk(fd.q);return}
+  else if(f.id==="loginForm"){fd.act=(e.submitter&&e.submitter.value)||"in";doLogin(fd);return}
   else if(f.id==="freeLine"){U.cart.lines.push({pid:"",name:String(fd.name).trim(),oem:"",price:parseNum(fd.price),qty:1});render();return}
   else if(f.id==="prodForm"){await save({id:uid("p"),kind:"product",name:String(fd.name).trim(),oem:String(fd.oem||"").trim(),brand:String(fd.brand||"").trim(),price:parseNum(fd.price)||"",stock:fd.stock===""?"":parseNum(fd.stock)});toast("Ürün eklendi");return}
   else if(f.id==="msgCfgForm"){await saveMsgCfg({depot:String(fd.depot||"").trim(),sender:String(fd.sender||"").trim(),defaultTerm:Number(fd.defaultTerm)||30,optOut:!!fd.optOut,tpl:{odeme:fd.odeme,kampanya:fd.kampanya,ret:fd.ret}});toast("Şablonlar kaydedildi");return}
@@ -1392,7 +1456,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     let status=c.status||"Aday";if(fd.result==="Sipariş alındı")status="Aktif";else if(fd.result==="Teklif verildi"&&status!=="Aktif")status="Teklif";else if(status==="Aday"&&fd.result!=="Ulaşılamadı")status="Görüşülüyor";
     await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});
 
-render();boot();
+render();boot();setTimeout(cloudInit,0);addEventListener("online",setSync);addEventListener("offline",setSync);
 checkUpdate(false);setInterval(()=>checkUpdate(false),30*60*1000);
 setTimeout(checkOverdue,1500);setTimeout(()=>{nightCheck();detectHome()},2500);setInterval(()=>{if(document.visibilityState==="visible"&&U.tab==="rota"&&!document.querySelector("input:focus,textarea:focus,select:focus")){ensurePos();scheduleHomeNotif();render()}},5*60e3);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkOverdue();arrivalWatch()});
 setTimeout(()=>{scheduleLunchNotif();if(location.hash==="#ogle"||inLunchWindow()){U.tab="rota";U.lunch.open=true;if(location.hash==="#ogle"||notifState()==="granted")locateLunch(true)}},800);

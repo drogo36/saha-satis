@@ -19,7 +19,8 @@
 (async function(){
   var SRC="https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html", K="saha-app-html";
   var cached=null; try{cached=localStorage.getItem(K)}catch(e){}
-  function show(h){document.open();document.write(h);document.close()}
+  function show(h){if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){show(h)},{once:true});return}
+    setTimeout(function(){document.open();document.write(h);document.close()},0)}
   async function fresh(ms){var c=new AbortController();var t=setTimeout(function(){c.abort()},ms);
     try{var r=await fetch(SRC+"?t="+Date.now(),{cache:"no-store",signal:c.signal});clearTimeout(t);if(!r.ok)return null;var h=await r.text();
       if(h.indexOf("APP_VERSION")<0)return null;try{localStorage.setItem(K,h)}catch(e){}return h}catch(e){return null}}

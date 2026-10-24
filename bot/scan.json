@@ -1,19 +1,45 @@
 {
- "at": 1792800180,
+ "at": 1792816596,
  "count": 45,
  "list": [
   {
-   "pair": "PHATRY",
-   "sym": "PHA",
-   "last": 2.6788,
-   "dailyPercent": -11.9,
-   "volTL": 80832984,
-   "atrPct": 4.6,
-   "rsi": 31.7,
+   "pair": "ERATRY",
+   "sym": "ERA",
+   "last": 4.521,
+   "dailyPercent": 35.16,
+   "volTL": 334852879,
+   "atrPct": 5.57,
+   "rsi": 67.2,
    "supports": [
     {
-     "p": 2.47498,
-     "n": 10
+     "p": 4.2695,
+     "n": 2
+    },
+    {
+     "p": 3.479343749999999,
+     "n": 32
+    },
+    {
+     "p": 2.816,
+     "n": 1
+    }
+   ],
+   "resistances": [],
+   "signal": "",
+   "why": "üstte direnç yok"
+  },
+  {
+   "pair": "PHATRY",
+   "sym": "PHA",
+   "last": 2.5759,
+   "dailyPercent": -15.21,
+   "volTL": 87016261,
+   "atrPct": 4.14,
+   "rsi": 29.8,
+   "supports": [
+    {
+     "p": 2.482133333333333,
+     "n": 9
     },
     {
      "p": 2.3,
@@ -22,46 +48,15 @@
    ],
    "resistances": [
     {
-     "p": 2.8677,
-     "n": 17
+     "p": 2.6981,
+     "n": 6
+    },
+    {
+     "p": 2.960209090909091,
+     "n": 11
     },
     {
      "p": 3.24965,
-     "n": 2
-    },
-    {
-     "p": 3.4466,
-     "n": 3
-    }
-   ],
-   "signal": "",
-   "why": "desteğe uzak"
-  },
-  {
-   "pair": "ERATRY",
-   "sym": "ERA",
-   "last": 3.745,
-   "dailyPercent": 17.21,
-   "volTL": 233905909,
-   "atrPct": 4.26,
-   "rsi": 57.3,
-   "supports": [
-    {
-     "p": 3.335758620689654,
-     "n": 29
-    }
-   ],
-   "resistances": [
-    {
-     "p": 3.8433333333333333,
-     "n": 3
-    },
-    {
-     "p": 3.9945000000000004,
-     "n": 2
-    },
-    {
-     "p": 4.2695,
      "n": 2
     }
    ],
@@ -71,15 +66,15 @@
   {
    "pair": "BILLTRY",
    "sym": "BILL",
-   "last": 0.2987,
-   "dailyPercent": -2.61,
-   "volTL": 101842529,
-   "atrPct": 3.92,
-   "rsi": 41.8,
+   "last": 0.3042,
+   "dailyPercent": -2.59,
+   "volTL": 106848611,
+   "atrPct": 3.5,
+   "rsi": 46.9,
    "supports": [
     {
-     "p": 0.28612941176470585,
-     "n": 17
+     "p": 0.2860611111111111,
+     "n": 18
     }
    ],
    "resistances": [
@@ -100,17 +95,44 @@
    "why": "desteğe uzak"
   },
   {
-   "pair": "ARKMTRY",
-   "sym": "ARKM",
-   "last": 6.581,
-   "dailyPercent": 3.15,
-   "volTL": 21478397,
-   "atrPct": 2.83,
-   "rsi": 50.9,
+   "pair": "ZORATRY",
+   "sym": "ZORA",
+   "last": 0.3416,
+   "dailyPercent": 7.52,
+   "volTL": 15460822,
+   "atrPct": 3.17,
+   "rsi": 59.7,
    "supports": [
     {
-     "p": 6.235680000000001,
-     "n": 25
+     "p": 0.32345862068965514,
+     "n": 29
+    }
+   ],
+   "resistances": [
+    {
+     "p": 0.3499,
+     "n": 1
+    }
+   ],
+   "signal": "",
+   "why": "üstte direnç yok"
+  },
+  {
+   "pair": "ARKMTRY",
+   "sym": "ARKM",
+   "last": 6.7,
+   "dailyPercent": 4.2,
+   "volTL": 21001982,
+   "atrPct": 2.69,
+   "rsi": 58.6,
+   "supports": [
+    {
+     "p": 6.638,
+     "n": 1
+    },
+    {
+     "p": 6.2390384615384615,
+     "n": 26
     },
     {
      "p": 5.670999999999999,
@@ -119,16 +141,16 @@
    ],
    "resistances": [
     {
-     "p": 6.638,
-     "n": 1
-    },
-    {
      "p": 6.843,
      "n": 1
     },
     {
      "p": 7.082000000000001,
      "n": 2
+    },
+    {
+     "p": 7.315,
+     "n": 1
     }
    ],
    "signal": "",
@@ -137,46 +159,85 @@
   {
    "pair": "BEAMTRY",
    "sym": "BEAM",
-   "last": 0.16781,
-   "dailyPercent": 10.48,
-   "volTL": 38692404,
-   "atrPct": 2.64,
-   "rsi": 69.1,
+   "last": 0.16229,
+   "dailyPercent": 5.31,
+   "volTL": 41634367,
+   "atrPct": 2.6,
+   "rsi": 55.1,
    "supports": [
     {
-     "p": 0.16748,
-     "n": 3
-    },
-    {
-     "p": 0.159494,
-     "n": 5
+     "p": 0.15968333333333332,
+     "n": 6
     },
     {
      "p": 0.14872772727272723,
      "n": 22
+    },
+    {
+     "p": 0.13794,
+     "n": 1
     }
    ],
    "resistances": [
+    {
+     "p": 0.16622,
+     "n": 2
+    },
+    {
+     "p": 0.17323,
+     "n": 1
+    },
     {
      "p": 0.182,
      "n": 1
     }
    ],
    "signal": "",
-   "why": "RSI 69"
+   "why": "destek test edilmedi"
+  },
+  {
+   "pair": "ZKCTRY",
+   "sym": "ZKC",
+   "last": 1.749,
+   "dailyPercent": 4.79,
+   "volTL": 50375060,
+   "atrPct": 2.55,
+   "rsi": 52.6,
+   "supports": [
+    {
+     "p": 1.680866666666667,
+     "n": 30
+    }
+   ],
+   "resistances": [
+    {
+     "p": 1.823,
+     "n": 1
+    },
+    {
+     "p": 1.94,
+     "n": 1
+    }
+   ],
+   "signal": "",
+   "why": "desteğe uzak"
   },
   {
    "pair": "WCTTRY",
    "sym": "WCT",
-   "last": 1.818,
-   "dailyPercent": 6.01,
-   "volTL": 32699257,
-   "atrPct": 2.58,
-   "rsi": 54.7,
+   "last": 1.886,
+   "dailyPercent": 8.27,
+   "volTL": 34644766,
+   "atrPct": 2.35,
+   "rsi": 66.5,
    "supports": [
     {
-     "p": 1.7669999999999997,
-     "n": 26
+     "p": 1.8932499999999999,
+     "n": 4
+    },
+    {
+     "p": 1.74,
+     "n": 22
     }
    ],
    "resistances": [
@@ -186,20 +247,59 @@
     }
    ],
    "signal": "",
+   "why": "RSI 66"
+  },
+  {
+   "pair": "MIRATRY",
+   "sym": "MIRA",
+   "last": 2.373,
+   "dailyPercent": 6.32,
+   "volTL": 20976237,
+   "atrPct": 2.19,
+   "rsi": 63.2,
+   "supports": [
+    {
+     "p": 2.233833333333333,
+     "n": 24
+    },
+    {
+     "p": 2.1016666666666666,
+     "n": 3
+    },
+    {
+     "p": 2.041,
+     "n": 1
+    }
+   ],
+   "resistances": [
+    {
+     "p": 2.499,
+     "n": 1
+    }
+   ],
+   "signal": "",
    "why": "desteğe uzak"
   },
   {
    "pair": "MELANIATRY",
    "sym": "MELANIA",
-   "last": 4.299,
-   "dailyPercent": 3.59,
-   "volTL": 31888703,
-   "atrPct": 2.48,
-   "rsi": 52.1,
+   "last": 4.311,
+   "dailyPercent": 2.16,
+   "volTL": 32500219,
+   "atrPct": 2.07,
+   "rsi": 51.1,
    "supports": [
     {
-     "p": 4.1699230769230775,
-     "n": 39
+     "p": 4.184138888888889,
+     "n": 36
+    },
+    {
+     "p": 3.918,
+     "n": 1
+    },
+    {
+     "p": 3.863,
+     "n": 1
     }
    ],
    "resistances": [],
@@ -207,17 +307,56 @@
    "why": "üstte direnç yok"
   },
   {
-   "pair": "SENTTRY",
-   "sym": "SENT",
-   "last": 1.1026,
-   "dailyPercent": 1.38,
-   "volTL": 42956710,
-   "atrPct": 2.44,
-   "rsi": 43.4,
+   "pair": "AMPTRY",
+   "sym": "AMP",
+   "last": 0.038,
+   "dailyPercent": -1.04,
+   "volTL": 150160515,
+   "atrPct": 2.05,
+   "rsi": 38.8,
    "supports": [
     {
-     "p": 1.0668275862068963,
-     "n": 29
+     "p": 0.0359,
+     "n": 1
+    },
+    {
+     "p": 0.03496666666666667,
+     "n": 3
+    },
+    {
+     "p": 0.0332,
+     "n": 1
+    }
+   ],
+   "resistances": [
+    {
+     "p": 0.038246153846153846,
+     "n": 13
+    },
+    {
+     "p": 0.041287500000000005,
+     "n": 8
+    },
+    {
+     "p": 0.0424,
+     "n": 2
+    }
+   ],
+   "signal": "",
+   "why": "desteğe uzak"
+  },
+  {
+   "pair": "SENTTRY",
+   "sym": "SENT",
+   "last": 1.1089,
+   "dailyPercent": -1.73,
+   "volTL": 43532474,
+   "atrPct": 2.02,
+   "rsi": 46.3,
+   "supports": [
+    {
+     "p": 1.0696392857142858,
+     "n": 28
     }
    ],
    "resistances": [
@@ -238,17 +377,52 @@
    "why": "desteğe uzak"
   },
   {
-   "pair": "ENATRY",
-   "sym": "ENA",
-   "last": 9.858,
-   "dailyPercent": 0.24,
-   "volTL": 45090662,
-   "atrPct": 2.25,
-   "rsi": 43.9,
+   "pair": "ATHTRY",
+   "sym": "ATH",
+   "last": 0.29378,
+   "dailyPercent": -5.81,
+   "volTL": 42770252,
+   "atrPct": 2.02,
+   "rsi": 43.2,
    "supports": [
     {
-     "p": 9.839291666666666,
-     "n": 24
+     "p": 0.2772119999999999,
+     "n": 20
+    },
+    {
+     "p": 0.2575,
+     "n": 1
+    }
+   ],
+   "resistances": [
+    {
+     "p": 0.294115,
+     "n": 4
+    },
+    {
+     "p": 0.30162,
+     "n": 1
+    },
+    {
+     "p": 0.30696,
+     "n": 1
+    }
+   ],
+   "signal": "",
+   "why": "desteğe uzak"
+  },
+  {
+   "pair": "ENATRY",
+   "sym": "ENA",
+   "last": 9.865,
+   "dailyPercent": -0.66,
+   "volTL": 44855761,
+   "atrPct": 2,
+   "rsi": 46,
+   "supports": [
+    {
+     "p": 9.612857142857143,
+     "n": 14
     },
     {
      "p": 9.170625000000001,
@@ -261,34 +435,15 @@
    ],
    "resistances": [
     {
-     "p": 10.583,
+     "p": 10.046999999999999,
+     "n": 7
+    },
+    {
+     "p": 10.29,
      "n": 1
     },
     {
-     "p": 11.135,
-     "n": 1
-    }
-   ],
-   "signal": "AL",
-   "why": "destek 9,839 (24 dokunuş), hedef 10,58, RSI 44, K/R 2.5"
-  },
-  {
-   "pair": "ZKCTRY",
-   "sym": "ZKC",
-   "last": 1.752,
-   "dailyPercent": 7.16,
-   "volTL": 45747937,
-   "atrPct": 2.23,
-   "rsi": 58.5,
-   "supports": [
-    {
-     "p": 1.6861875000000002,
-     "n": 32
-    }
-   ],
-   "resistances": [
-    {
-     "p": 1.94,
+     "p": 10.409,
      "n": 1
     }
    ],
@@ -296,39 +451,13 @@
    "why": "desteğe uzak"
   },
   {
-   "pair": "STRKTRY",
-   "sym": "STRK",
-   "last": 2.44,
-   "dailyPercent": -7.58,
-   "volTL": 51331624,
-   "atrPct": 2.17,
-   "rsi": 30.7,
-   "supports": [],
-   "resistances": [
-    {
-     "p": 2.6500000000000004,
-     "n": 2
-    },
-    {
-     "p": 2.74,
-     "n": 1
-    },
-    {
-     "p": 2.79,
-     "n": 1
-    }
-   ],
-   "signal": "",
-   "why": "güçlü destek yok"
-  },
-  {
    "pair": "PUMPTRY",
    "sym": "PUMP",
-   "last": 0.21269,
-   "dailyPercent": -5.99,
-   "volTL": 74161323,
-   "atrPct": 2.11,
-   "rsi": 29.3,
+   "last": 0.21286,
+   "dailyPercent": -7.23,
+   "volTL": 75988893,
+   "atrPct": 1.96,
+   "rsi": 30.4,
    "supports": [
     {
      "p": 0.18992,
@@ -341,113 +470,12 @@
      "n": 10
     },
     {
-     "p": 0.22391833333333333,
-     "n": 12
+     "p": 0.22405399999999998,
+     "n": 10
     },
     {
      "p": 0.23223,
      "n": 10
-    }
-   ],
-   "signal": "",
-   "why": "güçlü destek yok"
-  },
-  {
-   "pair": "WLDTRY",
-   "sym": "WLD",
-   "last": 23.746,
-   "dailyPercent": -12.4,
-   "volTL": 29288333,
-   "atrPct": 2.1,
-   "rsi": 23,
-   "supports": [
-    {
-     "p": 22.681,
-     "n": 1
-    }
-   ],
-   "resistances": [
-    {
-     "p": 24.634083333333336,
-     "n": 12
-    },
-    {
-     "p": 26.57783333333333,
-     "n": 12
-    },
-    {
-     "p": 27.3735,
-     "n": 2
-    }
-   ],
-   "signal": "",
-   "why": "güçlü destek yok"
-  },
-  {
-   "pair": "AMPTRY",
-   "sym": "AMP",
-   "last": 0.0389,
-   "dailyPercent": 0,
-   "volTL": 147893084,
-   "atrPct": 2.09,
-   "rsi": 48.8,
-   "supports": [
-    {
-     "p": 0.038246153846153846,
-     "n": 13
-    },
-    {
-     "p": 0.0359,
-     "n": 1
-    },
-    {
-     "p": 0.03496666666666667,
-     "n": 3
-    }
-   ],
-   "resistances": [
-    {
-     "p": 0.041287500000000005,
-     "n": 8
-    },
-    {
-     "p": 0.0424,
-     "n": 2
-    },
-    {
-     "p": 0.0435,
-     "n": 1
-    }
-   ],
-   "signal": "",
-   "why": "desteğe uzak"
-  },
-  {
-   "pair": "STORJTRY",
-   "sym": "STORJ",
-   "last": 1.139,
-   "dailyPercent": 0.53,
-   "volTL": 16133464,
-   "atrPct": 2.09,
-   "rsi": 43.7,
-   "supports": [
-    {
-     "p": 1.031,
-     "n": 1
-    }
-   ],
-   "resistances": [
-    {
-     "p": 1.2025769230769232,
-     "n": 26
-    },
-    {
-     "p": 1.300125,
-     "n": 8
-    },
-    {
-     "p": 1.344,
-     "n": 1
     }
    ],
    "signal": "",

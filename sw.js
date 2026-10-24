@@ -1,4 +1,4 @@
-const V="saha-1.6.0";
+const V="saha-1.6.1";
 const CORE=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","apple-touch-icon.png"];
 const CDN="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(async c=>{await c.addAll(CORE.map(u=>new Request(u,{cache:"reload"})));}));self.skipWaiting()});

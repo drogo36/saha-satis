@@ -20,7 +20,7 @@
 /* Layout: navy app bar + white rounded cards on a cool sky background, bottom tab bar with a centre quick-action button */
 :root{
   --bg:#f2f6fb; --surface:#ffffff; --sunk:#e9f0f8; --line:#d8e2ee;
-  --ink:#0b1d4a; --muted:#5a6b86; --accent:#048cfc; --accent-ink:#ffffff;
+  --ink:#0b1d4a; --muted:#5a6b86; --accent:#048cfc; --accent-ink:#ffffff; --cta:#a4e22b; --cta-ink:#0b1d4a; --cta-press:#8fcc17;
   --steel:#0b1d4a; --navy:#0b1d4a; --navy2:#132b6b; --ok:#0f9d6b; --warn:#c27a00; --bad:#e0293a;
   --ok-bg:#dcf5ea; --warn-bg:#fff1d6; --bad-bg:#fde3e5; --steel-bg:#e3effd;
   --f-display:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -30,12 +30,12 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#07112b; --surface:#0f1d42; --sunk:#16275a; --line:#22356c;
-  --ink:#eef3ff; --muted:#9db0d6; --accent:#2fa2ff; --accent-ink:#04122e;
+  --ink:#eef3ff; --muted:#9db0d6; --accent:#2fa2ff; --accent-ink:#04122e; --cta:#b2ef3a; --cta-ink:#07112b; --cta-press:#9edc22;
   --steel:#cfe0ff; --navy:#050d24; --navy2:#0c1a45; --ok:#3fd69a; --warn:#ffbf47; --bad:#ff6b77;
   --ok-bg:#0f3a2c; --warn-bg:#3d2c08; --bad-bg:#43141c; --steel-bg:#15306a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#07112b; --surface:#0f1d42; --sunk:#16275a; --line:#22356c;
-  --ink:#eef3ff; --muted:#9db0d6; --accent:#2fa2ff; --accent-ink:#04122e;
+  --ink:#eef3ff; --muted:#9db0d6; --accent:#2fa2ff; --accent-ink:#04122e; --cta:#b2ef3a; --cta-ink:#07112b; --cta-press:#9edc22;
   --steel:#cfe0ff; --navy:#050d24; --navy2:#0c1a45; --ok:#3fd69a; --warn:#ffbf47; --bad:#ff6b77;
   --ok-bg:#0f3a2c; --warn-bg:#3d2c08; --bad-bg:#43141c; --steel-bg:#15306a; color-scheme:dark}
 *{box-sizing:border-box}
@@ -55,7 +55,7 @@ nav.bottom .wrap{display:grid;grid-template-columns:repeat(5,1fr);align-items:en
 nav.bottom button{background:none;border:0;color:var(--muted);font:600 11px var(--f-body);display:grid;justify-items:center;gap:3px;padding:8px 0 10px;cursor:pointer}
 nav.bottom button svg{width:24px;height:24px}
 nav.bottom button[aria-selected="true"]{color:var(--accent)}
-nav.bottom .fab{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin:0 auto 12px;box-shadow:0 8px 20px rgba(4,140,252,.4);border:4px solid var(--surface);padding:0}
+nav.bottom .fab{width:58px;height:58px;border-radius:50%;background:var(--cta);color:var(--cta-ink);display:grid;place-items:center;margin:0 auto 12px;box-shadow:0 8px 20px rgba(120,180,20,.45);border:4px solid var(--surface);padding:0}
 nav.bottom .fab svg{width:28px;height:28px}
 .sheet-bg{position:fixed;inset:0;background:rgba(5,13,36,.45);z-index:20}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-radius:24px 24px 0 0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:85vh;overflow:auto;display:grid;gap:12px}
@@ -81,10 +81,10 @@ h3{font-family:var(--f-display);font-weight:700;font-size:13px;margin:0;text-tra
 .kpi .l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .kpi .v{font-family:var(--f-mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:2px}
 .btn{font:700 14px/1 var(--f-body);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri{background:var(--cta);border-color:var(--cta);color:var(--cta-ink)}.btn.pri:active{background:var(--cta-press)}
 .btn.ghost{background:transparent}
 .btn.sm{padding:6px 10px;min-height:32px;font-size:13px}
-.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.bottom button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 label.f{display:grid;gap:4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
 input,select,textarea{font:400 15px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
@@ -136,14 +136,14 @@ svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sun
 .funnel{display:grid;gap:6px}.funnel .r{display:grid;grid-template-columns:120px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:14px}
 .pipe{display:flex;flex-wrap:wrap;gap:4px}
 .pipe button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:7px 10px;border-radius:6px;cursor:pointer}
-.pipe button{border-radius:999px}.pipe button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pipe button{border-radius:999px}.pipe button[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
 .why{font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.item,.panel{transition:border-color .15s}}
 </style>
 </head><body>
 <header class="top"><div class="wrap">
   <div class="brand" id="hello">Saha Satış<small>yedek parça · ziyaret · sipariş · rota</small></div>
-  <button class="btn sm" id="installBtn" hidden style="background:var(--accent);border-color:var(--accent);color:var(--accent-ink)">Ana ekrana ekle</button>
+  <button class="btn sm pri" id="installBtn" hidden>Ana ekrana ekle</button>
   <div class="sync" id="sync">yükleniyor…</div>
   <button class="iconbtn" data-act="openSearch" aria-label="Ara"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div></header>
@@ -164,7 +164,8 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const trLow=s=>String(s??"").toLocaleLowerCase("tr-TR").replace(/\s+/g," ").trim();
 const tl=n=>(Number(n)||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₺";
-const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const today=()=>ymd(new Date());
 const nowTime=()=>new Date().toTimeString().slice(0,5);
 const fmtDate=s=>{if(!s)return "—";const [y,m,d]=s.split("-");return d&&m?`${d}.${m}.${y}`:s};
 const uid=p=>p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -190,7 +191,8 @@ function phoneHref(p){return "tel:"+String(p||"").replace(/[^\d+]/g,"")}
 const S={customers:new Map(),visits:new Map(),orders:new Map(),settings:new Map(),products:new Map(),mode:"yükleniyor",ready:false};
 let col=null;const LSK="saha-satis-v1";
 function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||"[]");o.forEach(put)}catch(e){}}
-function lsSave(){try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()]))}catch(e){}}
+function lsSave(){try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()]));U&&(U.storeFull=false)}
+  catch(e){if(typeof U!=="undefined"&&!U.storeFull){U.storeFull=true;setTimeout(()=>toast("⚠ Telefon hafızası doldu, son değişiklik kaydedilemedi. Rapor → Yedek al, sonra eski fatura/sipariş kayıtlarını sil."),50)}}}
 function bucket(k){return k==="customer"?S.customers:k==="visit"?S.visits:k==="setting"?S.settings:k==="product"?S.products:S.orders}
 let DV=0;function put(d){if(d&&d.id&&d.kind){bucket(d.kind).set(d.id,d);DV++}}
 async function save(d){put(d);render();
@@ -237,7 +239,7 @@ const TYPES=["Toptancı","Perakende parçacı","Servis / tamirhane","Filo / kuru
 const BRANDS=["Ford","Fiat","PSA","Renault","VAG","Toyota","Hyundai","Diğer"];
 const settings=()=>S.settings.get("setting_main")||{id:"setting_main",kind:"setting",target:0};
 function waLink(p){let d=String(p||"").replace(/\D/g,"");if(d.startsWith("0"))d="90"+d.slice(1);else if(d.length===10)d="90"+d;return d.length>=11?"https://wa.me/"+d:""}
-function daysSince(d){if(!d)return null;return Math.floor((new Date(today())-new Date(d))/864e5)}
+function daysSince(d){if(!d)return null;return Math.round((new Date(today()+"T00:00")-new Date(d+"T00:00"))/864e5)}
 function custRevenue(c){return ix().rev.get(c.id)||0}
 function priority(c){const I=ix();const hit=I.pri.get(c.id);if(hit)return hit;const r=priority0(c);I.pri.set(c.id,r);return r}
 function priority0(c){const t=today();let sc=0,why=[];
@@ -265,7 +267,7 @@ function kpis(){
   const t=today(),ym=t.slice(0,7);const os=[...S.orders.values()];
   const sipAy=os.filter(o=>o.type==="sipariş"&&(o.date||"").startsWith(ym)).reduce((a,o)=>a+(o.amount||0),0);
   const fatAy=os.filter(o=>o.type==="fatura"&&(o.date||"").startsWith(ym)).reduce((a,o)=>a+(o.amount||0),0);
-  const w=new Date();w.setDate(w.getDate()-6);const ws=w.toISOString().slice(0,10);
+  const w=new Date();w.setDate(w.getDate()-6);const ws=ymd(w);
   const vis=[...S.visits.values()].filter(v=>v.date>=ws).length;
   const due=custList().filter(c=>c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t).length;
   const tg=Number(settings().target)||0;const base=Math.max(sipAy,fatAy);const pct=tg?Math.min(100,base/tg*100):0;
@@ -553,7 +555,7 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
    <label class="f">Bitiş<input id="vf_end" type="time" name="end" value="${nowTime()}"></label>
    <label class="f">Sonuç<select id="vf_res" name="result">${Object.keys(RESULTS).map(k=>`<option>${k}</option>`).join("")}</select></label>
    <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
-   <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return d.toISOString().slice(0,10)})()}"></label>
+   <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return ymd(d)})()}"></label>
    <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no<input id="vf_parts" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label>
    <div class="row" style="grid-column:1/-1"><span class="why" style="flex:1 1 200px">Notu serbestçe yaz ya da klavyedeki mikrofonla söyle; AI sonucu, tutarı, parçaları ve sonraki ziyareti doldursun.</span><button class="btn sm" type="button" data-act="aiFill">✨ AI ile düzenle</button></div>
    <div style="grid-column:1/-1;display:grid;gap:6px"><label class="btn sm" for="vf_photo" style="justify-self:start">📷 Fotoğraf ekle (raf, fatura, kartvizit)</label><input id="vf_photo" type="file" accept="image/*" capture="environment" multiple hidden><div class="thumbs" id="vfPhotos">${U.pendingPhotos.map(id=>`<img data-ph="${id}" alt="Fotoğraf">`).join("")}</div></div>
@@ -657,7 +659,7 @@ function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.s
    <div class="row"><button class="btn pri" data-act="backup">Yedek al</button><label class="btn" for="restoreFile">Yedekten geri yükle</label><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></section>`}
 
 /* ---------- sample ---------- */
-async function loadSample(){const t=today();const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+async function loadSample(){const t=today();const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return ymd(x)};
   // [ad, yetkili, bölge, lat, lng, tip, ziyaret+gün, aşama, potansiyel, aylık, markalar]
   const cs=[["Öz Kardeşler Oto Yedek Parça (örnek)","Hasan Öz","İkitelli",41.0861,28.7955,"Toptancı",-2,"Aktif","A",220000,["Ford","Fiat"]],
    ["Yıldız Otomotiv Dağıtım (örnek)","Murat Yıldız","İkitelli",41.0868,28.7932,"Toptancı",0,"Teklif","A",350000,["PSA","Fiat"]],
@@ -791,7 +793,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.6.0";
+const APP_VERSION="1.6.1";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1121,7 +1123,7 @@ function vNear(){const P=U.prospects;
 
 /* Gün sonu raporu */
 function dayReport(date){date=date||today();const vs=[...S.visits.values()].filter(v=>v.date===date).sort((a,b)=>(a.start||"").localeCompare(b.start||""));
-  const os=[...S.orders.values()].filter(o=>o.date===date&&o.type==="sipariş");const newC=custList().filter(c=>c.createdAt&&new Date(c.createdAt).toISOString().slice(0,10)===date);
+  const os=[...S.orders.values()].filter(o=>o.date===date&&o.type==="sipariş");const newC=custList().filter(c=>c.createdAt&&ymd(new Date(c.createdAt))===date);
   const res={};vs.forEach(v=>res[v.result]=(res[v.result]||0)+1);const amt=os.reduce((s,o)=>s+(o.amount||0),0);
   const pts=vs.map(v=>S.customers.get(v.customerId)).filter(hasGeo);const home=homePt();let dist=0;const path=[...(home?[home]:[]),...pts,...(home?[home]:[])];for(let i=1;i<path.length;i++)dist+=km(path[i-1],path[i])*1.35;
   return {date,vs,os,newC,res,amt,dist}}

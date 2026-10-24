@@ -131,7 +131,7 @@ tr:last-child td{border-bottom:0}
 .check{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
 .check input{width:20px;height:20px;flex:none}
 svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sunk);border-radius:8px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:20;max-width:calc(100% - 32px)}
+.toast{display:flex;align-items:center;gap:4px;max-width:calc(100% - 32px);position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:20;max-width:calc(100% - 32px)}
 .banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px}
 .sub{color:var(--muted);font-size:14px;max-width:65ch}
 .live{border-left:4px solid var(--accent)}
@@ -187,7 +187,8 @@ const today=()=>ymd(new Date());
 const nowTime=()=>new Date().toTimeString().slice(0,5);
 const fmtDate=s=>{if(!s)return "—";const [y,m,d]=s.split("-");return d&&m?`${d}.${m}.${y}`:s};
 const uid=p=>p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function toast(m,o){const t=$("#toast");t.textContent=m;if(o&&o.fn){const b=document.createElement("button");b.className="btn sm";b.style.cssText="margin-left:10px;background:var(--cta);border-color:var(--cta);color:var(--cta-ink);min-height:30px";b.textContent=o.label||"Tamam";b.onclick=()=>{t.hidden=true;o.fn()};t.appendChild(b)}
+  t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,(o&&o.ms)||2600)}
 function parseNum(v){if(typeof v==="number")return v;let s=String(v??"").replace(/[^\d,.\-]/g,"");if(!s)return 0;
   if(s.includes(",")&&s.includes(".")){s=s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"")}
   else if(s.includes(",")){s=s.replace(",",".")}
@@ -421,6 +422,7 @@ function vRoute(){
   ${live?`<section class="panel live"><div class="row"><h2>Ziyarette: ${esc(live.name)}</h2><span class="chip warn mono">başladı ${esc(U.live.start)}</span></div>
     <span class="sub">Görüşmeyi bitirince sonucu ve notunu gir.</span><div class="row"><button class="btn pri" data-act="visit" data-id="${live.id}">Ziyareti bitir ve not al</button><button class="btn ghost" data-act="cancelLive">Vazgeç</button></div></section>`:""}
   ${sampleCTA()}
+  ${sampleItems().length&&S.customers.size>sampleItems().filter(d=>d.kind==="customer").length?`<div class="banner">Gerçek kayıtlarının yanında ${sampleItems().length} örnek kayıt duruyor. <button class="btn sm" data-act="clearSample">Örnekleri temizle</button></div>`:""}
   ${lunchCard()}
   ${n7()?`<div class="banner">Son 7 gündür yedek almadın. <button class="btn sm" data-act="backup">Şimdi yedek al</button></div>`:""}
   ${pri.length?`<section class="panel"><div class="row"><h2>Bugün kime gitmeli?</h2><span class="sp"></span><button class="btn sm" data-act="addPri">Hepsini rotaya ekle</button></div>
@@ -578,6 +580,7 @@ function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=
   const bmx=Math.max(1,...Object.values(brandRev));
   return `${kpis()}
   ${cloudPanel()}
+  ${samplePanel()}
   ${backupPanel()}
   ${versionPanel()}
   <section class="panel"><h2>Aylık hedef</h2><form id="setForm" class="row"><label class="f" style="flex:1 1 200px">Satış hedefi (₺/ay)<input id="sf_target" name="target" inputmode="numeric" value="${esc(st.target||"")}" placeholder="örn. 750000"></label><button class="btn pri" type="submit" style="align-self:end">Kaydet</button></form></section>
@@ -639,6 +642,7 @@ function impPanel(kind){const I=U.import;if(!I||I.kind!==kind)return "";
    <div class="grid3">${keys.map(k=>`<label class="f">${lbl[k]}<select data-map="${k}" id="map_${k}">${opts(I.map[k])}</select></label>`).join("")}</div>
    <div class="tbl"><table><thead><tr>${keys.filter(k=>I.map[k]).map(k=>`<th>${lbl[k]}</th>`).join("")}</tr></thead><tbody>
    ${I.rows.slice(0,5).map(r=>`<tr>${keys.filter(k=>I.map[k]).map(k=>`<td>${esc(k==="date"?fmtDate(parseDate(r[I.map[k]])):r[I.map[k]])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+   ${kind==="product"?`<label class="f">Yükleme şekli<select id="impMode"><option value="merge" ${I.mode!=="replace"?"selected":""}>Ekle ve güncelle (mevcut stok kalsın)</option><option value="replace" ${I.mode==="replace"?"selected":""}>Stoğu bu dosyayla değiştir (dosyada olmayanları sil)</option></select></label>${I.mode==="replace"?`<div class="banner">Dosyada olmayan stok ürünleri silinecek. Silinenleri 12 saniye içinde geri alabilirsin.</div>`:""}`:""}
    <div class="row"><button class="btn pri" data-act="doImp">${I.rows.length} kaydı içe aktar</button><button class="btn ghost" data-act="cancelImp">Vazgeç</button></div></section>`}
 function ordTable(os){return `<div class="tbl"><table><thead><tr><th>Tarih</th><th>Tür</th><th>Belge</th><th>Müşteri</th><th>Parça</th><th class="n">Adet</th><th class="n">Tutar</th><th>Vade</th><th></th></tr></thead><tbody>
   ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td>${o.type==="fatura"?(o.paid?'<span class="chip ok">ödendi</span>':`<span class="chip ${dueOf(o)&&dueOf(o)<today()?"bad":""} mono">${fmtDate(dueOf(o))}</span> <button class="btn sm ghost" data-act="markPaid" data-ids="${o.id}">ödendi</button>`):""}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>`}
@@ -679,7 +683,9 @@ async function doImport(){const I=U.import;const m=I.map;
       const ex=products().find(p=>(sku&&normCode(p.sku)===normCode(sku))||(oem&&normCode(p.oem)===normCode(oem))||(!sku&&!oem&&trLow(p.name)===trLow(n)))||out.find(p=>sku&&normCode(p.sku)===normCode(sku));
       if(ex&&out.includes(ex)){Object.assign(ex,{name:n,oem:oem||ex.oem});return}
       out.push(Object.assign({},ex||{id:uid("p"),kind:"product"},{name:n,sku:sku||(ex&&ex.sku)||"",oem:oem||(ex&&ex.oem)||"",brand:m.brand?String(r[m.brand]||""):(ex&&ex.brand)||"",price:m.price?parseNum(r[m.price]):(ex?ex.price:""),stock:m.stock?parseNum(r[m.stock]):(ex?ex.stock:"")}))});
-    U.import=null;await saveMany(out);toast(out.length+" ürün kaydedildi")}
+    const mode=I.mode;U.import=null;await saveMany(out);
+    if(mode==="replace"){const keep=new Set(out.map(p=>p.id));const gone=products().filter(p=>!keep.has(p.id));if(gone.length){await removeMany(gone,`${out.length} ürün yüklendi · dosyada olmayan ${gone.length} ürün silindi`);return}}
+    toast(out.length+" ürün kaydedildi")}
   else{if(!m.customer||!m.amount){toast("Müşteri ve Tutar sütunlarını seç.");return}
     const type=I.type||"sipariş";const out=[];I.rows.forEach(r=>{const cust=String(r[m.customer]||"").trim();if(!cust)return;const c=custByName(cust);
       out.push({id:uid("o"),kind:"order",type,customer:cust,customerId:c?c.id:"",date:m.date?parseDate(r[m.date]):"",no:m.no?String(r[m.no]):"",amount:parseNum(r[m.amount]),item:m.item?String(r[m.item]):"",qty:m.qty?parseNum(r[m.qty]):"",dueDate:m.due?parseDate(r[m.due]):"",remaining:m.remaining?parseNum(r[m.remaining]):"",paid:m.remaining?parseNum(r[m.remaining])<=0:false,importedFrom:I.file})});
@@ -699,6 +705,7 @@ function backupNow(){const all=[...S.customers.values(),...S.visits.values(),...
 async function restoreFrom(file){try{const o=JSON.parse(await file.text());const arr=Array.isArray(o)?o:o.data;if(!Array.isArray(arr))throw 0;
   const n=arr.filter(d=>d&&d.id&&d.kind).length;await saveMany(arr.filter(d=>d&&d.id&&d.kind));toast(n+" kayıt geri yüklendi")}catch(e){toast("Bu dosya bir Saha Satış yedeği değil.")}}
 function versionPanel(){return `<section class="panel"><h2>Uygulama</h2><div class="row"><span class="chip mono">sürüm ${APP_VERSION}</span><span class="sp"></span><button class="btn sm" data-act="checkUpd">Güncellemeleri denetle</button></div><span class="why">Uygulama açıldığında ve her 30 dakikada bir yeni sürümü kendisi kontrol eder.</span></section>`}
+function samplePanel(){const n=sampleItems().length;return n?`<section class="panel"><h2>Örnek veriler</h2><span class="sub">Denemek için yüklenen ${n} örnek kayıt (müşteri, ziyaret, sipariş, stok) duruyor. Gerçek kayıtlarına dokunmadan hepsini silebilirsin.</span><div class="row"><button class="btn sm" data-act="clearSample">Örnek verileri temizle</button></div></section>`:""}
 function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.size+S.orders.size;
   return `<section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
    <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span></div>
@@ -728,7 +735,7 @@ async function loadSample(){const t=today();const d=n=>{const x=new Date();x.set
 
 /* ---------- AI (Google Gemini, kullanıcının kendi ücretsiz anahtarı) ---------- */
 const AIK="saha-ai";
-const AI_MODELS=["gemini-flash-latest","gemini-flash-lite-latest","gemini-2.5-flash-lite"];
+const AI_MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-flash-lite-latest","gemini-2.5-flash-lite","gemini-2.0-flash"];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function aiCfg(){try{return Object.assign({key:"",model:""},JSON.parse(localStorage.getItem(AIK)||"{}"))}catch(e){return {key:"",model:""}}}
 function aiSave(o){try{localStorage.setItem(AIK,JSON.stringify(Object.assign(aiCfg(),o)))}catch(e){}}
@@ -755,8 +762,8 @@ async function geminiOnly(prompt,{system="",json=false,history=[],images=[]}={},
 const FALLBACKS=[
   {name:"Yedek AI",url:"https://text.pollinations.ai/openai",model:"openai"},
   {name:"Yedek AI 2",url:"https://gen.pollinations.ai/v1/chat/completions",model:"openai"}];
-async function fallbackAI(prompt,{system="",json=false,history=[]}={},log){
-  const messages=[...(system?[{role:"system",content:system.slice(0,24000)}]:[]),...history.map(h=>({role:h.role==="model"?"assistant":"user",content:h.parts[0].text})),{role:"user",content:prompt+(json?"\n\nYalnızca geçerli JSON döndür.":"")}];
+async function fallbackAI(prompt,{system="",systemSmall="",json=false,history=[]}={},log){
+  const sys=systemSmall||system;const messages=[...(sys?[{role:"system",content:sys.slice(0,24000)}]:[]),...history.map(h=>({role:h.role==="model"?"assistant":"user",content:h.parts[0].text})),{role:"user",content:prompt+(json?"\n\nYalnızca geçerli JSON döndür.":"")}];
   for(const f of FALLBACKS){
     try{const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),60000);
       const res=await fetch(f.url+"?referrer=saha-satis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:f.model,messages,temperature:json?0.2:0.5,referrer:"saha-satis"}),signal:ctl.signal});clearTimeout(to);
@@ -793,6 +800,10 @@ ${pick.map(line).join("\n")}
 KRİTİK STOK: ${all.filter(lowOf).map(p=>p.name+" ("+(p.stock??"?")+")").join(", ")||"yok"}
 EN ÇOK SATILAN (uygulamadan alınan siparişler): ${top.join("; ")||"veri yok"}
 ${qc.hits.length||qc.unknown.length?"SORUDA GEÇEN KODLAR: "+[...qc.hits.map(h=>h.raw+" = "+line(h.p)),...qc.unknown.map(u=>u+" = stok listesinde YOK")].join("; "):""}`}
+function smallContext(q){const all=products();const set=new Set();findCodes(q).hits.forEach(h=>set.add(h.p));String(q||"").split(/\s+/).filter(w=>w.length>=3).forEach(w=>matchProducts(w).slice(0,15).forEach(p=>set.add(p)));all.filter(lowOf).slice(0,30).forEach(p=>set.add(p));
+  const pl=[...set].slice(0,80).map(p=>[p.sku||"-",p.oem||"-",p.name,p.price?Math.round(p.price)+"₺":"",p.stock===""||p.stock==null?"?":p.stock+" adet"].join(" | "));
+  const cs=custList().filter(c=>c.status!=="Pasif").sort((a,b)=>priority(b).score-priority(a).score).slice(0,40).map(c=>[c.name,c.status||"Aday",c.region||c.district||"",(c.brands||[]).join("/"),c.nextVisit||""].join(" | "));
+  return `Bugün ${today()}. Toplam ${all.length} ürün, ${S.customers.size} müşteri.\nİLGİLİ STOK (stok kodu | OEM | ad | fiyat | stok):\n${pl.join("\n")||"yok"}\nÖNCELİKLİ MÜŞTERİLER (ad | aşama | bölge | markalar | sonraki ziyaret):\n${cs.join("\n")}`}
 function dataContext(q){const t=today();const cs=custList().filter(c=>c.status!=="Pasif");const D=day();
   const lines=cs.slice(0,250).map(c=>{const lv=lastVisit(c);const p=priority(c);
     return [c.name,"pot:"+(c.tier||"C"),c.status||"Aday",c.type||"",c.region||c.district||"",(c.brands||[]).join("/"),c.estMonthly?"aylık~"+Math.round(c.estMonthly/1000)+"b":"",
@@ -816,11 +827,11 @@ function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yap
    <form id="aiForm" class="row"><input id="ai_key" name="key" type="password" autocomplete="off" placeholder="AIza..." value="${esc(cfg.key)}" style="flex:1 1 240px"><button class="btn pri" type="submit">Kaydet</button>${cfg.key?`<button class="btn ghost" type="button" data-act="aiClear">Sil</button>`:""}</form>
    <span class="why">Anahtar sadece bu telefonda saklanır. Asistana soru sorduğunda müşteri özetlerin Google'a gönderilir.${cfg.model?" Model: "+esc(cfg.model):""}</span></section>`}
 function vAI(){const ready=true;const hasKey=aiReady();
-  const quick=["Stokta kritik seviyedeki ürünler hangileri?","Stoktaki ürünleri hangi müşterilere önermeliyim?","Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
+  const quick=["Stoğu 0 olan ürünleri sil","Stokta kritik seviyedeki ürünler hangileri?","Stoktaki ürünleri hangi müşterilere önermeliyim?","Bugün kime gitmeliyim? Rota öner.","Toptan alım potansiyeli en yüksek ama henüz kazanamadığım 5 firma ve her biri için strateji","Teklif verip dönüş almadığım müşteriler kimler, ne yapmalıyım?","Bu ayki hedefe ulaşmak için haftalık plan çıkar","Geciken ziyaretleri bölgelere göre grupla"];
   return `<div class="row"><h2>Asistan</h2><span class="sp"></span>${U.chat.length?`<button class="btn sm ghost" data-act="aiReset">Yeni sohbet</button>`:""}</div>
   ${hasKey?"":`<div class="banner">Anahtar girmeden de çalışır (yedek yapay zekâ ile, daha yavaş). Daha iyi sonuç için aşağıdaki <b>Anahtar ayarı</b>ndan ücretsiz Gemini anahtarı ekle.</div>`}
   ${ready?`<div class="list" id="chatList">${U.chat.length?U.chat.map(m=>m.role==="user"?`<div class="item" style="background:var(--steel-bg);border-color:transparent;justify-self:end;max-width:90%"><div class="note">${esc(m.text)}</div></div>`
-     :`<div class="item"><div class="note">${esc(m.text.replace(/^ROTA:.*$/m,"").trim())}</div>${m.route&&m.route.length?`<div class="row"><button class="btn sm pri" data-act="aiRoute" data-i="${U.chat.indexOf(m)}">Önerilen ${m.route.length} durağı rotaya ekle</button></div>`:""}<div class="row"><button class="btn sm ghost" data-act="aiCopy" data-i="${U.chat.indexOf(m)}">Kopyala</button></div></div>`).join("")
+     :`<div class="item"><div class="note">${esc(m.text.replace(/^ROTA:.*$/m,"").trim())}</div>${m.route&&m.route.length?`<div class="row"><button class="btn sm pri" data-act="aiRoute" data-i="${U.chat.indexOf(m)}">Önerilen ${m.route.length} durağı rotaya ekle</button></div>`:""}${m.plan&&(m.plan.steps.length||m.plan.miss.length)?`<div class="panel" style="background:var(--sunk);border:0;gap:8px"><b>${m.done?"✓ Uygulandı":"Onayına sunulan işlemler"}</b>${m.plan.steps.map(s=>`<div class="why" style="color:var(--ink)">• ${esc(s.text)}</div>`).join("")}${m.plan.miss.length?`<div class="why">Bulunamadı / yapılamadı: ${esc(m.plan.miss.join(", "))}</div>`:""}${!m.done&&m.plan.steps.length?`<div class="row"><button class="btn sm pri" data-act="aiApply" data-i="${U.chat.indexOf(m)}">Uygula</button><button class="btn sm ghost" data-act="aiCancel" data-i="${U.chat.indexOf(m)}">Vazgeç</button></div>`:""}</div>`:""}<div class="row"><button class="btn sm ghost" data-act="aiCopy" data-i="${U.chat.indexOf(m)}">Kopyala</button></div></div>`).join("")
      :`<div class="empty"><b>Verilerini bilen satış asistanın.</b><span>Müşterilerin, ziyaretlerin ve siparişlerin üzerinden çalışır. Bir soru seç ya da yaz.</span></div>`}
     ${U.aiBusy?`<div class="item"><span class="muted">Düşünüyor…</span></div>`:""}</div>
    <div class="chips">${quick.map(q=>`<button class="fchip" data-act="aiAsk" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
@@ -831,10 +842,13 @@ async function aiAsk(q){q=String(q||"").trim();if(!q||U.aiBusy)return;U.chat.pus
   try{const hist=U.chat.slice(0,-1).slice(-8).map(m=>({role:m.role==="user"?"user":"model",parts:[{text:m.text}]}));
     const first=U.chat.filter(m=>m.role==="user").length===1;
     const prompt=q;
-    const t=await gemini(prompt,{system:AI_SYS+"\n\nGÜNCEL VERİLER:\n"+dataContext(q),history:hist});
+    let t;try{t=await gemini(prompt,{system:AI_SYS+"\n\n"+ACT_HELP+"\n\nGÜNCEL VERİLER:\n"+dataContext(q),systemSmall:AI_SYS+"\n\n"+ACT_HELP+"\n\nGÜNCEL VERİLER (özet):\n"+smallContext(q),history:hist})}
+    catch(err){const la=localAnswer(q);if(la){U.chat.push({role:"model",text:"Yapay zekâya şu an ulaşılamadı; verilerinden doğrudan bulduklarım:\n"+la});U.aiBusy=false;render();scrollChat();return}throw err}
+    const acts=parseActions(t);let plan=null;if(acts){plan=planActions(acts);if(!plan.steps.length&&!plan.miss.length)plan=null}
+    t=t.replace(/<eylem>[\s\S]*?<\/eylem>/gi,"").replace(/```(?:json|eylem)?\s*\{[\s\S]*?"actions"[\s\S]*?\}\s*```/gi,"").trim();
     const m=t.match(/^ROTA:\s*(.+)$/m);let route=[];
     if(m)route=m[1].split("|").map(x=>x.trim()).map(n=>custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))).filter(Boolean).map(c=>c.id);
-    U.chat.push({role:"model",text:t,route:[...new Set(route)]})}
+    U.chat.push({role:"model",text:t,route:[...new Set(route)],plan})}
   catch(e){U.chat.push({role:"model",text:"⚠ "+e.message})}
   U.aiBusy=false;render();scrollChat()}
 function scrollChat(){setTimeout(()=>{const f=$("#chatForm");if(f)f.scrollIntoView({block:"end"})},30)}
@@ -854,7 +868,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.9.1";
+const APP_VERSION="2.0.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1144,7 +1158,7 @@ function vSales(){const C=U.cart;if(!C)return vMore();const c=S.customers.get(C.
    ${codeChips(C.q,"cart")}
    <div class="list">${(C.q?matchProducts(C.q):ps).slice(0,8).map(p=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="cartAdd" data-id="${p.id}"><span class="row"><b style="flex:1;min-width:0">${esc(p.name)}</b><span class="mono">${p.price?tl(p.price):"fiyat yok"}</span></span><span class="meta mono">${esc([p.sku,p.oem,p.brand,p.stock!==""&&p.stock!=null?"stok "+p.stock:""].filter(Boolean).join(" · "))}</span></button>`).join("")||`<span class="why">Stokta ürün yok; aşağıdan serbest kalem ekleyebilirsin.</span>`}</div>
    <form id="freeLine" class="grid3"><label class="f">Serbest kalem<input name="name" placeholder="Parça adı / OEM" required></label><label class="f">Birim fiyat<input name="price" inputmode="decimal"></label><div class="row" style="align-self:end"><button class="btn" type="submit">Ekle</button></div></form></section>
-  <section class="panel lines"><h3>Sepet</h3>${lines.length?lines.map((l,i)=>`<div class="ln"><div style="min-width:0"><b>${esc(l.name)}</b><div class="meta mono">${l.oem?esc(l.oem)+" · ":""}${tl(l.price)}</div></div><span class="qty"><button data-act="cartQty" data-i="${i}" data-d="-1" aria-label="Azalt">−</button><span>${l.qty}</span><button data-act="cartQty" data-i="${i}" data-d="1" aria-label="Arttır">+</button></span><span class="mono">${tl(l.qty*l.price)}</span></div>`).join(""):`<span class="why">Henüz ürün eklenmedi.</span>`}
+  <section class="panel lines"><h3>Sepet</h3>${lines.length?lines.map((l,i)=>`<div class="ln"><div style="min-width:0"><b>${esc(l.name)}</b><div class="meta mono">${l.oem?esc(l.oem)+" · ":""}${tl(l.price)}</div></div>${(()=>{const p=l.pid&&S.products.get(l.pid);return p&&p.stock!==""&&p.stock!=null&&l.qty>Number(p.stock)?`<span class="chip nc bad" style="grid-column:1/-1;justify-self:start">stokta sadece ${esc(p.stock)} adet var</span>`:""})()}<span class="qty"><button data-act="cartQty" data-i="${i}" data-d="-1" aria-label="Azalt">−</button><span>${l.qty}</span><button data-act="cartQty" data-i="${i}" data-d="1" aria-label="Arttır">+</button></span><span class="mono">${tl(l.qty*l.price)}</span></div>`).join(""):`<span class="why">Henüz ürün eklenmedi.</span>`}
    <div class="grid2"><label class="f">İskonto (%)<input id="cartDisc" inputmode="decimal" value="${esc(C.disc||"")}"></label><label class="f">Not<input id="cartNote" value="${esc(C.note||"")}" placeholder="Teslimat, vade…"></label></div>
    <div class="row"><span class="muted">Ara toplam ${tl(sub)}</span><span class="sp"></span><b class="mono">${tl(total)}</b></div></section>
   <section class="panel"><div class="row"><button class="btn pri" data-act="cartSave" ${lines.length?"":"disabled"}>Siparişi kaydet</button>${lines.length?`<a class="btn" href="${esc(waLinkT(c&&c.phone||"",cartText()))}" target="_blank" rel="noopener">Müşteriye WhatsApp</a>${msgCfg().depot?`<a class="btn" href="${esc(waLinkT(msgCfg().depot,cartText(true)))}" target="_blank" rel="noopener">Depoya gönder</a>`:""}<button class="btn ghost" data-act="cartCopy">Kopyala</button>`:""}</div>
@@ -1326,12 +1340,13 @@ function vStockPage(){const K=U.stk;if(K.detail){const p=S.products.get(K.detail
   ${scanPanel()}
   <section class="panel"><div class="row"><input id="stkQ" placeholder="Stok kodu, OEM ya da ürün adı ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
    <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div></section>
+  ${all.length?stockBulkBar(ps):""}
   ${K.edit?prodForm(K.edit==="new"?null:S.products.get(K.edit)):""}
   ${(()=>{const pg=pageOf("stk2",ps,40);if(!pg.items.length)return `<div class="empty">${all.length?"Aramayla eşleşen ürün yok.":"Henüz ürün yok. Stok listeni Excel'den yükle ya da etiketi fotoğraflayarak ekle."}</div>`;
-    return `<div class="tbl"><table><thead><tr><th>Stok kodu</th><th>Ürün</th><th>OEM no</th><th>Marka / araç</th><th class="n">Fiyat</th><th class="n">Stok</th><th></th></tr></thead><tbody>${pg.items.map(p=>`<tr${lowOf(p)?' style="background:var(--bad-bg)"':""}>
-     <td class="mono"><b>${esc(p.sku||"—")}</b></td><td>${esc(p.name)}</td><td class="mono">${esc(p.oem||"—")}</td><td>${esc(p.brand||"—")}</td><td class="n">${p.price?tl(p.price):"—"}</td>
+    return `<div class="tbl"><table><thead><tr><th>Seç</th><th>Stok kodu</th><th>Ürün</th><th>OEM no</th><th>Marka / araç</th><th class="n">Fiyat</th><th class="n">Stok</th><th></th></tr></thead><tbody>${pg.items.map(p=>`<tr${lowOf(p)?' style="background:var(--bad-bg)"':""}>
+     <td><input type="checkbox" data-act="stkPick" data-id="${p.id}" ${U.stkSel.has(p.id)?"checked":""} aria-label="Seç" style="width:22px;height:22px"></td><td class="mono"><b>${esc(p.sku||"—")}</b></td><td>${esc(p.name)}</td><td class="mono">${esc(p.oem||"—")}</td><td>${esc(p.brand||"—")}</td><td class="n">${p.price?tl(p.price):"—"}</td>
      <td class="n"><span class="qty"><button data-act="stkAdj" data-id="${p.id}" data-d="-1" aria-label="Stoktan düş">−</button><span>${p.stock===""||p.stock==null?"?":esc(p.stock)}</span><button data-act="stkAdj" data-id="${p.id}" data-d="1" aria-label="Stoğa ekle">+</button></span></td>
-     <td><button class="btn sm" data-act="stkDetail" data-id="${p.id}">Detay</button> <button class="btn sm ghost" data-act="stkEdit" data-id="${p.id}">Düzenle</button></td></tr>`).join("")}</tbody></table></div>${pg.more}`})()}
+     <td><button class="btn sm" data-act="stkDetail" data-id="${p.id}">Detay</button> <button class="btn sm ghost" data-act="stkEdit" data-id="${p.id}">Düzenle</button> <button class="btn sm ghost" data-act="stkDelOne" data-id="${p.id}" style="color:var(--bad)">Sil</button></td></tr>`).join("")}</tbody></table></div>${pg.more}`})()}
   ${all.length?`<div class="row"><button class="btn sm" data-act="expStock">Stok listesini Excel'e aktar</button></div>`:""}`}
 function prodForm(p){p=p||{};return `<section class="panel"><h3>${p.id?"Ürünü düzenle":"Yeni ürün"}</h3><form id="prodForm2" class="grid3" data-id="${esc(p.id||"")}">
    <label class="f">Stok kodu<input id="p2_sku" name="sku" value="${esc(p.sku||"")}" autocapitalize="characters" placeholder="şirketteki ürün kodu"></label><label class="f">Ürün adı *<input id="p2_name" name="name" required value="${esc(p.name||"")}"></label><label class="f">OEM no<input id="p2_oem" name="oem" value="${esc(p.oem||"")}" autocapitalize="characters"></label><label class="f">Marka / araç<input id="p2_brand" name="brand" value="${esc(p.brand||"")}"></label>
@@ -1359,6 +1374,61 @@ async function scanLabel(file){U.stk.scan={busy:true};render();
     const ix=prodIndex().byCode;U.stk.scan={items:o.items.filter(x=>x&&(x.code||x.name)).slice(0,20).map(x=>({code:String(x.code||"").trim(),name:String(x.name||""),brand:String(x.brand||""),qty:Number(x.qty)||0,p:ix.get(normCode(x.code))||null}))}}
   catch(e){U.stk.scan={err:e.message}}render()}
 
+/* ---------- v2.0: güvenli toplu silme + geri al, asistan işlemleri, yerel cevaplar ---------- */
+// Geri alınabilir toplu silme
+async function removeMany(list,label){list=list.filter(Boolean);if(!list.length)return;
+  list.forEach(d=>bucket(d.kind).delete(d.id));DV++;render();lsSave();if(typeof CLOUD!=="undefined"&&CLOUD.col)cloudPush(list,true);
+  U.undo={items:list.map(d=>Object.assign({},d))};toast(`${label||list.length+" kayıt silindi"}`,{label:"Geri al",ms:12000,fn:async()=>{const it=U.undo&&U.undo.items;U.undo=null;if(it){await saveMany(it);toast("Geri alındı")}}})}
+const isSample=d=>/\(örnek\)/i.test(d.name||d.customer||d.customerName||"")||d.importedFrom==="örnek"||String(d.notes||"").startsWith("Örnek kayıt");
+function sampleItems(){const cs=[...S.customers.values()].filter(isSample);const ids=new Set(cs.map(c=>c.id));
+  return [...cs,...[...S.visits.values()].filter(v=>ids.has(v.customerId)||isSample(v)),...[...S.orders.values()].filter(o=>ids.has(o.customerId)||isSample(o)),...[...S.products.values()].filter(isSample)]}
+
+// Stok seçimi
+U.stkSel=new Set();
+function stockBulkBar(ps){const n=U.stkSel.size;const zero=products().filter(p=>p.stock!==""&&p.stock!=null&&Number(p.stock)<=0).length;const smp=products().filter(isSample).length;
+  return `<section class="panel"><div class="row"><h3 style="flex:1">Toplu işlem</h3>${n?`<span class="chip st mono">${n} seçili</span>`:""}</div>
+   <div class="row">${n?`<button class="btn sm" style="background:var(--bad);border-color:var(--bad);color:#fff" data-act="stkDelSel">Seçilenleri sil (${n})</button><button class="btn sm ghost" data-act="stkSelNone">Seçimi kaldır</button>`:`<span class="why">Satırlardaki kutucuklarla ürün seç ya da aşağıdaki hazır temizlikleri kullan.</span>`}</div>
+   <div class="row"><button class="btn sm" data-act="stkSelAll">Listedekileri seç (${ps.length})</button>${zero?`<button class="btn sm" data-act="stkDelZero">Stoğu 0 olanları sil (${zero})</button>`:""}${smp?`<button class="btn sm" data-act="stkDelSample">Örnek ürünleri sil (${smp})</button>`:""}<button class="btn sm ghost" data-act="stkDelAll" style="color:var(--bad)">Tüm stoğu sil…</button></div>
+   ${U.stkConfirmAll?`<form id="delAllForm" class="row"><span class="sub" style="flex:1 1 100%">Bütün stok listesi (${products().length} ürün) silinecek. Onaylamak için kutuya <b>SİL</b> yaz.</span><input id="delAllTxt" name="t" autocomplete="off" style="max-width:140px"><button class="btn sm" style="background:var(--bad);border-color:var(--bad);color:#fff" type="submit">Hepsini sil</button><button class="btn sm ghost" type="button" data-act="stkDelAllNo">Vazgeç</button></form>`:""}
+   <span class="why">Silinenleri 12 saniye içinde alttaki "Geri al" ile kurtarabilirsin.</span></section>`}
+
+// Asistan işlemleri: asistan önerir, uygulama önizler, sen onaylarsın
+const ACT_HELP=`Kullanıcı veride değişiklik isterse (stok silme, stok adedi/fiyat değiştirme, ürün ekleme, rotaya ekleme, ödendi işaretleme, sonraki ziyaret tarihi, müşteri ekleme) cevabının EN SONUNA şu biçimde bir blok ekle ve işlemi yapıldı gibi anlatma, "onayına sunuyorum" de:
+<eylem>{"actions":[ ... ]}</eylem>
+Kullanılabilen işlemler (kodlar stok kodu ya da OEM olabilir, müşteri adları verideki gibi):
+{"type":"delete_products","codes":["..."]} | {"type":"delete_products","filter":"zero"|"sample"|"all"|"critical"}
+{"type":"set_stock","code":"...","stock":12} | {"type":"adjust_stock","code":"...","delta":-3} | {"type":"set_price","code":"...","price":1250}
+{"type":"add_product","sku":"","name":"","oem":"","brand":"","price":0,"stock":0}
+{"type":"add_route","customers":["..."]} | {"type":"mark_paid","customers":["..."]} | {"type":"set_next_visit","customer":"...","date":"YYYY-MM-DD"}
+{"type":"add_customer","name":"","phone":"","region":"","contact":""}
+Veride olmayan kod ya da müşteri için işlem üretme; emin değilsen soru sor.`;
+function findProdByCode(code){const k=normCode(code);return prodIndex().byCode.get(k)||products().find(p=>normCode(p.sku)===k||normCode(p.oem)===k)||null}
+function findCust(n){return custByName(n)||custList().find(c=>trLow(c.name).includes(trLow(n))||trLow(n).includes(trLow(c.name)))||null}
+function parseActions(t){const m=String(t).match(/<eylem>([\s\S]*?)<\/eylem>/i)||String(t).match(/```(?:json|eylem)?\s*(\{[\s\S]*?"actions"[\s\S]*?\})\s*```/i);if(!m)return null;const o=aiJSON(m[1]);return o&&Array.isArray(o.actions)?o.actions:null}
+function planActions(acts){const steps=[];const miss=[];
+  for(const a of acts||[]){try{
+    if(a.type==="delete_products"){let ps=[];if(a.filter==="zero")ps=products().filter(p=>p.stock!==""&&p.stock!=null&&Number(p.stock)<=0);else if(a.filter==="sample")ps=products().filter(isSample);else if(a.filter==="critical")ps=products().filter(lowOf);else if(a.filter==="all")ps=products();
+      (a.codes||[]).forEach(c=>{const p=findProdByCode(c);if(p)ps.push(p);else miss.push(c)});ps=[...new Set(ps)];if(ps.length)steps.push({kind:"del",items:ps,text:`${ps.length} ürünü stoktan sil: ${ps.slice(0,6).map(p=>p.sku||p.oem||p.name).join(", ")}${ps.length>6?"…":""}`})}
+    else if(a.type==="set_stock"||a.type==="adjust_stock"||a.type==="set_price"){const p=findProdByCode(a.code);if(!p){miss.push(a.code);continue}
+      const nv=a.type==="set_price"?{price:Number(a.price)}:{stock:a.type==="set_stock"?Math.max(0,Number(a.stock)):Math.max(0,(Number(p.stock)||0)+Number(a.delta))};
+      steps.push({kind:"save",items:[Object.assign({},p,nv)],text:a.type==="set_price"?`${p.sku||p.oem||p.name} fiyatı: ${tl(p.price)} → ${tl(nv.price)}`:`${p.sku||p.oem||p.name} stoğu: ${p.stock??"?"} → ${nv.stock}`})}
+    else if(a.type==="add_product"){if(!a.name){continue}const ex=(a.sku&&findProdByCode(a.sku))||(a.oem&&findProdByCode(a.oem));if(ex){miss.push((a.sku||a.oem)+" zaten var");continue}
+      steps.push({kind:"save",items:[{id:uid("p"),kind:"product",name:String(a.name),sku:String(a.sku||""),oem:String(a.oem||""),brand:String(a.brand||""),price:Number(a.price)||"",stock:a.stock===undefined?"":Number(a.stock),min:5}],text:`Yeni ürün: ${a.sku?"["+a.sku+"] ":""}${a.name}`})}
+    else if(a.type==="add_route"){const cs=(a.customers||[]).map(n=>findCust(n)||(miss.push(n),null)).filter(Boolean);if(cs.length)steps.push({kind:"route",ids:cs.map(c=>c.id),text:`Rotaya ekle: ${cs.map(c=>c.name).join(", ")}`})}
+    else if(a.type==="mark_paid"){(a.customers||[]).forEach(n=>{const c=findCust(n);if(!c){miss.push(n);return}const inv=overdueList().find(g=>g.c&&g.c.id===c.id);if(inv)steps.push({kind:"save",items:inv.inv.map(o=>Object.assign({},o,{paid:true,paidAt:today()})),text:`${c.name}: ${inv.inv.length} fatura ödendi (${tl(inv.total)})`});else miss.push(n+" için geciken fatura yok")})}
+    else if(a.type==="set_next_visit"){const c=findCust(a.customer);if(!c||!/^\d{4}-\d{2}-\d{2}$/.test(a.date||"")){miss.push(a.customer);continue}steps.push({kind:"save",items:[Object.assign({},c,{nextVisit:a.date})],text:`${c.name} sonraki ziyaret: ${fmtDate(a.date)}`})}
+    else if(a.type==="add_customer"){if(!a.name||findCust(a.name)){miss.push((a.name||"?")+" zaten var");continue}steps.push({kind:"save",items:[{id:uid("c"),kind:"customer",name:String(a.name),phone:String(a.phone||""),region:String(a.region||""),contact:String(a.contact||""),status:"Aday",tier:"B",freq:14,createdAt:Date.now()}],text:`Yeni müşteri: ${a.name}`})}
+  }catch(e){}}
+  return {steps,miss}}
+async function applyPlan(P){let n=0;const dels=[];for(const s of P.steps){if(s.kind==="del"){dels.push(...s.items)}else if(s.kind==="save"){await saveMany(s.items);n+=s.items.length}else if(s.kind==="route"){s.ids.forEach(id=>U.selected.add(id));keepUI();n+=s.ids.length}}
+  if(dels.length)await removeMany(dels,`${dels.length} ürün silindi`+(n?` · ${n} işlem yapıldı`:""));else toast(`${n} işlem uygulandı`)}
+// Yapay zekâ olmadan da cevap: stok kodu ve kritik stok soruları
+function localAnswer(q){const r=findCodes(q);const lines=[];
+  r.hits.forEach(h=>{const p=h.p;lines.push(`• ${p.sku?"["+p.sku+"] ":""}${p.name}${p.oem?" · OEM "+p.oem:""} — stok: ${p.stock===""||p.stock==null?"bilinmiyor":p.stock+" adet"}${p.price?" · "+tl(p.price):""}${lowOf(p)?" · KRİTİK":""}`)});
+  r.unknown.forEach(u=>lines.push(`• ${u} — stok listesinde kayıtlı değil`));
+  if(/kritik|azal|biten|bitmek/i.test(q)){const L=products().filter(lowOf);lines.push(L.length?"Kritik stoktaki ürünler:\n"+L.slice(0,30).map(p=>`• ${p.sku||p.oem||""} ${p.name}: ${p.stock} adet`).join("\n"):"Kritik seviyede ürün yok.")}
+  return lines.join("\n")}
+
 /* ---------- events ---------- */
 async function saveDay(patch){const st=settings();await save(Object.assign({},st,{day:Object.assign({},day(),patch)}))}
 document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e.target.open},true);
@@ -1381,7 +1451,8 @@ document.addEventListener("click",async e=>{
   else if(a==="startLive"){U.live={customerId:id,start:nowTime()};toast("Ziyaret başladı "+U.live.start)}
   else if(a==="cancelLive"){U.live=null}
   else if(a==="delVisit"){if(b.dataset.sure){const v=S.visits.get(id);if(v)await remove(v);return}b.dataset.sure="1";b.textContent="Emin misin?";return}
-  else if(a==="delOrd"){if(b.dataset.sure){const o=S.orders.get(id);if(o)await remove(o);return}b.dataset.sure="1";b.textContent="Sil?";return}
+  else if(a==="delOrd"){if(b.dataset.sure){const o=S.orders.get(id);if(o){const back=(o.lines||[]).filter(l=>l.pid&&S.products.get(l.pid)).map(l=>{const p=S.products.get(l.pid);return Object.assign({},p,{stock:p.stock===""||p.stock==null?p.stock:Number(p.stock)+l.qty})});
+      await remove(o);if(back.length){await saveMany(back);toast(`Sipariş silindi, ${back.length} ürünün stoğu geri eklendi`)}}return}b.dataset.sure="1";b.textContent="Sil?";return}
   else if(a==="clearSel"){U.selected.clear();keepUI()}
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
@@ -1447,7 +1518,17 @@ document.addEventListener("click",async e=>{
   else if(a==="audAll"){audience().forEach(c=>U.msg2.aud.add(c.id))}
   else if(a==="audNone"){U.msg2.aud.clear()}
   else if(a==="impProd"){U.import={kind:"product"}}
-  else if(a==="delProd"){const p=S.products.get(id);if(p)await remove(p);return}
+  else if(a==="delProd"||a==="stkDelOne"){if(a==="stkDelOne"&&!b.dataset.sure){b.dataset.sure="1";b.textContent="Emin misin?";return}const p=S.products.get(id);if(U.stk.edit===id)U.stk.edit=null;U.stkSel.delete(id);if(p)await removeMany([p],`${p.sku||p.name} silindi`);return}
+  else if(a==="stkSelAll"){matchProducts(U.stk.q).filter(p=>!U.stk.low||lowOf(p)).forEach(p=>U.stkSel.add(p.id))}
+  else if(a==="stkSelNone"){U.stkSel.clear()}
+  else if(a==="stkDelSel"){const L=[...U.stkSel].map(i=>S.products.get(i)).filter(Boolean);U.stkSel.clear();U.stk.edit=null;await removeMany(L,`${L.length} ürün silindi`);return}
+  else if(a==="stkDelZero"){await removeMany(products().filter(p=>p.stock!==""&&p.stock!=null&&Number(p.stock)<=0),"Stoğu 0 olan ürünler silindi");return}
+  else if(a==="stkDelSample"){await removeMany(products().filter(isSample),"Örnek ürünler silindi");return}
+  else if(a==="stkDelAll"){U.stkConfirmAll=true}
+  else if(a==="stkDelAllNo"){U.stkConfirmAll=false}
+  else if(a==="clearSample"){const L=sampleItems();U.selected=new Set([...U.selected].filter(id=>!L.some(d=>d.id===id)));keepUI();await removeMany(L,`${L.length} örnek kayıt silindi`);return}
+  else if(a==="aiApply"){const m=U.chat[Number(b.dataset.i)];if(m&&m.plan&&!m.done){m.done=true;await applyPlan(m.plan);render()}return}
+  else if(a==="aiCancel"){const m=U.chat[Number(b.dataset.i)];if(m){m.plan=null;m.cancelled=true}}
   else if(a==="tplReset"){await saveMsgCfg({tpl:{...DEF_TPL}});toast("Şablonlar varsayılana döndü");return}
   else if(a==="campAI"){const ps=products().filter(p=>U.msg2.prod.has(p.id));if(!ps.length){toast("Önce ürün seç");return}b.disabled=true;b.textContent="Yazıyor…";
     try{const t=await gemini(`Yedek parça satış danışmanı olarak oto yedek parçacı ve servis müşterilerime gönderilecek kısa bir SMS/WhatsApp kampanya mesajı yaz. Ürünler: ${ps.map(p=>[p.name,p.oem,p.brand,p.price?p.price+" TL":"",p.stock?p.stock+" adet stok":""].filter(Boolean).join(" ")).join("; ")}. En fazla 5 satır, samimi ama profesyonel, emoji yok. Firma adı için {firma}, yetkili adı için {yetkili}, ürün listesi için {urunler}, imza için {ben} yer tutucularını aynen kullan. Sadece mesaj metnini yaz.`);
@@ -1505,6 +1586,8 @@ document.addEventListener("change",async e=>{const t=e.target;
   if(t.dataset.act==="toggleSel"){t.checked?U.selected.add(t.dataset.id):U.selected.delete(t.dataset.id);keepUI();render()}
   else if(t.id==="impFile"&&t.files[0]){U.import.type=$("#impType")?.value;await readFile(t.files[0])}
   else if(t.id==="impType"){U.import.type=t.value}
+  else if(t.dataset.act==="stkPick"){t.checked?U.stkSel.add(t.dataset.id):U.stkSel.delete(t.dataset.id);render()}
+  else if(t.id==="impMode"){U.import.mode=t.value;render()}
   else if(t.id==="vf_photo"&&t.files.length){await addPhotos([...t.files]);t.value=""}
   else if(t.id==="scanFile"&&t.files.length){const f=t.files[0];t.value="";U.tab="stok";U.stk.detail=null;window.scrollTo(0,0);scanLabel(f)}
   else if(t.id==="repDate"){U.repDate=t.value;render()}
@@ -1539,6 +1622,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
       if(fg){await save(Object.assign({},S.customers.get(c.id)||c,fg,{geoApprox:true}));toast("Konum adresten bulundu (yaklaşık)")}}}
   else if(f.id==="aiForm"){const k=String(fd.key||"").trim();if(!k){toast("Anahtarı yapıştır.");return}aiSave({key:k,model:""});toast("Anahtar kaydedildi");U.chat=[];render();return}
   else if(f.id==="chatForm"){aiAsk(fd.q);return}
+  else if(f.id==="delAllForm"){if(String(fd.t||"").trim().toLocaleUpperCase("tr-TR")!=="SİL"){toast("Onay için SİL yaz");return}U.stkConfirmAll=false;U.stkSel.clear();U.stk.edit=null;await removeMany(products(),"Tüm stok silindi");return}
   else if(f.id==="loginForm"){fd.act=(e.submitter&&e.submitter.value)||"in";doLogin(fd);return}
   else if(f.id==="freeLine"){const h=findCodes(fd.name).hits[0];if(h){const L=U.cart.lines;const ex=L.find(l=>l.pid===h.p.id);if(ex)ex.qty++;else L.push({pid:h.p.id,name:h.p.name,oem:h.p.oem||"",price:Number(h.p.price)||0,qty:1});toast("Kod stokta bulundu: "+h.p.name);render();return}
     U.cart.lines.push({pid:"",name:String(fd.name).trim(),oem:"",price:parseNum(fd.price),qty:1});render();return}

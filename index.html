@@ -281,7 +281,7 @@ function render(){
   const app=$("#app");
   if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
-  app.innerHTML=updateBanner()+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
+  app.innerHTML=updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
   renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
@@ -836,7 +836,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.7.1";
+const APP_VERSION="1.7.2";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1208,6 +1208,13 @@ function scheduleHomeNotif(){clearTimeout(U._ht);if(!posFresh()||notifState()!==
   const leave=toMin(day().arriveBy)-Math.round(travelMin(U.lastPos,H))-15;const ms=(leave-nowMin())*60e3;
   if(ms>0&&ms<6*3600e3)U._ht=setTimeout(async()=>{if(localStorage.getItem("saha-eve-bildirim")===today())return;const reg=await navigator.serviceWorker?.getRegistration?.();
     const o={body:`${day().arriveBy}'de evde olmak için 15 dakika içinde yola çık.`,icon:"icon-192.png",tag:"eve",data:{dest:dirLink(H)}};if(reg)reg.showNotification("🏠 Eve dönüş zamanı",o);else new Notification("🏠 Eve dönüş zamanı",o);localStorage.setItem("saha-eve-bildirim",today())},ms)}
+const HOME_URL="https://drogo36.github.io/saha-satis/boot.html";
+function moveBanner(){if(location.hostname==="drogo36.github.io"||location.protocol==="file:"||/^(127\.|localhost)/.test(location.hostname))return "";
+  try{if(localStorage.getItem("saha-tasi-gizle")===today())return ""}catch(e){}
+  return `<section class="panel" style="border-color:var(--accent)"><b>🏠 Uygulamanın kalıcı adresi hazır</b>
+   <span class="sub">Uygulama artık doğrudan GitHub'da yayında; ücretsiz servislere bağlı kalmaz. Taşınmak 3 adım:</span>
+   <ol class="sub" style="margin:0;padding-left:20px;display:grid;gap:4px"><li><b>Yedek al</b> (aşağıdaki düğme) ve dosyayı iCloud Drive'a kaydet.</li><li>Safari'de <b style="user-select:all">drogo36.github.io/saha-satis/boot.html</b> adresini aç → Paylaş → <b>Ana Ekrana Ekle</b>.</li><li>Yeni uygulamada Rapor → <b>Yedekten geri yükle</b>. Sonra bu eski simgeyi sil.</li></ol>
+   <div class="row"><button class="btn pri sm" data-act="backup">1. Yedek al</button><a class="btn sm" href="${HOME_URL}" target="_blank" rel="noopener">2. Yeni adresi aç</a><button class="btn ghost sm" data-act="moveLater">Bugün gizle</button></div></section>`}
 function arrivalBanner(){const c=U.arrived&&S.customers.get(U.arrived);if(!c||U.tab!=="rota")return "";
   return `<div class="hero" style="gap:10px"><span style="font-size:13px;opacity:.85">📍 Vardın</span><b style="font-size:18px">${esc(c.name)}</b><div class="row"><button class="btn" style="background:#fff;color:var(--navy);border:0" data-act="startLive" data-id="${c.id}">Ziyareti başlat</button><button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.4)" data-act="arrClose">Kapat</button></div></div>`}
 
@@ -1238,6 +1245,7 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="moveLater"){try{localStorage.setItem("saha-tasi-gizle",today())}catch(e){}}
   else if(a==="more"){U.lim=U.lim||{};U.lim[b.dataset.k]=((U.lim[b.dataset.k])||Number(b.dataset.n))+Number(b.dataset.n)*2}
   else if(a==="forceAll"){U.forceAll=true}
   else if(a==="forceOff"){U.forceAll=false}

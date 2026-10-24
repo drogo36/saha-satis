@@ -69,6 +69,18 @@ nav.bottom .fab svg{width:28px;height:28px}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:pointer}
 .lines .ln{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden}.qty button{width:34px;height:32px;border:0;background:var(--sunk);color:var(--ink);font-size:18px;cursor:pointer}.qty span{min-width:34px;text-align:center;font-family:var(--f-mono)}
+@media (max-width:480px){.sync{display:none}.brand{font-size:17px}.top .wrap{padding-block:10px 12px}}
+/* telefonda tablolar kart görünümüne geçer, yana kaydırma gerekmez */
+@media (max-width:560px){
+ .tbl.rt{border:0;background:none;overflow:visible}
+ .tbl.rt table,.tbl.rt tbody,.tbl.rt tr,.tbl.rt td{display:block;width:100%}
+ .tbl.rt thead{display:none}
+ .tbl.rt tr{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin-bottom:8px}
+ .tbl.rt td{border:0;padding:4px 0;white-space:normal;display:flex;justify-content:space-between;gap:12px;text-align:right}
+ .tbl.rt td::before{content:attr(data-l);color:var(--muted);font:600 12px var(--f-body);text-align:left;flex:none}
+ .tbl.rt td[data-l=""]::before{content:none}
+ .tbl.rt td:first-child{font-weight:700;font-size:15px}
+}
 main{padding-block:18px calc(var(--nav-h) + 40px + env(safe-area-inset-bottom,0px));display:grid;gap:16px}
 h2{font-family:var(--f-display);font-weight:800;font-size:21px;margin:0;text-wrap:balance;letter-spacing:-.01em}
 h3{font-family:var(--f-display);font-weight:700;font-size:13px;margin:0;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -87,7 +99,8 @@ h3{font-family:var(--f-display);font-weight:700;font-size:13px;margin:0;text-tra
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.bottom button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 label.f{display:grid;gap:4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
-input,select,textarea{font:400 15px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+input,select,textarea{font:400 16px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
 textarea{min-height:80px;resize:vertical}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -95,6 +108,7 @@ textarea{min-height:80px;resize:vertical}
 .list{display:grid;gap:8px}
 .item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:6px;min-width:0}
 .item .t{font-weight:600;font-size:16px}
+.list>.item{content-visibility:auto;contain-intrinsic-size:auto 110px}
 .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .chip{font:500 11px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;padding:5px 7px;border-radius:5px;background:var(--sunk);color:var(--muted);white-space:nowrap}
@@ -191,7 +205,10 @@ function phoneHref(p){return "tel:"+String(p||"").replace(/[^\d+]/g,"")}
 const S={customers:new Map(),visits:new Map(),orders:new Map(),settings:new Map(),products:new Map(),mode:"yükleniyor",ready:false};
 let col=null;const LSK="saha-satis-v1";
 function lsLoad(){try{const o=JSON.parse(localStorage.getItem(LSK)||"[]");o.forEach(put)}catch(e){}}
-function lsSave(){try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()]));U&&(U.storeFull=false)}
+let _lsT=null;function lsSave(){clearTimeout(_lsT);_lsT=setTimeout(lsSaveNow,250)}
+function lsFlush(){if(_lsT){clearTimeout(_lsT);_lsT=null;lsSaveNow()}}
+addEventListener("pagehide",lsFlush);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")lsFlush()});
+function lsSaveNow(){_lsT=null;try{localStorage.setItem(LSK,JSON.stringify([...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()]));U&&(U.storeFull=false)}
   catch(e){if(typeof U!=="undefined"&&!U.storeFull){U.storeFull=true;setTimeout(()=>toast("⚠ Telefon hafızası doldu, son değişiklik kaydedilemedi. Rapor → Yedek al, sonra eski fatura/sipariş kayıtlarını sil."),50)}}}
 function bucket(k){return k==="customer"?S.customers:k==="visit"?S.visits:k==="setting"?S.settings:k==="product"?S.products:S.orders}
 let DV=0;function put(d){if(d&&d.id&&d.kind){bucket(d.kind).set(d.id,d);DV++}}
@@ -210,6 +227,10 @@ const BK="saha-son-yedek";
 function lastBackup(){try{return localStorage.getItem(BK)||""}catch(e){return ""}}
 function setSync(){const lb=lastBackup();$("#sync").innerHTML="● bu telefonda kayıtlı<br>"+(lb?"son yedek "+fmtDate(lb):"yedek alınmadı")}
 
+function labelTables(){document.querySelectorAll("#app .tbl").forEach(box=>{if(box.closest(".panel")&&box.closest(".panel").querySelector("[data-map]"))return;const t=box.querySelector("table");if(!t)return;
+  const hs=[...t.querySelectorAll("thead th")].map(th=>th.textContent.trim());box.classList.add("rt");t.querySelectorAll("tbody tr").forEach(tr=>[...tr.children].forEach((td,i)=>td.setAttribute("data-l",hs[i]||"")))})}
+/* ---------- sayfalama: uzun listeleri parça parça çiz ---------- */
+function pageOf(key,arr,n){const lim=(U.lim&&U.lim[key])||n;return {items:arr.slice(0,lim),more:arr.length>lim?`<button class="btn" style="justify-self:center" data-act="more" data-k="${key}" data-n="${n}">Daha fazla göster (${arr.length-lim} kaldı)</button>`:""}}
 /* ---------- ui state ---------- */
 const U={tab:"rota",editCust:null,custQ:"",selected:new Set(),start:"",live:null,import:null,ordQ:"",ordType:"hepsi",visitFor:null,detail:null,
   f:{status:new Set(),tier:new Set(),brand:new Set()},sort:"öncelik",region:"",mapSel:null};
@@ -258,8 +279,8 @@ function render(){
   const app=$("#app");
   if(!S.ready){app.innerHTML=`<div class="empty">Kayıtlar yükleniyor…</div>`;return}
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
-  app.innerHTML=updateBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
-  renderSheet();hydratePhotos();greet();arrivalWatch();
+  app.innerHTML=updateBanner()+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
+  renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
 
@@ -293,11 +314,28 @@ const toMin=s=>{const [h,m]=String(s||"0:0").split(":").map(Number);return (h||0
 const hhmm=m=>{m=Math.round(m);return String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
 const homePt=()=>{const D=day();return typeof D.homeLat==="number"&&typeof D.homeLng==="number"?{lat:D.homeLat,lng:D.homeLng,name:"Ev",home:true}:null};
 function travelMin(a,b){const D=day();return km(a,b)*1.35/(Number(D.speed)||22)*60+5}
-function buildRoute(){return routeFor([...U.selected],U.start)}
-function routeFor(ids,startStr){const idset=new Set(ids);
+const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
+const posFresh=()=>U.lastPos&&Date.now()-(U.lastPos.t||0)<15*60e3;
+let _brC=null;
+function buildRoute(){const D=day();const live=nowMin()>toMin(D.dayStart)-30&&nowMin()<toMin(D.arriveBy)+120;
+  const here=!U.start&&live&&posFresh()&&homePt()&&km(U.lastPos,homePt())>0.3?{lat:U.lastPos.lat,lng:U.lastPos.lng,here:true}:null;
+  const startMin=live?Math.max(toMin(D.dayStart),nowMin()):null;
+  const key=[...U.selected].join(",")+"|"+U.start+"|"+DV+"|"+(here?here.lat.toFixed(3)+here.lng.toFixed(3):"")+"|"+(startMin==null?"":Math.floor(startMin/5))+"|"+(U.forceAll?1:0)+"|"+JSON.stringify(D);
+  if(_brC&&_brC.k===key)return _brC.v;
+  let ids=[...U.selected];let r=routeFor(ids,U.start,{here,startMin});const overflow=[];
+  // 18:00'de evde olmak için sığmayan durakları otomatik olarak yarına bırak
+  // Yolu en çok uzatan ve önceliği en düşük durağı çıkar; 18:00'e sığana kadar tekrarla
+  if(!U.forceAll&&r.end){let guard=0;while(!r.plan.ok&&r.order.length&&guard++<40){
+    const pts=[r.start,...r.order,r.end];let bi=-1,bs=-1;
+    for(let i=1;i<pts.length-1;i++){const a=pts[i-1],c=pts[i],b=pts[i+1];const save=(a?km(a,c):0)+km(c,b)-(a?km(a,b):0);const w=save/(1+priority(c).score/40);if(w>bs){bs=w;bi=i}}
+    const c=pts[bi];overflow.push(c);ids=ids.filter(id=>id!==c.id);r=routeFor(ids,U.start,{here,startMin})}}
+  // Boş vakit kaldıysa çıkarılanları öncelik sırasıyla geri eklemeyi dene
+  if(overflow.length&&r.plan.ok){overflow.sort((a,b)=>priority(b).score-priority(a).score);for(const c of [...overflow]){const t=routeFor([...ids,c.id],U.start,{here,startMin});if(t.plan.ok){ids.push(c.id);r=t;overflow.splice(overflow.indexOf(c),1)}}}
+  r.overflow=overflow;r.live=live;_brC={k:key,v:r};return r}
+function routeFor(ids,startStr,opt={}){const idset=new Set(ids);
   const sel=custList().filter(c=>idset.has(c.id));
   const geo=sel.filter(hasGeo),nogeo=sel.filter(c=>!hasGeo(c));
-  const home=homePt();const start=parseCoords(startStr)||home;const end=home;
+  const home=homePt();const start=parseCoords(startStr)||opt.here||home;const end=home;
   let order=[],rest=[...geo],cur=start;
   if(!cur&&rest.length){rest.sort((a,b)=>a.lng-b.lng);cur=rest.shift();order.push(cur)}
   while(rest.length){let bi=0,bd=1e9;rest.forEach((c,i)=>{const d=km(cur,c);if(d<bd){bd=d;bi=i}});cur=rest.splice(bi,1)[0];order.push(cur)}
@@ -310,20 +348,20 @@ function routeFor(ids,startStr){const idset=new Set(ids);
       const before=seg(i-1,i)+seg(k,k+1),after=seg(i-1,k)+seg(i,k+1);
       if(after+1e-6<before){pts.splice(i,k-i+1,...pts.slice(i,k+1).reverse());improved=true}}}
   order=pts.slice(lo,hi+1);
-  const r={start,end,order,nogeo};r.plan=schedule(r);
+  const r={start,end,order,nogeo};r.plan=schedule(r,opt.startMin);
   let dist=0;const full=[...(start?[start]:[]),...order,...(end?[end]:[])];for(let i=1;i<full.length;i++)dist+=km(full[i-1],full[i]);r.dist=dist;
   return r}
 function nearestLunch(a,b){const L=(day().lunchPlaces||[]).filter(hasGeo);if(!L.length||!a)return null;
   const mid=b?{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2}:a;return L.reduce((x,y)=>km(mid,y)<km(mid,x)?y:x)}
-function schedule(r){const D=day();const vm=Number(D.visitMin)||30,lf=toMin(D.lunchFrom),lt=toMin(D.lunchTo),lm=Number(D.lunchMin)||45,by=toMin(D.arriveBy);
-  let t=toMin(D.dayStart),prev=r.start,lunch=null;const rows=[];
+function schedule(r,startMin){const D=day();const vm=Number(D.visitMin)||30,lf=toMin(D.lunchFrom),lt=toMin(D.lunchTo),lm=Number(D.lunchMin)||45,by=toMin(D.arriveBy);
+  let t=startMin!=null?startMin:toMin(D.dayStart),prev=r.start,lunch=t>=lt-15?{skipped:true}:null;const rows=[];
   const doLunch=next=>{const L=nearestLunch(prev||next,next);let at=prev||next;let tr=0;if(L&&at){tr=travelMin(at,L);at=L}
     const s=Math.max(t+tr,lf);lunch={place:L,pos:at,start:s,end:s+lm,late:s>lt-15};t=lunch.end;if(L)prev=L;rows.push({lunch:true,...lunch})};
   r.order.forEach(c=>{
     if(!lunch&&prev){const arr=t+travelMin(prev,c);if(arr+vm>lf)doLunch(c)}
     const tr=prev?travelMin(prev,c):0;const arrive=t+tr;const depart=arrive+vm;t=depart;prev=c;
     const back=r.end?travelMin(c,r.end):0;rows.push({c,arrive,depart,tr,late:depart+back>by})});
-  if(!lunch&&t>lf&&t<lt)doLunch(null);
+  if(!lunch&&t>lf&&t<lt)doLunch(null);if(lunch&&lunch.skipped)lunch=null;
   const back=r.end&&prev?travelMin(prev,r.end):0;const homeAt=t+back;
   return {rows,lunch,homeAt,ok:homeAt<=by,leaveBy:by-back,by}}
 function mapsRouteLinks(r){
@@ -364,7 +402,8 @@ function timeline(r){const P=r.plan;const D=day();let n=0;
   const home=r.end?`<div class="item stop" style="border-color:${P.ok?"var(--ok)":"var(--bad)"}"><div class="num" style="background:var(--ink)">⌂</div>
     <div style="min-width:0"><div class="t">Eve varış <span class="mono">${hhmm(P.homeAt)}</span></div><div class="meta"><span>${esc(D.home)}</span><span>en geç ${hhmm(P.leaveBy)}'de son duraktan çık</span></div></div>
     <span class="chip ${P.ok?"ok":"bad"} mono">${P.ok?"hedef "+D.arriveBy+" ✓":(Math.round(P.homeAt-P.by))+" dk geç"}</span></div>`:"";
-  return `<div class="list">${rows}${nog}${home}</div>`}
+  const st=r.start&&r.start.here?`<div class="item stop"><div class="num" style="background:var(--accent)">●</div><div style="min-width:0"><div class="t">Şu an buradasın <span class="mono" style="font-weight:500">${hhmm(r.live?Math.max(toMin(D.dayStart),nowMin()):toMin(D.dayStart))}</span></div><div class="meta"><span>rota bulunduğun yerden başlıyor</span></div></div></div>`:"";
+  return `<div class="list">${st}${rows}${nog}${home}</div>`}
 
 function vRoute(){
   const t=today();const cs=custList();
@@ -386,9 +425,11 @@ function vRoute(){
    <div class="list">${pri.map(({c,p})=>`<div class="item stop" style="grid-template-columns:auto minmax(0,1fr) auto">${tierBadge(c)}<div style="min-width:0"><div class="t">${esc(c.name)}</div><div class="why">${esc([c.region||c.district,...p.why].filter(Boolean).join(" · "))}</div></div><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div></section>`:""}
   ${cs.length?planPanel():""}
   ${cs.length?`<section class="panel"><div class="row"><h2>Günün rotası</h2><span class="sp"></span><span class="chip st mono">${U.selected.size} durak · ~${r.dist.toFixed(1)} km kuş uçuşu</span></div>
-  <div class="row"><button class="btn sm" type="button" data-act="geoHere" data-t="startIn">📍 Bulunduğum yerden başla</button>${U.start?`<button class="btn sm ghost" type="button" data-act="clearStart">Evden başla</button>`:""}</div>
-  <label class="f">Başlangıç noktası<input id="startIn" placeholder="Boş bırakırsan evden ${esc(day().dayStart)}'da çıkıyorsun sayılır. Başka yerden başlıyorsan Maps linki ya da koordinat yapıştır." value="${esc(U.start)}"></label>
-  ${r.order.length+r.nogeo.length?`${!r.plan.ok&&r.end?`<div class="banner" style="background:var(--bad-bg);color:var(--bad)">Bu rotayla eve ${hhmm(r.plan.homeAt)}'da varırsın, ${esc(day().arriveBy)} hedefini kaçırırsın. Kırmızı durakları çıkar ya da yarına bırak. <button class="btn sm" data-act="dropLate">Sığmayanları çıkar</button></div>`:""}
+  <details><summary class="why" style="cursor:pointer">Başlangıç noktasını elle değiştir</summary><div style="display:grid;gap:8px;margin-top:8px">
+  <div class="row">${U.start?`<button class="btn sm ghost" type="button" data-act="clearStart">Otomatik (konum / ev)</button>`:""}</div>
+  <label class="f">Başlangıç noktası<input id="startIn" placeholder="Boş bırakırsan mesai saatinde bulunduğun yerden, değilse evden başlar" value="${esc(U.start)}"></label></div></details>
+  ${r.live?`<div class="why">⏱ Saat ${hhmm(nowMin())} · ${r.start&&r.start.here?"bulunduğun yerden":U.start?"girdiğin noktadan":"evden"} başlayarak hesaplandı; dönüş ${esc(day().home)}.</div>`:""}
+  ${r.order.length+r.nogeo.length+r.overflow.length?`${r.overflow.length?`<div class="banner">${r.overflow.length} durak ${esc(day().arriveBy)}'de evde olmana sığmadığı için rotadan çıkarıldı: ${r.overflow.map(c=>esc(c.name)).join(", ")}. <button class="btn sm" data-act="forceAll">Yine de ekle</button></div>`:U.forceAll&&!r.plan.ok?`<div class="banner" style="background:var(--bad-bg);color:var(--bad)">Bu rotayla eve ${hhmm(r.plan.homeAt)}'da varırsın. <button class="btn sm" data-act="forceOff">Sığmayanları otomatik çıkar</button></div>`:""}
    ${timeline(r)}
    ${r.nogeo.length?`<div class="banner">${r.nogeo.length} müşterinin konumu yok; rotanın sonuna adresiyle eklendi. Konum eklersen sıralamaya katılır.</div>`:""}
    ${near.length?`<div class="panel" style="background:var(--sunk);border:0"><div class="row"><b>Rotanın yakınında (2,5 km)</b><span class="sp"></span><button class="btn sm" data-act="addNear">Hepsini ekle</button></div>
@@ -402,7 +443,7 @@ function vRoute(){
    ${rg.length?`<select id="regionSel" style="max-width:200px"><option value="">Tüm bölgeler</option>${rg.map(x=>`<option ${U.region===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`:""}
    ${U.region?`<button class="btn sm" data-act="addRegion">Bölgeyi ekle (${pickable.length})</button>`:""}</div>
   <input id="custQ" placeholder="Ara" value="${esc(U.custQ)}">
-  <div class="grid2">${pickable.map(c=>`<label class="check"><input type="checkbox" data-act="toggleSel" data-id="${c.id}" ${U.selected.has(c.id)?"checked":""}>${tierBadge(c)}<span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${esc(c.region||c.district||c.city||"")}${c.nextVisit&&c.nextVisit<=t?' · <span class="chip warn">ziyaret zamanı</span>':""}${hasGeo(c)?"":' · <span class="chip">konum yok</span>'}</span></span></label>`).join("")}</div></section>`:""}`}
+  <div class="grid2">${(()=>{const sel=pickable.filter(c=>U.selected.has(c.id)),rest=pickable.filter(c=>!U.selected.has(c.id));return [...sel,...pageOf("pick",rest,30).items]})().map(c=>`<label class="check"><input type="checkbox" data-act="toggleSel" data-id="${c.id}" ${U.selected.has(c.id)?"checked":""}>${tierBadge(c)}<span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${esc(c.region||c.district||c.city||"")}${c.nextVisit&&c.nextVisit<=t?' · <span class="chip warn">ziyaret zamanı</span>':""}${hasGeo(c)?"":' · <span class="chip">konum yok</span>'}</span></span></label>`).join("")}</div>${pageOf("pick",pickable.filter(c=>!U.selected.has(c.id)),30).more}</section>`:""}`}
 function dayPanel(){const D=day();const L=D.lunchPlaces||[];
   return `<details class="panel" id="dayDetails" ${U.dayOpen?"open":""}><summary style="cursor:pointer"><b>Gün ayarları</b> <span class="muted">· ev ${esc(D.arriveBy)} · öğle ${esc(D.lunchFrom)}–${esc(D.lunchTo)} · ${L.length} TokenFlex yeri</span></summary>
    <form id="dayForm" class="grid3" style="margin-top:12px">
@@ -474,7 +515,7 @@ function vCustomers(){
    ${impPanel("customer")}
    ${sampleCTA()}
    ${S.customers.size?`<div class="row"><input id="custQ" placeholder="Ara: firma, bölge, yetkili, tip" value="${esc(U.custQ)}" style="flex:1 1 220px"><select id="sortSel" style="flex:0 1 170px">${Object.keys(sorters).map(k=>`<option ${U.sort===k?"selected":""}>${k}</option>`).join("")}</select></div>${filterChips()}`:""}
-   <div class="list">${cs.map(custCard).join("")}</div>`}
+   ${(()=>{const pg=pageOf("cust",cs,40);return `<div class="list">${pg.items.map(custCard).join("")}</div>${pg.more}`})()}`}
 
 function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return vCustomers()}
   const vs=visitsOf(c),os=ordersOf(c).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -570,7 +611,7 @@ function vVisits(){
   const vs=[...S.visits.values()].sort((a,b)=>(b.date+(b.start||"")).localeCompare(a.date+(a.start||"")));
   return `<div class="row"><h2>Ziyaretler <span class="muted mono" style="font-size:16px">${vs.length}</span></h2><span class="sp"></span>${vs.length?`<button class="btn" data-act="expVisits">Excel'e aktar</button>`:""}</div>
   ${S.customers.size?`<label class="f">Yeni ziyaret notu<select id="pickVisit"><option value="">Müşteri seç…</option>${custList().map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>`:sampleCTA()}
-  <div class="list">${vs.length?vs.map(visitItem).join(""):S.customers.size?`<div class="empty">Henüz ziyaret notu yok. Bugün sekmesinde bir durakta “Başla”ya bas, görüşme bitince notunu gir.</div>`:""}</div>`}
+  <div class="list">${vs.length?(()=>{const pg=pageOf("vis",vs,40);return pg.items.map(visitItem).join("")+pg.more})():S.customers.size?`<div class="empty">Henüz ziyaret notu yok. Bugün sekmesinde bir durakta “Başla”ya bas, görüşme bitince notunu gir.</div>`:""}</div>`}
 
 /* ---- orders / invoices ---- */
 const FIELD_HINTS={customer:["müşteri","musteri","cari","firma","unvan","ünvan","alıcı","customer"],date:["tarih","date","belge tarihi","fatura tarihi","sipariş tarihi"],
@@ -605,7 +646,7 @@ function vOrders(){
   ${S.orders.size?`<div class="row"><input id="ordQ" placeholder="Ara: müşteri, belge no, parça" value="${esc(U.ordQ)}" style="flex:1 1 220px"><select id="ordType" style="flex:0 1 160px">${["hepsi","sipariş","fatura"].map(t=>`<option ${U.ordType===t?"selected":""}>${t}</option>`).join("")}</select></div>
    <div class="row"><span class="chip st mono">${os.length} belge</span><span class="chip ok mono">${tl(tot)}</span></div>
    ${unmatched.size?`<div class="banner">${unmatched.size} müşteri adı listende yok: ${[...unmatched].slice(0,4).map(esc).join(", ")}${unmatched.size>4?"…":""}. <button class="btn sm" data-act="addUnmatched">Hepsini müşteri olarak ekle</button></div>`:""}
-   ${ordTable(os.slice(0,300))}${os.length>300?`<p class="sub">İlk 300 belge gösteriliyor; aramayla daralt.</p>`:""}`
+   ${(()=>{const pg=pageOf("ord",os,60);return ordTable(pg.items)+pg.more})()}`
   :`<div class="empty"><b>Henüz belge yok.</b><span>Muhasebe programından aldığın sipariş veya fatura dökümünü Excel olarak yükle. Müşteri kartlarında toplamlar otomatik görünür.</span><button class="btn pri" data-act="impOrd">Excel seç</button></div>`}`}
 
 /* ---------- excel ---------- */
@@ -793,7 +834,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="1.6.1";
+const APP_VERSION="1.7.0";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -885,9 +926,9 @@ function buildPlan(){const cs=custList().filter(c=>hasGeo(c)&&c.status!=="Pasif"
   const used=new Map();const plan=[];
   for(const date of days){
     const pool=bySide[cur].filter(c=>{const last=used.get(c.id);const f=Number(c.freq)||14;return !last||daysBetween(last,date)>=Math.max(2,f)}).sort((a,b)=>pr(b)-pr(a));
-    const chosen=[];
-    while(pool.length){let best=-1,bs=-1e9;pool.forEach((c,i)=>{const dmin=chosen.length?Math.min(...chosen.map(x=>km(x,c))):0;const sc=pr(c)-dmin*4;if(sc>bs){bs=sc;best=i}});
-      const c=pool.splice(best,1)[0];const r=routeFor([...chosen,c].map(x=>x.id),null);if(r.plan.ok&&r.plan.rows.filter(x=>x.c).length===chosen.length+1)chosen.push(c);if(chosen.length>=12)break}
+    pool.splice(40);const chosen=[];let fails=0;
+    while(pool.length&&fails<6){let best=-1,bs=-1e9;pool.forEach((c,i)=>{const dmin=chosen.length?Math.min(...chosen.map(x=>km(x,c))):0;const sc=pr(c)-dmin*4;if(sc>bs){bs=sc;best=i}});
+      const c=pool.splice(best,1)[0];const r=routeFor([...chosen,c].map(x=>x.id),null);if(r.plan.ok&&r.plan.rows.filter(x=>x.c).length===chosen.length+1){chosen.push(c);fails=0}else fails++;if(chosen.length>=12)break}
     chosen.forEach(c=>used.set(c.id,date));
     const r=routeFor(chosen.map(c=>c.id),null);
     plan.push({date,side:cur,ids:r.order.map(c=>c.id),homeAt:r.plan.homeAt,km:r.dist});
@@ -920,7 +961,8 @@ function fill(t,o){return t.replace(/\{(\w+)\}/g,(m,k)=>o[k]!=null&&o[k]!==""?o[
 // vade ve gecikme
 function dueOf(o){if(o.dueDate)return o.dueDate;if(!o.date)return "";const c=o.customerId&&S.customers.get(o.customerId)||custByName(o.customer);const term=Number(c&&c.term)||Number(msgCfg().defaultTerm)||30;
   const d=new Date(o.date);d.setDate(d.getDate()+term);return d.toISOString().slice(0,10)}
-function overdueList(){const t=today();const by=new Map();
+let _odC=null;function overdueList(){const key=DV+"|"+today()+"|"+(msgCfg().defaultTerm);if(_odC&&_odC.k===key)return _odC.v;const v=overdueList0();_odC={k:key,v};return v}
+function overdueList0(){const t=today();const by=new Map();
   for(const o of S.orders.values()){if(o.type!=="fatura"||o.paid)continue;const due=dueOf(o);if(!due||due>=t)continue;
     const c=o.customerId&&S.customers.get(o.customerId)||custByName(o.customer);const key=c?c.id:"x:"+o.customer;
     let g=by.get(key);if(!g)by.set(key,g={c,name:c?c.name:o.customer,inv:[],total:0,maxDays:0});
@@ -952,13 +994,13 @@ function vOverdue(od){const t=today();
   const total=od.reduce((s,g)=>s+g.total,0);
   return `<section class="panel"><div class="row"><span class="chip bad mono">${od.length} müşteri · ${tl(total)}</span><span class="sp"></span>
     <button class="btn sm pri" data-act="qOverdue" data-ch="sms">Hepsine sırayla SMS</button><button class="btn sm" data-act="qOverdue" data-ch="wa">Sırayla WhatsApp</button><button class="btn sm" data-act="qOverdue" data-ch="mail">Sırayla e-posta</button></div></section>
-  <div class="list">${od.map(g=>{const c=g.c||{};const ch=chan(c);const body=overdueMsg(g);const ls=g.c&&lastSent(g.c.id,"odeme");
+  <div class="list">${pageOf("od",od,25).items.map(g=>{const c=g.c||{};const ch=chan(c);const body=overdueMsg(g);const ls=g.c&&lastSent(g.c.id,"odeme");
     return `<div class="item"><div class="row"><span class="t" style="flex:1 1 160px;min-width:0">${esc(g.name)}</span><span class="chip bad mono">${g.maxDays} gün</span><span class="chip mono">${tl(g.total)}</span></div>
      <div class="meta"><span>${g.inv.map(o=>esc((o.no||"belge")+" · vade "+fmtDate(dueOf(o)))).join(" · ")}</span>${ls?`<span class="chip ${daysSince(ls.date)<3?"warn":""}">son hatırlatma ${fmtDate(ls.date)} (${esc(ls.ch)})</span>`:""}</div>
      <div class="note" style="font-size:13px;color:var(--muted)">${esc(body)}</div>
      <div class="row" style="gap:6px">${ch.sms?`<a class="btn sm pri" href="${esc(smsLink(c.phone,body))}" data-act="sent" data-cid="${esc(c.id||"")}" data-kind="odeme" data-ch="SMS">SMS</a><a class="btn sm" href="${esc(waLinkT(c.phone,body))}" target="_blank" rel="noopener" data-act="sent" data-cid="${esc(c.id||"")}" data-kind="odeme" data-ch="WhatsApp">WhatsApp</a>`:`<span class="chip warn">telefon yok</span>`}
       ${ch.mail?`<a class="btn sm" href="${esc(mailLink(c.email,"Ödeme hatırlatması",body))}" data-act="sent" data-cid="${esc(c.id||"")}" data-kind="odeme" data-ch="E-posta">E-posta</a>`:""}
-      <span class="sp"></span>${g.inv.length?`<button class="btn sm ghost" data-act="markPaid" data-ids="${g.inv.map(o=>o.id).join(",")}">Ödendi</button>`:""}</div></div>`}).join("")}</div>`}
+      <span class="sp"></span>${g.inv.length?`<button class="btn sm ghost" data-act="markPaid" data-ids="${g.inv.map(o=>o.id).join(",")}">Ödendi</button>`:""}</div></div>`}).join("")}</div>${pageOf("od",od,25).more}`}
 
 function vCampaign(){const ps=products();const aud=audience();const M2=U.msg2;
   if(!M2.aud.size&&aud.length&&!M2._init){M2._init=true}
@@ -971,7 +1013,7 @@ function vCampaign(){const ps=products();const aud=audience();const M2=U.msg2;
     <label class="f">Marka<select id="af_brand"><option value="">Hepsi</option>${BRANDS.map(s=>`<option ${M2.f.brand===s?"selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">Bölge<select id="af_region"><option value="">Hepsi</option>${rg.map(s=>`<option ${M2.f.region===s?"selected":""}>${esc(s)}</option>`).join("")}</select></label></div>
    <div class="row"><span class="chip mono">${aud.length} uygun · ${sel.length} seçili</span><span class="sp"></span><button class="btn sm" data-act="audAll">Hepsini seç</button><button class="btn sm ghost" data-act="audNone">Temizle</button></div>
-   <div class="grid2" style="max-height:260px;overflow:auto">${aud.map(c=>{const ch=chan(c);return `<label class="check"><input type="checkbox" data-act="audPick" data-id="${c.id}" ${M2.aud.has(c.id)?"checked":""}><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${ch.sms?"📱":""}${ch.mail?" ✉️":""}${!ch.sms&&!ch.mail?"iletişim bilgisi yok":""}</span></span></label>`}).join("")}</div></section>
+   <div class="grid2" style="max-height:260px;overflow:auto">${aud.slice(0,(U.lim&&U.lim.aud)||80).map(c=>{const ch=chan(c);return `<label class="check"><input type="checkbox" data-act="audPick" data-id="${c.id}" ${M2.aud.has(c.id)?"checked":""}><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${ch.sms?"📱":""}${ch.mail?" ✉️":""}${!ch.sms&&!ch.mail?"iletişim bilgisi yok":""}</span></span></label>`}).join("")}</div></section>
   <section class="panel"><h3>3. Mesaj</h3>
    <label class="f">Konu (e-posta)<input id="campSubj" value="${esc(M2.subj)}"></label>
    <label class="f">Metin ({firma} {yetkili} {urunler} {ben} otomatik dolar)<textarea id="campTxt" rows="6">${esc(M2.camp||msgCfg().tpl.kampanya)}</textarea></label>
@@ -995,7 +1037,7 @@ function vStock(){const ps=products();return `<section class="panel"><div class=
    ${impPanel("product")}
    <form id="prodForm" class="grid3"><label class="f">Ürün adı *<input id="pf_name" name="name" required placeholder="Fren balatası ön"></label><label class="f">OEM / kod<input id="pf_oem" name="oem"></label><label class="f">Marka / araç<input id="pf_brand" name="brand" placeholder="Ford Transit"></label>
     <label class="f">Fiyat (₺)<input id="pf_price" name="price" inputmode="decimal"></label><label class="f">Stok adedi<input id="pf_stock" name="stock" inputmode="numeric"></label><div class="row" style="align-self:end"><button class="btn pri" type="submit">Ekle</button></div></form></section>
-  ${ps.length?`<div class="tbl"><table><thead><tr><th>Ürün</th><th>OEM</th><th>Marka</th><th class="n">Fiyat</th><th class="n">Stok</th><th></th></tr></thead><tbody>${ps.map(p=>`<tr><td>${esc(p.name)}</td><td class="mono">${esc(p.oem||"")}</td><td>${esc(p.brand||"")}</td><td class="n">${p.price?tl(p.price):""}</td><td class="n">${esc(p.stock??"")}</td><td><button class="btn sm ghost" data-act="delProd" data-id="${p.id}">×</button></td></tr>`).join("")}</tbody></table></div>`:""}`}
+  ${ps.length>((U.lim&&U.lim.stk)||80)?pageOf("stk",ps,80).more:""}${ps.length?`<div class="tbl"><table><thead><tr><th>Ürün</th><th>OEM</th><th>Marka</th><th class="n">Fiyat</th><th class="n">Stok</th><th></th></tr></thead><tbody>${pageOf("stk",ps,80).items.map(p=>`<tr><td>${esc(p.name)}</td><td class="mono">${esc(p.oem||"")}</td><td>${esc(p.brand||"")}</td><td class="n">${p.price?tl(p.price):""}</td><td class="n">${esc(p.stock??"")}</td><td><button class="btn sm ghost" data-act="delProd" data-id="${p.id}">×</button></td></tr>`).join("")}</tbody></table></div>`:""}`}
 function vMsgCfg(){const M=msgCfg();return `<section class="panel"><form id="msgCfgForm" class="grid2">
   <label class="f">İmza (mesaj sonundaki adın)<input id="mc_sender" name="sender" value="${esc(M.sender)}"></label>
   <label class="f">Varsayılan vade (gün)<input id="mc_term" name="defaultTerm" inputmode="numeric" value="${esc(M.defaultTerm)}"></label>
@@ -1137,11 +1179,33 @@ function vDayEnd(){const d=U.repDate||today();const R=dayReport(d);const txt=rep
 
 /* Otomatik varış algılama: Bugün ekranı açıkken rotadaki bir müşteriye 150 m yaklaşınca sorar */
 let _watch=null;
-function arrivalWatch(){const want=U.tab==="rota"&&!U.detail&&U.selected.size>0&&document.visibilityState==="visible"&&"geolocation" in navigator;
-  if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude};U.lastPos=pos;
+function ensurePos(){if(U.tab!=="rota"||posFresh()||U._posBusy||!("geolocation" in navigator))return;U._posBusy=true;
+  getPos().then(p=>{U.lastPos=Object.assign(p,{t:Date.now()});learnHome(p);U._posBusy=false;render()}).catch(()=>{U._posBusy=false;U._posFail=Date.now()})}
+function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();const want=U.tab==="rota"&&!U.detail&&U.selected.size>0&&document.visibilityState==="visible"&&"geolocation" in navigator;
+  if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude,t:Date.now()};U.lastPos=pos;
       const t=today();const hit=custList().filter(c=>U.selected.has(c.id)&&hasGeo(c)&&km(pos,c)<0.15&&!visitsOf(c).some(v=>v.date===t))[0];
       if(hit&&U.arrived!==hit.id&&!(U.live&&U.live.customerId===hit.id)){U.arrived=hit.id;render()}},()=>{},{enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
   else if(!want&&_watch!=null){navigator.geolocation.clearWatch(_watch);_watch=null}}
+function homeBanner(){if(U.tab!=="rota"||U.detail)return "";const D=day();const H=homePt();let out="";
+  if(U.homeSuggest){const g=U.homeSuggest;out+=`<div class="panel" style="border-color:var(--accent)"><b>🏠 Evini konumundan algıladım</b><span class="sub">Son ${g.n} akşam aynı yerdeydin (${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}). Günü buraya dönecek şekilde planlayayım mı?</span><div class="row"><button class="btn pri sm" data-act="homeYes">Evet, evim burası</button><button class="btn ghost sm" data-act="homeNo">Hayır</button></div></div>`}
+  if(!H||!posFresh())return out;const d=km(U.lastPos,H);if(d<0.4)return out;
+  const back=Math.round(travelMin(U.lastPos,H));const by=toMin(D.arriveBy);const leave=by-back;const n=nowMin();
+  if(n<leave-45||n>by+90)return out;
+  const late=n>leave;return out+`<div class="hero" style="${late?"background:linear-gradient(135deg,#e0293a,#ff6b5f)":""}"><span style="font-size:13px;opacity:.9">🏠 Eve dönüş</span><b style="font-size:18px">${late?`${esc(D.arriveBy)}'e yetişmek için çıkman gerekiyordu`:`${esc(D.arriveBy)}'de evde olmak için en geç ${hhmm(leave)}'de çık`}</b><span style="font-size:13px;opacity:.9">Buradan eve ~${back} dk · ${d.toFixed(1).replace(".",",")} km</span><div class="row"><a class="btn" style="background:#fff;color:var(--navy);border:0" href="${esc(dirLink(H))}" target="_blank" rel="noopener">Eve yol tarifi</a></div></div>`}
+const GK="saha-gece";
+function learnHome(p){try{const h=new Date().getHours();if(!(h>=20||h<7)||!p||(p.acc&&p.acc>200))return;const L=JSON.parse(localStorage.getItem(GK)||"[]").filter(x=>x.d!==today());L.push({d:today(),lat:p.lat,lng:p.lng});
+  localStorage.setItem(GK,JSON.stringify(L.slice(-30)));detectHome()}catch(e){}}
+function detectHome(){try{const L=JSON.parse(localStorage.getItem(GK)||"[]");if(L.length<3)return;let best=null;
+  for(const a of L){const near=L.filter(b=>km(a,b)<0.3);if(!best||near.length>best.length)best=near}
+  if(!best||best.length<3)return;const c={lat:best.reduce((s,x)=>s+x.lat,0)/best.length,lng:best.reduce((s,x)=>s+x.lng,0)/best.length,n:best.length};
+  const H=homePt();const no=JSON.parse(localStorage.getItem(GK+"-hayir")||"[]");
+  if(H&&km(c,H)<0.4)return;if(no.some(x=>km(x,c)<0.4))return;U.homeSuggest=c}catch(e){}}
+function nightCheck(){const h=new Date().getHours();if(!(h>=20||h<7))return;
+  if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:"geolocation"}).then(st=>{if(st.state==="granted")getPos().then(learnHome).catch(()=>{})}).catch(()=>{})}
+function scheduleHomeNotif(){clearTimeout(U._ht);if(!posFresh()||notifState()!=="granted")return;const H=homePt();if(!H)return;
+  const leave=toMin(day().arriveBy)-Math.round(travelMin(U.lastPos,H))-15;const ms=(leave-nowMin())*60e3;
+  if(ms>0&&ms<6*3600e3)U._ht=setTimeout(async()=>{if(localStorage.getItem("saha-eve-bildirim")===today())return;const reg=await navigator.serviceWorker?.getRegistration?.();
+    const o={body:`${day().arriveBy}'de evde olmak için 15 dakika içinde yola çık.`,icon:"icon-192.png",tag:"eve",data:{dest:dirLink(H)}};if(reg)reg.showNotification("🏠 Eve dönüş zamanı",o);else new Notification("🏠 Eve dönüş zamanı",o);localStorage.setItem("saha-eve-bildirim",today())},ms)}
 function arrivalBanner(){const c=U.arrived&&S.customers.get(U.arrived);if(!c||U.tab!=="rota")return "";
   return `<div class="hero" style="gap:10px"><span style="font-size:13px;opacity:.85">📍 Vardın</span><b style="font-size:18px">${esc(c.name)}</b><div class="row"><button class="btn" style="background:#fff;color:var(--navy);border:0" data-act="startLive" data-id="${c.id}">Ziyareti başlat</button><button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.4)" data-act="arrClose">Kapat</button></div></div>`}
 
@@ -1151,7 +1215,7 @@ document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e
 function addSel(ids){ids.forEach(i=>U.selected.add(i));keepUI();toast(ids.length===1?"Rotaya eklendi":ids.length+" durak eklendi")}
 document.addEventListener("click",async e=>{
   if(M.dragged){M.dragged=false;return}
-  const tab=e.target.closest("nav.bottom [data-tab],[data-goto-tab]");if(tab&&tab.dataset.gotoTab)tab.dataset.tab=tab.dataset.gotoTab;if(tab){U.sheet=null;U.tab=tab.dataset.tab;U.detail=null;U.visitFor=null;U.editCust=null;keepUI();render();window.scrollTo(0,0);return}
+  const tab=e.target.closest("nav.bottom [data-tab],[data-goto-tab]");if(tab&&tab.dataset.gotoTab)tab.dataset.tab=tab.dataset.gotoTab;if(tab){U.sheet=null;U.lim={};U.tab=tab.dataset.tab;U.detail=null;U.visitFor=null;U.editCust=null;keepUI();render();window.scrollTo(0,0);return}
   const pin=e.target.closest("[data-pin]");if(pin){U.mapSel=pin.dataset.pin;render();return}
   const b=e.target.closest("[data-act]");if(!b||b.matches("input,select"))return;const id=b.dataset.id,a=b.dataset.act;
   if(a==="goto"){U.tab=b.dataset.v;U.editCust="new";keepUI()}
@@ -1172,6 +1236,12 @@ document.addEventListener("click",async e=>{
   else if(a==="backup"){backupNow();return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
+  else if(a==="more"){U.lim=U.lim||{};U.lim[b.dataset.k]=((U.lim[b.dataset.k])||Number(b.dataset.n))+Number(b.dataset.n)*2}
+  else if(a==="forceAll"){U.forceAll=true}
+  else if(a==="forceOff"){U.forceAll=false}
+  else if(a==="homeYes"){const g=U.homeSuggest;U.homeSuggest=null;await saveDay({homeLat:+g.lat.toFixed(6),homeLng:+g.lng.toFixed(6)});
+    try{const ad=await reverseGeo(g.lat,g.lng);if(ad.address)await saveDay({home:[ad.address,ad.region].filter(Boolean).join(", ")})}catch(e){}toast("Ev konumu güncellendi");return}
+  else if(a==="homeNo"){try{const no=JSON.parse(localStorage.getItem(GK+"-hayir")||"[]");no.push(U.homeSuggest);localStorage.setItem(GK+"-hayir",JSON.stringify(no.slice(-10)))}catch(e){}U.homeSuggest=null}
   else if(a==="quick"){U.sheet="quick"}
   else if(a==="closeSheet"){U.sheet=null;U._sheetFocused=false;U.pickQ="";renderSheet();return}
   else if(a==="openSearch"){U.sheet="search";U._sheetFocused=false;renderSheet();return}
@@ -1314,7 +1384,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
 
 render();boot();
 checkUpdate(false);setInterval(()=>checkUpdate(false),30*60*1000);
-setTimeout(checkOverdue,1500);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkOverdue();arrivalWatch()});
+setTimeout(checkOverdue,1500);setTimeout(()=>{nightCheck();detectHome()},2500);setInterval(()=>{if(document.visibilityState==="visible"&&U.tab==="rota"&&!document.querySelector("input:focus,textarea:focus,select:focus")){ensurePos();scheduleHomeNotif();render()}},5*60e3);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkOverdue();arrivalWatch()});
 setTimeout(()=>{scheduleLunchNotif();if(location.hash==="#ogle"||inLunchWindow()){U.tab="rota";U.lunch.open=true;if(location.hash==="#ogle"||notifState()==="granted")locateLunch(true)}},800);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleLunchNotif()});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate(false)});

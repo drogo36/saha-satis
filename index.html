@@ -635,7 +635,7 @@ function impPanel(kind){const I=U.import;if(!I||I.kind!==kind)return "";
   if(!I.rows)return `<section class="panel"><h2>${kind==="customer"?"Müşteri listesi yükle":kind==="product"?"Stok listesi yükle":"Sipariş / fatura yükle"}</h2>
    <p class="sub">${kind==="customer"?"İlk satırı başlık olan bir Excel veya CSV seç. Okunan sütunlar: Firma, Yetkili, Telefon, Tip, Potansiyel (A/B/C), Aşama, Markalar, Aylık alım, İl, Bölge, Adres, Konum.":"Muhasebe ya da ERP programından aldığın Excel/CSV dökümünü seç. Sütunları otomatik eşleştiririm, sen kontrol edersin."}</p>
    <div class="row"><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods" style="max-width:360px">${kind==="order"?`<select id="impType" style="max-width:180px"><option value="sipariş">Siparişler</option><option value="fatura">Faturalar</option></select>`:""}<button class="btn ghost" data-act="cancelImp">Kapat</button></div></section>`;
-  const keys=kind==="customer"?["name","contact","phone","email","type","tier","status","brands","estMonthly","city","region","address","geo"]:kind==="product"?["sku","pname","oem","brand","price","stock"]:["customer","date","no","amount","item","qty","due","remaining"];
+  const keys=kind==="customer"?["name","contact","phone","email","type","tier","status","brands","estMonthly","city","region","address","geo"]:kind==="product"?["sku","pname","oem","brand","price","stock"]:["customer","date","no","sku","item","qty","amount","due","remaining"];
   const lbl={email:"E-posta",due:"Vade tarihi",remaining:"Kalan bakiye",pname:"Ürün adı *",sku:"Stok kodu",oem:"OEM no",brand:"Marka",price:"Fiyat",stock:"Stok",type:"Firma tipi",tier:"Potansiyel (A/B/C)",status:"Aşama",brands:"Markalar",estMonthly:"Aylık alım",region:"Bölge",name:"Firma *",contact:"Yetkili",phone:"Telefon",city:"İl",district:"İlçe",address:"Adres",geo:"Konum",customer:"Müşteri *",date:"Tarih",no:"Belge no",amount:"Tutar *",item:"Parça / ürün",qty:"Adet"};
   const opts=v=>`<option value="">—</option>`+I.headers.map(h=>`<option ${h===v?"selected":""}>${esc(h)}</option>`).join("");
   return `<section class="panel"><div class="row"><h2>${esc(I.file)}</h2><span class="chip st mono">${I.rows.length} satır</span></div>
@@ -644,10 +644,10 @@ function impPanel(kind){const I=U.import;if(!I||I.kind!==kind)return "";
    ${I.rows.slice(0,5).map(r=>`<tr>${keys.filter(k=>I.map[k]).map(k=>`<td>${esc(k==="date"?fmtDate(parseDate(r[I.map[k]])):r[I.map[k]])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
    ${kind==="product"?`<label class="f">Yükleme şekli<select id="impMode"><option value="merge" ${I.mode!=="replace"?"selected":""}>Ekle ve güncelle (mevcut stok kalsın)</option><option value="replace" ${I.mode==="replace"?"selected":""}>Stoğu bu dosyayla değiştir (dosyada olmayanları sil)</option></select></label>${I.mode==="replace"?`<div class="banner">Dosyada olmayan stok ürünleri silinecek. Silinenleri 12 saniye içinde geri alabilirsin.</div>`:""}`:""}
    <div class="row"><button class="btn pri" data-act="doImp">${I.rows.length} kaydı içe aktar</button><button class="btn ghost" data-act="cancelImp">Vazgeç</button></div></section>`}
-function ordTable(os){return `<div class="tbl"><table><thead><tr><th>Tarih</th><th>Tür</th><th>Belge</th><th>Müşteri</th><th>Parça</th><th class="n">Adet</th><th class="n">Tutar</th><th>Vade</th><th></th></tr></thead><tbody>
-  ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td>${o.type==="fatura"?(o.paid?'<span class="chip ok">ödendi</span>':`<span class="chip ${dueOf(o)&&dueOf(o)<today()?"bad":""} mono">${fmtDate(dueOf(o))}</span> <button class="btn sm ghost" data-act="markPaid" data-ids="${o.id}">ödendi</button>`):""}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>`}
+function ordTable(os){return `<div class="tbl"><table><thead><tr><th>Tarih</th><th>Tür</th><th>Belge</th><th>Müşteri</th><th>Stok kodu</th><th>Parça</th><th class="n">Adet</th><th class="n">Tutar</th><th>Vade</th><th></th></tr></thead><tbody>
+  ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td class="mono">${esc(o.sku||(o.lines||[]).map(l=>l.sku).filter(Boolean).join(", ")||"—")}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td>${o.type==="fatura"?(o.paid?'<span class="chip ok">ödendi</span>':`<span class="chip ${dueOf(o)&&dueOf(o)<today()?"bad":""} mono">${fmtDate(dueOf(o))}</span> <button class="btn sm ghost" data-act="markPaid" data-ids="${o.id}">ödendi</button>`):""}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>`}
 function vOrders(){
-  const q=trLow(U.ordQ);let os=[...S.orders.values()].filter(o=>(U.ordType==="hepsi"||o.type===U.ordType)&&(!q||trLow([o.customer,o.no,o.item].join(" ")).includes(q))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const q=trLow(U.ordQ);let os=[...S.orders.values()].filter(o=>(U.ordType==="hepsi"||o.type===U.ordType)&&(!q||trLow([o.customer,o.no,o.item,o.sku,...(o.lines||[]).map(l=>l.sku)].join(" ")).includes(q))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const tot=os.reduce((a,o)=>a+(o.amount||0),0);const unmatched=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
   return `<div class="row"><h2>Sipariş / Fatura</h2><span class="sp"></span><button class="btn pri" data-act="impOrd">Excel'den yükle</button>${S.orders.size?`<button class="btn" data-act="expOrd">Excel'e aktar</button>`:""}</div>
   ${impPanel("order")}
@@ -664,7 +664,7 @@ async function readFile(f){toast("Dosya okunuyor…");if(!await loadXLSX()){toas
   const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:true});if(!rows.length){toast("Dosyada satır bulunamadı.");return}
   const headers=Object.keys(rows[0]);const I=U.import;I.file=f.name;I.rows=rows;I.headers=headers;I.map={};
-  const keys=I.kind==="customer"?["name","contact","phone","email","type","tier","status","brands","estMonthly","city","region","address","geo"]:I.kind==="product"?["sku","pname","oem","brand","price","stock"]:["customer","date","no","amount","item","qty","due","remaining"];
+  const keys=I.kind==="customer"?["name","contact","phone","email","type","tier","status","brands","estMonthly","city","region","address","geo"]:I.kind==="product"?["sku","pname","oem","brand","price","stock"]:["customer","date","no","sku","item","qty","amount","due","remaining"];
   keys.forEach(k=>I.map[k]=guessCol(headers,k));render()}
 async function doImport(){const I=U.import;const m=I.map;
   if(I.kind==="customer"){if(!m.name){toast("Firma sütununu seç.");return}
@@ -688,10 +688,11 @@ async function doImport(){const I=U.import;const m=I.map;
     toast(out.length+" ürün kaydedildi")}
   else{if(!m.customer||!m.amount){toast("Müşteri ve Tutar sütunlarını seç.");return}
     const type=I.type||"sipariş";const out=[];I.rows.forEach(r=>{const cust=String(r[m.customer]||"").trim();if(!cust)return;const c=custByName(cust);
-      out.push({id:uid("o"),kind:"order",type,customer:cust,customerId:c?c.id:"",date:m.date?parseDate(r[m.date]):"",no:m.no?String(r[m.no]):"",amount:parseNum(r[m.amount]),item:m.item?String(r[m.item]):"",qty:m.qty?parseNum(r[m.qty]):"",dueDate:m.due?parseDate(r[m.due]):"",remaining:m.remaining?parseNum(r[m.remaining]):"",paid:m.remaining?parseNum(r[m.remaining])<=0:false,importedFrom:I.file})});
+      const skuV=m.sku?String(r[m.sku]||"").trim():"";const pm=skuV&&findProdByCode(skuV);
+      out.push({id:uid("o"),kind:"order",type,customer:cust,customerId:c?c.id:"",date:m.date?parseDate(r[m.date]):"",no:m.no?String(r[m.no]):"",amount:parseNum(r[m.amount]),item:m.item?String(r[m.item]):(pm?pm.name:""),qty:m.qty?parseNum(r[m.qty]):"",sku:m.sku?String(r[m.sku]||"").trim():"",dueDate:m.due?parseDate(r[m.due]):"",remaining:m.remaining?parseNum(r[m.remaining]):"",paid:m.remaining?parseNum(r[m.remaining])<=0:false,importedFrom:I.file})});
     U.import=null;await saveMany(out);toast(out.length+" "+type+" kaydedildi")}}
 async function exportX(kind){if(!await loadXLSX()){toast("Excel oluşturucu yüklenemedi. İlk seferde internet gerekir.");return}
-  let rows,name;if(kind==="stock"){rows=products().map(p=>({"Stok kodu":p.sku||"","Ürün":p.name,"OEM no":p.oem||"","Marka / araç":p.brand||"","Fiyat":p.price===""?"":p.price,"Stok":p.stock===""?"":p.stock,"Kritik seviye":p.min??5}));name="stok"}else if(kind==="order"){rows=[...S.orders.values()].map(o=>({Tarih:fmtDate(o.date),Tür:o.type,"Belge no":o.no,Müşteri:o.customer,Parça:o.item,Adet:o.qty,Tutar:o.amount}));name="siparis-fatura"}
+  let rows,name;if(kind==="stock"){rows=products().map(p=>({"Stok kodu":p.sku||"","Ürün":p.name,"OEM no":p.oem||"","Marka / araç":p.brand||"","Fiyat":p.price===""?"":p.price,"Stok":p.stock===""?"":p.stock,"Kritik seviye":p.min??5}));name="stok"}else if(kind==="order"){rows=[...S.orders.values()].map(o=>({Tarih:fmtDate(o.date),Tür:o.type,"Belge no":o.no,Müşteri:o.customer,"Stok kodu":o.sku||(o.lines||[]).map(l=>l.sku).filter(Boolean).join(", "),Parça:o.item,Adet:o.qty,Tutar:o.amount}));name="siparis-fatura"}
   else{rows=[...S.visits.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(v=>({Tarih:fmtDate(v.date),Başlangıç:v.start,Bitiş:v.end,Müşteri:S.customers.get(v.customerId)?.name||v.customerName,Sonuç:v.result,Tutar:v.amount||"",Parçalar:v.parts,Not:v.note,"Sonraki ziyaret":fmtDate(v.nextVisit)}));name="ziyaretler"}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Kayıtlar");
   const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});const fn=`${name}-${today()}.xlsx`;
@@ -868,7 +869,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.0.0";
+const APP_VERSION="2.0.1";
 U.update=null;
 async function checkUpdate(manual){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
   if(v.version&&v.version!==APP_VERSION&&cmpVer(v.version,APP_VERSION)>0){U.update=v;render();if(manual)toast("Yeni sürüm: "+v.version)}else if(manual)toast("Uygulama güncel ("+APP_VERSION+")")}catch(e){if(manual)toast("Güncelleme kontrol edilemedi, internet bağlantını kontrol et.")}}
@@ -1340,6 +1341,10 @@ function vStockPage(){const K=U.stk;if(K.detail){const p=S.products.get(K.detail
   ${scanPanel()}
   <section class="panel"><div class="row"><input id="stkQ" placeholder="Stok kodu, OEM ya da ürün adı ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
    <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div></section>
+  ${(()=>{const L=all.filter(p=>!p.sku&&p.oem);return L.length?`<section class="panel" style="border-color:var(--accent)"><b>Stok kodu sütunu ${L.length} üründe boş</b>
+   <span class="sub">Eski sürümle yüklenen Excel'deki "Stok Kodu" sütunu OEM alanına kaydedilmişti. Bu kodlar şu an OEM sütununda duruyor (örnek: ${L.slice(0,3).map(p=>esc(p.oem)).join(", ")}).</span>
+   <div class="row"><button class="btn sm pri" data-act="stkMoveOem">Bu kodları Stok kodu sütununa taşı</button><button class="btn sm" data-act="impProd2">Excel'i yeniden yükle</button></div>
+   <span class="why">Taşıyınca kodlar Stok kodu sütununa geçer, OEM sütunu boşalır. İstemezsen 12 saniye içinde geri alabilirsin.</span></section>`:""})()}
   ${all.length?stockBulkBar(ps):""}
   ${K.edit?prodForm(K.edit==="new"?null:S.products.get(K.edit)):""}
   ${(()=>{const pg=pageOf("stk2",ps,40);if(!pg.items.length)return `<div class="empty">${all.length?"Aramayla eşleşen ürün yok.":"Henüz ürün yok. Stok listeni Excel'den yükle ya da etiketi fotoğraflayarak ekle."}</div>`;
@@ -1469,7 +1474,9 @@ document.addEventListener("click",async e=>{
   else if(a==="scanClose"){U.stk.scan=null}
   else if(a==="scanIn"){const x=U.stk.scan.items[Number(b.dataset.i)];const n=Math.max(1,x.qty||1);await save(Object.assign({},x.p,{stock:(Number(x.p.stock)||0)+n}));x.p=S.products.get(x.p.id);toast(`${x.p.name}: +${n} stok girişi`);render();return}
   else if(a==="scanNew"){const x=U.stk.scan.items[Number(b.dataset.i)];const p={id:uid("p"),kind:"product",name:x.name||x.code,oem:x.code,brand:x.brand,price:"",stock:x.qty||"",min:5};await save(p);x.p=p;U.stk.edit=p.id;toast("Ürün eklendi; fiyatını yazıp kaydet");render();setTimeout(()=>{const f=$("#prodForm2");if(f){f.scrollIntoView({block:"center"});$("#p2_price").focus()}},50);return}
-  else if(a==="impProd2"){U.import={kind:"product"}}
+  else if(a==="impProd2"){U.import={kind:"product"};window.scrollTo(0,0)}
+  else if(a==="stkMoveOem"){const L=products().filter(p=>!p.sku&&p.oem);const before=L.map(p=>Object.assign({},p));await saveMany(L.map(p=>Object.assign({},p,{sku:p.oem,oem:""})));
+    toast(`${L.length} ürünün kodu Stok kodu sütununa taşındı`,{label:"Geri al",ms:12000,fn:async()=>{await saveMany(before);toast("Geri alındı")}});return}
   else if(a==="expStock"){exportX("stock");return}
   else if(a==="signOut"){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Emin misin? Bu cihazdaki kopya silinir, bulut kalır";return}
     lsFlush();await firebase.auth().signOut();try{localStorage.removeItem(LSK);Object.keys(localStorage).filter(k=>k.startsWith("saha-sync-")).forEach(k=>localStorage.removeItem(k))}catch(e){}

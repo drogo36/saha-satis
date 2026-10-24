@@ -1,1 +1,1 @@
-{"version":"2.0.0","notes":"Stok silme (satırda, toplu, geri al), işlem yapabilen asistan, örnek veri temizliği."}
+{"version":"2.0.1","notes":"Stok kodu sütunu: eski kodları taşıma aracı ve sipariş/fatura tablosunda Stok kodu."}

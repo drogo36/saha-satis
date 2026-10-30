@@ -443,8 +443,8 @@ function timeline(r){const P=r.plan;const D=day();let n=0;
     if(x.lunch){const pl=x.place;const near=x.pos?`https://www.google.com/maps/search/restoran/@${x.pos.lat},${x.pos.lng},16z`:"";
       return `<div class="item stop" style="background:var(--warn-bg);border-color:transparent"><div class="num" style="background:var(--warn);color:var(--surface)">☕</div>
        <div style="min-width:0"><div class="t">Öğle arası <span class="mono" style="font-weight:500">${hhmm(x.start)}–${hhmm(x.end)}</span></div>
-       <div class="meta"><span>${pl?esc(pl.name)+" · TokenFlex":"TokenFlex geçen bir yer eklemedin; aşağıdaki linkle yakındaki restoranlara bak, TokenFlex uygulamasından geçerli olduğunu doğrula."}</span>${x.late?'<span class="chip bad">13:00 sonrasına kayıyor</span>':""}</div></div>
-       <div class="row" style="gap:6px">${pl?`<a class="btn sm" href="${esc(mapsLink(pl))}" target="_blank" rel="noopener">Yol</a>`:""}${near?`<a class="btn sm" href="${esc(near)}" target="_blank" rel="noopener">Yakındakiler</a>`:""}</div></div>`}
+       <div class="meta"><span>${pl?esc(pl.name)+" · TokenFlex":"Bu civarda kayıtlı TokenFlex yerin yok. “Yer öner”e bas, yakındaki yemek yerlerini bulayım; geçenleri ✓ ile kaydet."}</span>${x.late?'<span class="chip bad">13:00 sonrasına kayıyor</span>':""}</div></div>
+       <div class="row" style="gap:6px">${pl?`<a class="btn sm" href="${esc(mapsLink(pl))}" target="_blank" rel="noopener">Yol</a>`:""}${!pl&&x.pos?`<button class="btn sm" data-act="lunchAt" data-lat="${x.pos.lat}" data-lng="${x.pos.lng}">Yer öner</button>`:near?`<a class="btn sm" href="${esc(near)}" target="_blank" rel="noopener">Yakındakiler</a>`:""}</div></div>`}
     n++;return stopRow(x.c,n,x)}).join("");
   const nog=r.nogeo.map(c=>stopRow(c,"?")).join("");
   const home=r.end?`<div class="item stop" style="border-color:${P.ok?"var(--ok)":"var(--bad)"}"><div class="num" style="background:var(--ink)">⌂</div>
@@ -934,7 +934,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.3.0";
+const APP_VERSION="2.4.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -955,7 +955,27 @@ async function applyUpdate(){toast("Güncelleniyor…");
 function updateBanner(){const u=U.update;if(!u)return "";return `<div class="banner" style="background:var(--steel-bg);color:var(--steel)"><b>Yeni sürüm ${esc(u.version)}</b>${u.notes?": "+esc(u.notes):""} <button class="btn sm pri" data-act="doUpdate">Şimdi güncelle</button><span class="why">Kayıtların silinmez.</span></div>`}
 
 /* ---------- öğle: konumdan TokenFlex yeri bulma + bildirim ---------- */
-U.lunch={pos:null,busy:false,err:"",open:false};
+U.lunch={pos:null,busy:false,err:"",open:false,cand:null};
+/* Öğle: yakındaki yemek yerlerini OpenStreetMap'ten kendisi bulur; kullanıcı ✓/✗ ile TokenFlex geçip geçmediğini işaretler, belleğe kaydedilir */
+const LKIND={restaurant:"Lokanta / restoran",fast_food:"Büfe / hızlı yemek",cafe:"Kafe",food_court:"Yemek alanı"};
+const sameSpot=(a,b)=>km(a,b)<0.03||(trLow(a.name||"")===trLow(b.name||"")&&km(a,b)<0.15);
+async function lunchCandidates(pos){if(!pos)return;const key=pos.lat.toFixed(3)+","+pos.lng.toFixed(3);const C=U.lunch.cand;if(C&&C.key===key&&(C.busy||C.list))return;
+  U.lunch.cand={key,busy:true,list:null,pos};
+  try{const q=`[out:json][timeout:20];(node["amenity"~"^(restaurant|fast_food|cafe|food_court)$"](around:1000,${pos.lat},${pos.lng});way["amenity"~"^(restaurant|fast_food|cafe|food_court)$"](around:1000,${pos.lat},${pos.lng}););out center 80;`;
+    const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+    if(!r.ok)throw new Error("Harita servisi yanıt vermedi, biraz sonra tekrar dene.");const d=await r.json();
+    const list=(d.elements||[]).map(e=>{const t=e.tags||{};return {name:t.name||"",lat:e.lat??e.center?.lat,lng:e.lon??e.center?.lon,kind:LKIND[t.amenity]||"Yemek yeri"}}).filter(x=>x.name&&x.lat!=null);
+    U.lunch.cand={key,busy:false,list,pos}}
+  catch(e){U.lunch.cand={key,busy:false,list:[],pos,err:e.message||"Bağlantı sorunu."}}
+  render()}
+function lunchSuggest(){const C=U.lunch.cand;if(!C||!C.list)return [];const D=day();const yes=D.lunchPlaces||[],no=D.lunchNo||[];
+  return C.list.filter(x=>!yes.some(y=>sameSpot(x,y))&&!no.some(y=>sameSpot(x,y))).map(x=>({p:x,d:km(C.pos,x)})).sort((a,b)=>a.d-b.d).slice(0,8)}
+function lunchSuggestHTML(){const C=U.lunch.cand;if(!C)return "";if(C.busy)return `<span class="muted">Yakındaki lokanta, kafe ve büfeler aranıyor…</span>`;
+  if(C.err)return `<div class="banner">${esc(C.err)}</div>`;const L=lunchSuggest();
+  if(!L.length)return `<span class="why">1 km içinde haritada kayıtlı başka yemek yeri bulunamadı.</span>`;
+  return `<span class="sub">Yakındaki yemek yerleri — yediğin yerde TokenFlex geçtiyse “✓ Geçti”ye bas, belleğe kaydedeyim; geçmediyse “✗ Geçmedi”ye bas, bir daha önermem:</span>
+   <div class="list">${L.map(({p,d},i)=>`<div class="item"><div class="row"><b style="flex:1 1 150px;min-width:0">${esc(p.name)}</b><span class="chip">${esc(p.kind)}</span><span class="chip mono">${d<1?Math.round(d*1000)+" m":d.toFixed(1).replace(".",",")+" km"} · ~${walkMin(d)} dk</span></div>
+    <div class="row" style="gap:6px"><a class="btn sm" href="${esc("https://www.google.com/maps/dir/?api=1&travelmode=walking&destination="+p.lat+","+p.lng)}" target="_blank" rel="noopener">Git</a><span class="sp"></span><button class="btn sm pri" data-act="lunchYes" data-i="${i}">✓ Geçti</button><button class="btn sm ghost" data-act="lunchNo" data-i="${i}">✗ Geçmedi</button></div></div>`).join("")}</div>`}
 const NK="saha-ogle-bildirim";
 function inLunchWindow(){const D=day();const n=new Date();const m=n.getHours()*60+n.getMinutes();return m>=toMin(D.lunchFrom)-30&&m<=toMin(D.lunchTo)+30}
 function getPos(){return new Promise((res,rej)=>{if(!navigator.geolocation)return rej(new Error("Bu cihaz konum vermiyor."));
@@ -963,17 +983,19 @@ function getPos(){return new Promise((res,rej)=>{if(!navigator.geolocation)retur
 function nearbyLunch(pos,limit=5){return (day().lunchPlaces||[]).filter(hasGeo).map(p=>({p,d:km(pos,p)})).sort((a,b)=>a.d-b.d).slice(0,limit)}
 const walkMin=d=>Math.max(1,Math.round(d*1000/75));
 async function locateLunch(silent){if(U.lunch.busy)return;U.lunch.busy=true;U.lunch.err="";U.lunch.open=true;if(!silent)render();
-  try{U.lunch.pos=await getPos()}catch(e){U.lunch.err=e.message}U.lunch.busy=false;render();return U.lunch.pos}
+  try{U.lunch.pos=await getPos()}catch(e){U.lunch.err=e.message}U.lunch.busy=false;render();if(U.lunch.pos)lunchCandidates(U.lunch.pos);return U.lunch.pos}
 function lunchCard(){const L=U.lunch;if(!L.open&&!inLunchWindow())return "";const D=day();
   const near=L.pos?nearbyLunch(L.pos):[];const close=near.filter(x=>x.d<=2);
+  if(L.pos&&!close.length&&(!L.cand||L.cand.key!==L.pos.lat.toFixed(3)+","+L.pos.lng.toFixed(3)))setTimeout(()=>lunchCandidates(L.pos),0);
   const gmaps=L.pos?`https://www.google.com/maps/search/lokanta/@${L.pos.lat},${L.pos.lng},16z`:"";
   return `<section class="panel" id="ogle" style="border-color:var(--warn)"><div class="row"><h2>🍽 Öğle arası</h2><span class="chip warn mono">${esc(D.lunchFrom)}–${esc(D.lunchTo)}</span><span class="sp"></span><button class="btn sm" data-act="lunchLocate">${L.pos?"Konumu yenile":"📍 Yakınımda ara"}</button></div>
    ${L.busy?`<span class="muted">Konum alınıyor…</span>`:L.err?`<div class="banner">${esc(L.err)}</div>`:""}
    ${L.pos?(close.length?`<span class="sub">Yakınındaki TokenFlex geçen yerler:</span><div class="list">${close.map(({p,d},i)=>`<div class="item stop" style="grid-template-columns:auto minmax(0,1fr) auto">${i===0?'<span class="tier A">1</span>':`<span class="tier">${i+1}</span>`}<div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="meta"><span class="mono">${d<1?Math.round(d*1000)+" m":d.toFixed(1).replace(".",",")+" km"} · yürüyerek ~${walkMin(d)} dk</span></div></div><a class="btn sm pri" href="${esc("https://www.google.com/maps/dir/?api=1&travelmode=walking&destination="+p.lat+","+p.lng)}" target="_blank" rel="noopener">Git</a></div>`).join("")}</div>`
-     :`<div class="banner">2 km içinde kayıtlı TokenFlex yeri yok${near[0]?` (en yakını ${esc(near[0].p.name)}, ${near[0].d.toFixed(1).replace(".",",")} km)`:""}. Aşağıdan yakındaki lokantalara bak; TokenFlex uygulamasında “Üye iş yerleri”nden kontrol et.</div>`)
+     :`<span class="why">2 km içinde kaydettiğin TokenFlex yeri yok${near[0]?` (en yakını ${esc(near[0].p.name)}, ${near[0].d.toFixed(1).replace(".",",")} km)`:""}.</span>`)
+     +lunchSuggestHTML()
      +`<div class="row"><a class="btn sm" href="${esc(gmaps)}" target="_blank" rel="noopener">Yakındaki lokantalar (Maps)</a></div>
        <form id="lunchHere" class="row"><input id="lh_name" name="name" placeholder="Şu an bulunduğum yerin adı" style="flex:1 1 180px" required><button class="btn sm" type="submit">＋ Burada TokenFlex geçiyor</button></form>
-       <span class="why">Yemek yediğin yerde TokenFlex geçtiyse adını yazıp kaydet; bir dahaki sefere otomatik önerilir.</span>`
+       <span class="why">Listede olmayan bir yerde yediysen adını yazıp kaydedebilirsin. Kaydettiğin yerler rotada öğle durağı olarak otomatik seçilir.</span>`
     :`<span class="sub">Bulunduğun yere en yakın TokenFlex geçen yeri göstermem için “Yakınımda ara”ya bas.</span>`}
    ${notifRow()}</section>`}
 function notifState(){if(!("Notification" in window))return "yok";return Notification.permission}
@@ -1647,7 +1669,12 @@ document.addEventListener("click",async e=>{
   else if(a==="geoMissing"){geocodeMissing(b);return}
   else if(a==="mkPlan"){b.disabled=true;b.textContent="Planlanıyor…";await sleep(30);const days=buildPlan();await save(Object.assign({},settings(),{plan:{at:today(),days}}));toast("6 günlük plan hazır");return}
   else if(a==="loadPlan"){const d=settings().plan.days[Number(b.dataset.i)];U.selected=new Set(d.ids.filter(id=>S.customers.has(id)));U.start="";keepUI();toast(d.side+" yakası rotası yüklendi");window.scrollTo(0,0)}
-  else if(a==="lunchLocate"){locateLunch();return}
+  else if(a==="lunchLocate"){if(U.lunch.cand)U.lunch.cand.key="";locateLunch();return}
+  else if(a==="lunchYes"||a==="lunchNo"){const x=lunchSuggest()[Number(b.dataset.i)];if(!x)return;const pl={name:x.p.name,lat:+x.p.lat.toFixed(6),lng:+x.p.lng.toFixed(6)};const D=day();
+    if(a==="lunchYes"){await saveDay({lunchPlaces:[...(D.lunchPlaces||[]),pl]});toast(pl.name+" TokenFlex yerlerine kaydedildi")}
+    else{await saveDay({lunchNo:[...(D.lunchNo||[]),pl]});toast(pl.name+" bir daha önerilmeyecek",{label:"Geri al",fn:async()=>{await saveDay({lunchNo:(day().lunchNo||[]).filter(y=>!sameSpot(y,pl))})}})}
+    return}
+  else if(a==="lunchAt"){U.tab="rota";U.detail=null;U.lunch.open=true;U.lunch.pos={lat:+b.dataset.lat,lng:+b.dataset.lng};lunchCandidates(U.lunch.pos);render();setTimeout(()=>{const o=$("#ogle");if(o)o.scrollIntoView({behavior:"smooth",block:"start"})},80);return}
   else if(a==="notifOn"){try{const r=await Notification.requestPermission();if(r==="granted"){toast("Bildirim açıldı");scheduleLunchNotif();try{const reg=await navigator.serviceWorker.ready;if(reg.periodicSync)await reg.periodicSync.register("ogle",{minInterval:6*3600e3})}catch(e){}}else toast("Bildirim izni verilmedi")}catch(e){toast("Bu cihaz bildirim desteklemiyor")}}
   else if(a==="aiTest"){aiTest();return}
   else if(a==="aiClear"){aiSave({key:"",model:""});toast("Anahtar silindi")}

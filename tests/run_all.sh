@@ -23,6 +23,7 @@ run "İki cihaz eşitleme ve giriş" tests/sync.py
 run "Yakındakiler harita penceresi" tests/nearmap.py
 run "Arama kutusunda klavye" tests/klavye.py
 run "Müşteri haritası ve trafik" tests/harita.py
+run "Öğle: TokenFlex yer önerisi" tests/ogle.py
 run "Kendiliğinden güncelleme" tests/upd.py
 [ -n "${SRV:-}" ] && kill $SRV 2>/dev/null
 [ $FAIL -eq 0 ] && echo "TÜM TESTLER GEÇTİ ($V1)" || { echo "TESTLER BAŞARISIZ"; exit 1; }

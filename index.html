@@ -291,6 +291,24 @@ function priority0(c){const t=today();let sc=0,why=[];
 const RESULTS={"Sipariş alındı":"ok","Teklif verildi":"st","Bilgi / tanıtım":"","Tahsilat":"ok","Şikayet":"bad","Ulaşılamadı":"warn"};
 
 /* ---------- render ---------- */
+/* Yazarken klavye kapanmasın: odaktaki metin kutusu varsa ekranı baştan çizmek yerine yalnızca değişen yerleri güncelle (kutu yerinde kalır). */
+function typingIn(el){const f=document.activeElement;return !!(f&&el&&el.contains(f)&&(f.tagName==="TEXTAREA"||f.tagName==="INPUT"&&!/^(checkbox|radio|button|submit|file|range|color|date|time)$/.test(f.type)))}
+function morphKids(a,b){const ac=[...a.childNodes],bc=[...b.childNodes];
+  bc.forEach((y,i)=>{const x=ac[i];if(!x){a.appendChild(y);return}
+    if(x.nodeType!==y.nodeType||x.nodeName!==y.nodeName||(x.nodeType===1&&((x.id||"")!==(y.id||"")||x===document.activeElement&&["name","type","placeholder"].some(k=>x.getAttribute(k)!==y.getAttribute(k))))){x.replaceWith(y);return}
+    if(x.nodeType!==1){if(x.nodeValue!==y.nodeValue)x.nodeValue=y.nodeValue;return}
+    morphEl(x,y)});
+  for(let i=bc.length;i<ac.length;i++)ac[i].remove()}
+function morphEl(x,y){const act=x===document.activeElement;
+  [...x.attributes].forEach(at=>{if(!y.hasAttribute(at.name)&&!(act&&at.name==="value"))x.removeAttribute(at.name)});
+  [...y.attributes].forEach(at=>{if(act&&at.name==="value")return;if(x.getAttribute(at.name)!==at.value)x.setAttribute(at.name,at.value)});
+  if(x.tagName!=="TEXTAREA"||!act)morphKids(x,y);
+  if(act)return;
+  if(x.tagName==="INPUT"){if(x.type==="checkbox"||x.type==="radio")x.checked=y.checked;else if(x.type!=="file"&&x.value!==y.value)x.value=y.value}
+  else if(x.tagName==="TEXTAREA"){if(x.value!==y.value)x.value=y.value}
+  else if(x.tagName==="SELECT")x.selectedIndex=y.selectedIndex}
+function setHTML(el,html){if(!typingIn(el)){el.innerHTML=html;return}const t=document.createElement("template");t.innerHTML=html;const box=document.createElement("div");box.appendChild(t.content);morphKids(el,box)}
+function refocus(id){const f=document.getElementById(id);if(f&&document.activeElement!==f){f.focus();try{f.setSelectionRange(f.value.length,f.value.length)}catch(e){}}}
 function render(){
   const MORE=["harita","ziyaret","siparis","asistan","rapor","yakin","gunsonu","daha","stok"];document.querySelectorAll("nav.bottom [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===U.tab||(b.dataset.tab==="daha"&&MORE.includes(U.tab))));
   const app=$("#app");
@@ -298,9 +316,9 @@ function render(){
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
   const locked=CLOUD.on&&!CLOUD.user;document.querySelector("nav.bottom").hidden=locked;$(".iconbtn[data-act=openSearch]").hidden=locked;
   if(locked){app.innerHTML=lockScreen();U.sheet=null;renderSheet();return}
-  app.innerHTML=updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="stok"?vStockPage():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders());
+  setHTML(app,updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="stok"?vStockPage():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders()));
   renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
-  if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
+  if(fid&&document.activeElement!==document.getElementById(fid)){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
 
 function kpis(){
@@ -462,7 +480,7 @@ function vRoute(){
   <section class="panel"><div class="row"><h3>Durak seç</h3><span class="sp"></span>
    ${rg.length?`<select id="regionSel" style="max-width:200px"><option value="">Tüm bölgeler</option>${rg.map(x=>`<option ${U.region===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`:""}
    ${U.region?`<button class="btn sm" data-act="addRegion">Bölgeyi ekle (${pickable.length})</button>`:""}</div>
-  <input id="custQ" placeholder="Ara" value="${esc(U.custQ)}">
+  <input id="custQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ara" value="${esc(U.custQ)}">
   <div class="grid2">${(()=>{const sel=pickable.filter(c=>U.selected.has(c.id)),rest=pickable.filter(c=>!U.selected.has(c.id));return [...sel,...pageOf("pick",rest,30).items]})().map(c=>`<label class="check"><input type="checkbox" data-act="toggleSel" data-id="${c.id}" ${U.selected.has(c.id)?"checked":""}>${tierBadge(c)}<span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${esc(c.region||c.district||c.city||"")}${c.nextVisit&&c.nextVisit<=t?' · <span class="chip warn">ziyaret zamanı</span>':""}${hasGeo(c)?"":' · <span class="chip">konum yok</span>'}</span></span></label>`).join("")}</div>${pageOf("pick",pickable.filter(c=>!U.selected.has(c.id)),30).more}</section>`:""}`}
 function dayPanel(){const D=day();const L=D.lunchPlaces||[];
   return `<details class="panel" id="dayDetails" ${U.dayOpen?"open":""}><summary style="cursor:pointer"><b>Gün ayarları</b> <span class="muted">· ev ${esc(D.arriveBy)} · öğle ${esc(D.lunchFrom)}–${esc(D.lunchTo)} · ${L.length} TokenFlex yeri</span></summary>
@@ -534,7 +552,7 @@ function vCustomers(){
    <button class="btn" data-act="impCust">Excel'den yükle</button>${custList().some(c=>!hasGeo(c)&&(c.address||c.region||c.district))?`<button class="btn" data-act="geoMissing">Konumları adresten bul</button>`:""}<button class="btn pri" data-act="newCust">+ Müşteri</button></div>
    ${impPanel("customer")}
    ${sampleCTA()}
-   ${S.customers.size?`<div class="row"><input id="custQ" placeholder="Ara: firma, bölge, yetkili, tip" value="${esc(U.custQ)}" style="flex:1 1 220px"><select id="sortSel" style="flex:0 1 170px">${Object.keys(sorters).map(k=>`<option ${U.sort===k?"selected":""}>${k}</option>`).join("")}</select></div>${filterChips()}`:""}
+   ${S.customers.size?`<div class="row"><input id="custQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ara: firma, bölge, yetkili, tip" value="${esc(U.custQ)}" style="flex:1 1 220px"><select id="sortSel" style="flex:0 1 170px">${Object.keys(sorters).map(k=>`<option ${U.sort===k?"selected":""}>${k}</option>`).join("")}</select></div>${filterChips()}`:""}
    ${(()=>{const pg=pageOf("cust",cs,40);return `<div class="list">${pg.items.map(custCard).join("")}</div>${pg.more}`})()}`}
 
 function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return vCustomers()}
@@ -666,7 +684,7 @@ function vOrders(){
   const tot=os.reduce((a,o)=>a+(o.amount||0),0);const unmatched=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
   return `<div class="row"><h2>Sipariş / Fatura</h2><span class="sp"></span><button class="btn pri" data-act="impOrd">Excel'den yükle</button>${S.orders.size?`<button class="btn" data-act="expOrd">Excel'e aktar</button>`:""}</div>
   ${impPanel("order")}
-  ${S.orders.size?`<div class="row"><input id="ordQ" placeholder="Ara: müşteri, belge no, parça" value="${esc(U.ordQ)}" style="flex:1 1 220px"><select id="ordType" style="flex:0 1 160px">${["hepsi","sipariş","fatura"].map(t=>`<option ${U.ordType===t?"selected":""}>${t}</option>`).join("")}</select></div>
+  ${S.orders.size?`<div class="row"><input id="ordQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ara: müşteri, belge no, parça" value="${esc(U.ordQ)}" style="flex:1 1 220px"><select id="ordType" style="flex:0 1 160px">${["hepsi","sipariş","fatura"].map(t=>`<option ${U.ordType===t?"selected":""}>${t}</option>`).join("")}</select></div>
    <div class="row"><span class="chip st mono">${os.length} belge</span><span class="chip ok mono">${tl(tot)}</span></div>
    ${unmatched.size?`<div class="banner">${unmatched.size} müşteri adı listende yok: ${[...unmatched].slice(0,4).map(esc).join(", ")}${unmatched.size>4?"…":""}. <button class="btn sm" data-act="addUnmatched">Hepsini müşteri olarak ekle</button></div>`:""}
    ${(()=>{const pg=pageOf("ord",os,60);return ordTable(pg.items)+pg.more})()}`
@@ -892,7 +910,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.2.0";
+const APP_VERSION="2.2.1";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1158,18 +1176,18 @@ function renderSheet(){const el=$("#sheet");if(!el)return;const S2=U.sheet;if(!S
     <button data-act="goOverdue"><span class="ic">${ic("chart")}</span>Geciken ödemeler</button></div>`;
   else if(S2==="pickVisit"||S2==="pickOrder"){const L=U.nearList||custList().map(c=>({c,d:null}));
     body=`<h2>${S2==="pickVisit"?"Hangi müşteridesin?":"Kimden sipariş?"}</h2>${U.nearBusy?`<span class="why">Konumuna göre sıralanıyor…</span>`:""}
-     <input id="pickQ" placeholder="Ara" value="${esc(U.pickQ||"")}" autocomplete="off">
+     <input id="pickQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ara" value="${esc(U.pickQ||"")}" autocomplete="off">
      <div class="list">${L.filter(x=>!U.pickQ||trLow(x.c.name).includes(trLow(U.pickQ))).slice(0,30).map(x=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="${S2==="pickVisit"?"pickVisitGo":"pickOrderGo"}" data-id="${x.c.id}"><span class="row"><b style="flex:1;min-width:0">${esc(x.c.name)}</b>${x.d!=null?`<span class="chip mono">${x.d<1?Math.round(x.d*1000)+" m":x.d.toFixed(1).replace(".",",")+" km"}</span>`:""}</span><span class="meta">${esc(x.c.region||x.c.district||"")}</span></button>`).join("")||`<div class="empty">Müşteri yok.</div>`}</div>`}
   else if(S2==="search"){const q=trLow(U.sq||"");const cs=q?custList().filter(c=>trLow([c.name,c.contact,c.phone,c.region,c.district,c.address].join(" ")).includes(q)).slice(0,12):[];
     const ps=q?matchProducts(U.sq).slice(0,8):[];const os=q?[...S.orders.values()].filter(o=>trLow([o.no,o.item,o.customer].join(" ")).includes(q)).slice(0,8):[];
-    body=`<h2>Ara</h2><input id="sq" placeholder="Müşteri, telefon, OEM, fatura no…" value="${esc(U.sq||"")}" autocomplete="off">
+    body=`<h2>Ara</h2><input id="sq" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Müşteri, telefon, OEM, fatura no…" value="${esc(U.sq||"")}" autocomplete="off">
      ${q?`${cs.length?`<h3>Müşteriler</h3><div class="list">${cs.map(c=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="detail" data-id="${c.id}"><b>${esc(c.name)}</b><span class="meta">${esc([c.contact,c.phone,c.region||c.district].filter(Boolean).join(" · "))}</span></button>`).join("")}</div>`:""}
       ${ps.length?`<h3>Stok</h3><div class="list">${ps.map(p=>`<div class="item"><b>${esc(p.name)}</b><span class="meta mono">${esc([p.sku?"stok kodu "+p.sku:"",p.oem,p.brand,p.price?tl(p.price):"",p.stock!==""&&p.stock!=null?p.stock+" adet":""].filter(Boolean).join(" · "))}</span></div>`).join("")}</div>`:""}
       ${os.length?`<h3>Sipariş / fatura</h3><div class="list">${os.map(o=>`<div class="item"><b>${esc(o.no||o.type)}</b><span class="meta">${esc(o.customer)} · ${fmtDate(o.date)} · ${tl(o.amount)}</span></div>`).join("")}</div>`:""}
       ${!cs.length&&!ps.length&&!os.length?`<div class="empty">Sonuç yok.</div>`:""}`:`<span class="why">Yazmaya başla.</span>`}`}
   else if(S2==="nearMap")body=nearMapSheet();
   else if(S2==="photo"){const p=U.photoView;body=p?`<img src="${p}" alt="Ziyaret fotoğrafı" style="width:100%;border-radius:14px"><button class="btn" data-act="closeSheet">Kapat</button>`:""}
-  el.innerHTML=`<div class="sheet-bg" data-act="closeSheet"></div><div class="sheet${S2==="nearMap"?" pop":""}" role="dialog" aria-modal="true"${S2==="nearMap"?' aria-label="Konumun haritada"':""}><div class="grab"></div>${body}</div>`;
+  setHTML(el,`<div class="sheet-bg" data-act="closeSheet"></div><div class="sheet${S2==="nearMap"?" pop":""}" role="dialog" aria-modal="true"${S2==="nearMap"?' aria-label="Konumun haritada"':""}><div class="grab"></div>${body}</div>`);
   const f=$("#pickQ")||$("#sq");if(f&&!U._sheetFocused){U._sheetFocused=true;setTimeout(()=>f.focus(),50)}}
 
 async function nearSorted(){U.nearList=custList().map(c=>({c,d:null}));U.nearBusy=true;renderSheet();
@@ -1186,7 +1204,7 @@ function vSales(){const C=U.cart;if(!C)return vMore();const c=S.customers.get(C.
   const lines=C.lines;const sub=lines.reduce((s,l)=>s+l.qty*l.price,0);const disc=sub*(Number(C.disc)||0)/100;const total=sub-disc;
   return `<div class="row"><button class="btn sm ghost" data-act="cartCancel">← Vazgeç</button></div>
   <div class="hero"><span style="opacity:.8;font-size:13px">Sipariş · ${esc(c?c.name:"")}</span><span class="big">${tl(total)}</span><span style="font-size:13px;opacity:.85">${lines.reduce((s,l)=>s+l.qty,0)} kalem${disc?` · %${C.disc} iskonto`:""}</span></div>
-  <section class="panel"><h3>Ürün ekle</h3><input id="cartQ" placeholder="Ürün adı ya da OEM ara" value="${esc(C.q||"")}" autocomplete="off">
+  <section class="panel"><h3>Ürün ekle</h3><input id="cartQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ürün adı ya da OEM ara" value="${esc(C.q||"")}" autocomplete="off">
    ${codeChips(C.q,"cart")}
    <div class="list">${(C.q?matchProducts(C.q):ps).slice(0,8).map(p=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="cartAdd" data-id="${p.id}"><span class="row"><b style="flex:1;min-width:0">${esc(p.name)}</b><span class="mono">${p.price?tl(p.price):"fiyat yok"}</span></span><span class="meta mono">${esc([p.sku,p.oem,p.brand,p.stock!==""&&p.stock!=null?"stok "+p.stock:""].filter(Boolean).join(" · "))}</span></button>`).join("")||`<span class="why">Stokta ürün yok; aşağıdan serbest kalem ekleyebilirsin.</span>`}</div>
    <form id="freeLine" class="grid3"><label class="f">Serbest kalem<input name="name" placeholder="Parça adı / OEM" required></label><label class="f">Birim fiyat<input name="price" inputmode="decimal"></label><div class="row" style="align-self:end"><button class="btn" type="submit">Ekle</button></div></form></section>
@@ -1392,7 +1410,7 @@ function vStockPage(){const K=U.stk;if(K.detail){const p=S.products.get(K.detail
   <div class="hero"><span style="font-size:13px;opacity:.85">${all.length} ürün · ${low.length} kritik seviyede</span><span class="big">${tl(val)}</span><span style="font-size:13px;opacity:.85">toplam stok değeri (fiyat × adet)</span></div>
   ${U.import&&U.import.kind==="product"?impPanel("product"):""}
   ${scanPanel()}
-  <section class="panel"><div class="row"><input id="stkQ" placeholder="Stok kodu, OEM ya da ürün adı ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
+  <section class="panel"><div class="row"><input id="stkQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Stok kodu, OEM ya da ürün adı ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
    <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div></section>
   ${(()=>{const L=all.filter(p=>!p.sku&&p.oem);return L.length?`<section class="panel" style="border-color:var(--accent)"><b>Stok kodu sütunu ${L.length} üründe boş</b>
    <span class="sub">Eski sürümle yüklenen Excel'deki "Stok Kodu" sütunu OEM alanına kaydedilmişti. Bu kodlar şu an OEM sütununda duruyor (örnek: ${L.slice(0,3).map(p=>esc(p.oem)).join(", ")}).</span>
@@ -1674,12 +1692,13 @@ document.addEventListener("change",async e=>{const t=e.target;
   else if(t.id==="sortSel"){U.sort=t.value;render()}
   else if(t.id==="regionSel"){U.region=t.value;render()}
   else if(t.id==="startIn"){U.start=t.value;keepUI();if(t.value&&!parseCoords(t.value))toast("Koordinat okunamadı; enlem, boylam yaz.");render()}});
+document.addEventListener("keydown",e=>{const t=e.target;if(e.key==="Enter"&&!e.isComposing&&/^(custQ|ordQ|stkQ|cartQ|sq|pickQ)$/.test(t.id||"")){e.preventDefault();t.blur()}});
 document.addEventListener("input",e=>{const t=e.target;
-  if(t.id==="pickQ"){U.pickQ=t.value;clearTimeout(U._pq);U._pq=setTimeout(()=>{renderSheet();const f=$("#pickQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
-  if(t.id==="sq"){U.sq=t.value;clearTimeout(U._sqt);U._sqt=setTimeout(()=>{renderSheet();const f=$("#sq");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
-  if(t.id==="cartQ"){U.cart.q=t.value;clearTimeout(U._cq);U._cq=setTimeout(()=>{render();const f=$("#cartQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},200);return}
+  if(t.id==="pickQ"){U.pickQ=t.value;clearTimeout(U._pq);U._pq=setTimeout(()=>{renderSheet();refocus("pickQ")},200);return}
+  if(t.id==="sq"){U.sq=t.value;clearTimeout(U._sqt);U._sqt=setTimeout(()=>{renderSheet();refocus("sq")},200);return}
+  if(t.id==="cartQ"){U.cart.q=t.value;clearTimeout(U._cq);U._cq=setTimeout(()=>{render();refocus("cartQ")},200);return}
   if(t.id==="vf_parts"){clearTimeout(U._vfc);U._vfc=setTimeout(()=>{const box=$("#vfCodes");if(box)box.innerHTML=codeChips(t.value,"visit")},250);return}
-  if(t.id==="stkQ"){U.stk.q=t.value;clearTimeout(U._skq);U._skq=setTimeout(()=>{render();const f=$("#stkQ");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}},250);return}
+  if(t.id==="stkQ"){U.stk.q=t.value;clearTimeout(U._skq);U._skq=setTimeout(()=>{render();refocus("stkQ")},250);return}
   if(t.id==="addrQ"){clearTimeout(U._at);const v=t.value;U._at=setTimeout(()=>addrSearch(v),450);return}
   if(t.id==="custQ"||t.id==="ordQ"){U[t.id]=t.value;clearTimeout(U._qt);U._qt=setTimeout(render,180)}});
 document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target;const FD=new FormData(f);const fd=Object.fromEntries(FD);

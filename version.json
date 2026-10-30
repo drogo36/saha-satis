@@ -1,1 +1,1 @@
-{"version": "2.2.0", "notes": "Yakındaki potansiyelleri ararken üstte harita açılır; konumun ve bulunan işletmeler haritada görünür."}
+{"version":"2.2.1","notes":"Arama kutularında yazarken klavye artık kapanmıyor, harfler kaybolmuyor; Ara tuşu klavyeyi kapatır."}

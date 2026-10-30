@@ -20,6 +20,7 @@ run "Stok ve kod tanıma" tests/stk.py
 run "Stok kodu sütunu" tests/sku.py
 run "Silme, geri al, asistan işlemleri" tests/v20t.py
 run "İki cihaz eşitleme ve giriş" tests/sync.py
+run "Yakındakiler harita penceresi" tests/nearmap.py
 run "Kendiliğinden güncelleme" tests/upd.py
 [ -n "${SRV:-}" ] && kill $SRV 2>/dev/null
 [ $FAIL -eq 0 ] && echo "TÜM TESTLER GEÇTİ ($V1)" || { echo "TESTLER BAŞARISIZ"; exit 1; }

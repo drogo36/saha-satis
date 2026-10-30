@@ -60,6 +60,21 @@ nav.bottom .fab{width:58px;height:58px;border-radius:50%;background:var(--cta);c
 nav.bottom .fab svg{width:28px;height:28px}
 .sheet-bg{position:fixed;inset:0;background:rgba(5,13,36,.45);z-index:20}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-radius:24px 24px 0 0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:85vh;overflow:auto;display:grid;gap:12px}
+.sheet.pop{top:calc(12px + env(safe-area-inset-top,0px));bottom:auto;left:50%;right:auto;transform:translateX(-50%);width:min(calc(100vw - 24px),440px);border-radius:20px;padding:14px;max-height:calc(100vh - 24px);box-shadow:0 12px 40px rgba(5,13,36,.35)}
+.sheet.pop .grab{display:none}
+.nmap{position:relative;width:100%;aspect-ratio:36/28;overflow:hidden;border-radius:14px;background:var(--sunk);border:1px solid var(--line)}
+.nmap img.tl{position:absolute;display:block;max-width:none;user-select:none;pointer-events:none}
+.nmap .ov{position:absolute;inset:0;width:100%;height:100%}
+.nmap .pin{position:absolute;z-index:2;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #fff;padding:0;cursor:pointer;font:600 11px/1 'IBM Plex Mono',monospace;color:#fff;display:grid;place-items:center}
+.nmap .pin.pr{width:22px;height:22px;background:#f08a12}
+.nmap .pin.pr.on{background:var(--ink);color:var(--surface);width:26px;height:26px}
+.nmap .pin.cu{width:12px;height:12px;cursor:default}
+.nmap .me{position:absolute;width:16px;height:16px;transform:translate(-50%,-50%);border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,115,232,.25);pointer-events:none}
+.nmap .me::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(26,115,232,.5);animation:mePulse 1.8s ease-out infinite}
+@keyframes mePulse{from{transform:scale(.5);opacity:1}to{transform:scale(1.8);opacity:0}}
+@media (prefers-reduced-motion:reduce){.nmap .me::after{animation:none}}
+.nmap .att{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:10px;padding:1px 5px;border-top-left-radius:6px}
+.nmap .wait{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;text-align:center;padding:12px}
 .sheet .grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:4px auto}
 .qa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .qa button{background:var(--sunk);border:0;border-radius:16px;padding:14px 8px;display:grid;justify-items:center;gap:8px;color:var(--ink);font:600 13px var(--f-body);cursor:pointer;text-align:center}
@@ -877,7 +892,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.1.0";
+const APP_VERSION="2.2.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1152,8 +1167,9 @@ function renderSheet(){const el=$("#sheet");if(!el)return;const S2=U.sheet;if(!S
       ${ps.length?`<h3>Stok</h3><div class="list">${ps.map(p=>`<div class="item"><b>${esc(p.name)}</b><span class="meta mono">${esc([p.sku?"stok kodu "+p.sku:"",p.oem,p.brand,p.price?tl(p.price):"",p.stock!==""&&p.stock!=null?p.stock+" adet":""].filter(Boolean).join(" · "))}</span></div>`).join("")}</div>`:""}
       ${os.length?`<h3>Sipariş / fatura</h3><div class="list">${os.map(o=>`<div class="item"><b>${esc(o.no||o.type)}</b><span class="meta">${esc(o.customer)} · ${fmtDate(o.date)} · ${tl(o.amount)}</span></div>`).join("")}</div>`:""}
       ${!cs.length&&!ps.length&&!os.length?`<div class="empty">Sonuç yok.</div>`:""}`:`<span class="why">Yazmaya başla.</span>`}`}
+  else if(S2==="nearMap")body=nearMapSheet();
   else if(S2==="photo"){const p=U.photoView;body=p?`<img src="${p}" alt="Ziyaret fotoğrafı" style="width:100%;border-radius:14px"><button class="btn" data-act="closeSheet">Kapat</button>`:""}
-  el.innerHTML=`<div class="sheet-bg" data-act="closeSheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${body}</div>`;
+  el.innerHTML=`<div class="sheet-bg" data-act="closeSheet"></div><div class="sheet${S2==="nearMap"?" pop":""}" role="dialog" aria-modal="true"${S2==="nearMap"?' aria-label="Konumun haritada"':""}><div class="grab"></div>${body}</div>`;
   const f=$("#pickQ")||$("#sq");if(f&&!U._sheetFocused){U._sheetFocused=true;setTimeout(()=>f.focus(),50)}}
 
 async function nearSorted(){U.nearList=custList().map(c=>({c,d:null}));U.nearBusy=true;renderSheet();
@@ -1199,18 +1215,40 @@ async function hydratePhotos(){for(const im of document.querySelectorAll("img[da
 
 /* Yakındaki potansiyel müşteriler (OpenStreetMap) */
 U.prospects=null;
-async function findProspects(radius=3000){U.prospects={busy:true,list:[]};render();
-  try{const p=await getPos();U.lastPos=p;
+async function findProspects(radius=3000){U.prospects={busy:true,list:[],radius};U.nmSel=null;U.sheet="nearMap";render();renderSheet();
+  try{const p=await getPos();U.lastPos=p;U.prospects.pos=p;if(U.sheet==="nearMap")renderSheet();
     const q=`[out:json][timeout:25];(node["shop"~"car_parts|car_repair|tyres|car"](around:${radius},${p.lat},${p.lng});way["shop"~"car_parts|car_repair|tyres|car"](around:${radius},${p.lat},${p.lng});node["craft"="car_repair"](around:${radius},${p.lat},${p.lng});node["amenity"="car_repair"](around:${radius},${p.lat},${p.lng}););out center 80;`;
     const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
     if(!r.ok)throw new Error("Harita servisi yanıt vermedi ("+r.status+"), biraz sonra tekrar dene.");
     const d=await r.json();const cs=custList();
     const list=(d.elements||[]).map(e=>{const t=e.tags||{};const lat=e.lat??e.center?.lat,lng=e.lon??e.center?.lon;return {name:t.name||"",lat,lng,kind:t.shop==="car_parts"?"Yedek parçacı":t.shop==="tyres"?"Lastikçi":t.shop==="car"?"Oto galeri / bayi":"Servis / tamirhane",phone:t.phone||t["contact:phone"]||"",addr:[t["addr:street"],t["addr:housenumber"]?"No:"+t["addr:housenumber"]:""].filter(Boolean).join(" "),region:t["addr:district"]||t["addr:suburb"]||"",d:km(p,{lat,lng})}})
       .filter(x=>x.name&&x.lat).filter(x=>!cs.some(c=>trLow(c.name)===trLow(x.name)||(hasGeo(c)&&km(c,x)<0.05))).sort((a,b)=>(a.kind==="Yedek parçacı"?0:1)-(b.kind==="Yedek parçacı"?0:1)||a.d-b.d);
-    U.prospects={busy:false,list,at:Date.now()}}
-  catch(e){U.prospects={busy:false,list:[],err:e.message||"Konum ya da bağlantı sorunu."}}render()}
+    U.prospects={busy:false,list,at:Date.now(),pos:p,radius}}
+  catch(e){U.prospects={busy:false,list:[],pos:U.prospects&&U.prospects.pos,radius,err:e.message||"Konum ya da bağlantı sorunu."}}render();if(U.sheet==="nearMap")renderSheet()}
+/* Yakındakiler: üstte açılan harita penceresi (OpenStreetMap karoları, anahtarsız) */
+function nmProj(lat,lng,z){const n=256*2**z,r=Math.PI/180;return {x:(lng+180)/360*n,y:(1-Math.log(Math.tan(lat*r)+1/Math.cos(lat*r))/Math.PI)/2*n}}
+function nmZoom(lat,radius){const W=360,H=280;const mpp=(radius||3000)/(Math.min(W,H)/2-18);return Math.max(10,Math.min(16,Math.floor(Math.log2(156543.03*Math.cos(lat*Math.PI/180)/mpp))))}
+function nearMapHTML(){const P=U.prospects||{};const pos=P.pos;const W=360,H=280;
+  if(!pos)return `<div class="nmap"><div class="wait">${P.err?esc(P.err):"📍 Konumun alınıyor…"}</div></div>`;
+  const z=nmZoom(pos.lat,P.radius);const c=nmProj(pos.lat,pos.lng,z);const ox=c.x-W/2,oy=c.y-H/2;const pc=v=>(v*100).toFixed(3)+"%";
+  const L=(x)=>pc((x-ox)/W),T=(y)=>pc((y-oy)/H);const n=2**z;let t="";
+  for(let tx=Math.floor(ox/256);tx<=Math.floor((ox+W)/256);tx++)for(let ty=Math.floor(oy/256);ty<=Math.floor((oy+H)/256);ty++){if(ty<0||ty>=n)continue;const wx=((tx%n)+n)%n;
+    t+=`<img class="tl" alt="" loading="eager" onerror="this.style.visibility='hidden'" referrerpolicy="strict-origin-when-cross-origin" src="https://tile.openstreetmap.org/${z}/${wx}/${ty}.png" style="left:${L(tx*256)};top:${T(ty*256)};width:${pc(256/W)};height:${pc(256/H)}">`}
+  const rPx=(P.radius||3000)/(156543.03*Math.cos(pos.lat*Math.PI/180)/2**z);
+  const inBox=q=>{const v=nmProj(q.lat,q.lng,z);return {v,ok:v.x>ox+6&&v.x<ox+W-6&&v.y>oy+6&&v.y<oy+H-6}};
+  let pins="";custList().filter(hasGeo).forEach(cu=>{const {v,ok}=inBox(cu);if(ok)pins+=`<span class="pin cu" title="${esc(cu.name)}" style="left:${L(v.x)};top:${T(v.y)};background:${STATUS_COL[cu.status||"Aday"]}"></span>`});
+  (P.list||[]).forEach((x,i)=>{const {v,ok}=inBox(x);if(ok)pins+=`<button class="pin pr${U.nmSel===i?" on":""}" data-act="nmPin" data-i="${i}" aria-label="${esc(x.name)}" style="left:${L(v.x)};top:${T(v.y)}">${i+1}</button>`});
+  return `<div class="nmap" id="nearMap">${t}<svg class="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><circle cx="${W/2}" cy="${H/2}" r="${rPx.toFixed(1)}" fill="rgba(26,115,232,.07)" stroke="#1a73e8" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/></svg>${pins}<span class="me" title="Buradasın" style="left:50%;top:50%"></span><span class="att">© OpenStreetMap katkıcıları</span></div>`}
+function nearMapSheet(){const P=U.prospects||{};const sel=U.nmSel!=null&&P.list?P.list[U.nmSel]:null;const r=((P.radius||3000)/1000).toString().replace(".",",");
+  const st=!P.pos?(P.err?"":"Konum izni istenirse “İzin ver”e bas."):P.busy?"İşletmeler aranıyor…":P.err?P.err:P.list.length?`${P.list.length} işletme bulundu · ${r} km çevren`:"Çevrede listende olmayan işletme bulunamadı.";
+  return `<div class="row"><h2 style="margin:0">📍 Konumun</h2><span class="sp"></span><button class="btn sm ghost" data-act="closeSheet" aria-label="Kapat">✕</button></div>
+   ${nearMapHTML()}
+   <span class="sub">${esc(st)}</span>
+   <div class="legend"><span><i style="background:#1a73e8"></i>sen</span><span><i style="background:#f08a12"></i>bulunan işletme</span><span><i style="background:var(--ok)"></i>kayıtlı müşterin</span></div>
+   ${sel?`<div class="item"><div class="row"><b style="flex:1 1 160px;min-width:0">${U.nmSel+1}. ${esc(sel.name)}</b><span class="chip mono">${sel.d<1?Math.round(sel.d*1000)+" m":sel.d.toFixed(1).replace(".",",")+" km"}</span></div><div class="row" style="gap:6px"><button class="btn sm pri" data-act="addPros" data-i="${U.nmSel}">+ Aday ekle</button><a class="btn sm" href="${esc(dirLink(sel))}" target="_blank" rel="noopener">Yol tarifi</a></div></div>`:""}
+   <div class="row"><button class="btn pri" data-act="closeSheet">${P.list&&P.list.length?"Listeyi gör":"Kapat"}</button>${P.pos?`<a class="btn" href="${esc("https://www.google.com/maps/search/?api=1&query="+P.pos.lat+","+P.pos.lng)}" target="_blank" rel="noopener">Google Maps'te aç</a>`:""}</div>`}
 function vNear(){const P=U.prospects;
-  return `<div class="row"><h2>Yakındaki potansiyeller</h2><span class="sp"></span><button class="btn sm pri" data-act="findPros">${P?"Yenile":"📍 Çevremde ara"}</button></div>
+  return `<div class="row"><h2>Yakındaki potansiyeller</h2><span class="sp"></span>${P&&P.pos?`<button class="btn sm" data-act="nmOpen">🗺 Haritada gör</button>`:""}<button class="btn sm pri" data-act="findPros">${P?"Yenile":"📍 Çevremde ara"}</button></div>
   <span class="sub">Bulunduğun yerin 3 km çevresindeki yedek parçacı, servis ve lastikçileri haritadan bulur; listende olmayanları gösterir. Tek dokunuşla aday müşteri olarak eklersin.</span>
   ${!P?"":P.busy?`<div class="empty">Aranıyor…</div>`:P.err?`<div class="banner">${esc(P.err)}</div>`:!P.list.length?`<div class="empty">Çevrede listende olmayan işletme bulunamadı. Haritada kayıtlı olmayan dükkânlar çıkmaz; sanayi sitelerinde Google Maps'ten de bakabilirsin.</div>`
    :`<div class="list">${P.list.map((x,i)=>`<div class="item"><div class="row"><b style="flex:1 1 160px;min-width:0">${esc(x.name)}</b><span class="chip ${x.kind==="Yedek parçacı"?"st":""}">${esc(x.kind)}</span><span class="chip mono">${x.d<1?Math.round(x.d*1000)+" m":x.d.toFixed(1).replace(".",",")+" km"}</span></div>
@@ -1528,9 +1566,11 @@ document.addEventListener("click",async e=>{
   else if(a==="cartSave"){await cartSave()}
   else if(a==="cartCopy"){try{await navigator.clipboard.writeText(cartText());toast("Kopyalandı")}catch(e){toast("Kopyalanamadı")}return}
   else if(a==="findPros"){findProspects();return}
+  else if(a==="nmOpen"){U.sheet="nearMap";renderSheet();return}
+  else if(a==="nmPin"){U.nmSel=U.nmSel===+b.dataset.i?null:+b.dataset.i;renderSheet();return}
   else if(a==="addPros"){const x=U.prospects.list[Number(b.dataset.i)];const typ=x.kind==="Yedek parçacı"?"Perakende parçacı":x.kind==="Servis / tamirhane"?"Servis / tamirhane":"Diğer";
     await save({id:uid("c"),kind:"customer",name:x.name,phone:x.phone,address:x.addr,region:x.region,city:"İstanbul",lat:+x.lat.toFixed(6),lng:+x.lng.toFixed(6),type:typ,status:"Aday",tier:"B",freq:14,createdAt:Date.now(),notes:"Yakındaki potansiyellerden eklendi."});
-    U.prospects.list.splice(Number(b.dataset.i),1);toast(x.name+" aday olarak eklendi");render();return}
+    U.prospects.list.splice(Number(b.dataset.i),1);U.nmSel=null;toast(x.name+" aday olarak eklendi");render();if(U.sheet==="nearMap")renderSheet();return}
   else if(a==="repCopy"){try{await navigator.clipboard.writeText(reportText(dayReport(U.repDate||today())));toast("Kopyalandı")}catch(e){toast("Kopyalanamadı")}return}
   else if(a==="viewPhoto"){U.photoView=b.src;U.sheet="photo";renderSheet();return}
   else if(a==="arrClose"){U.arrived=null}

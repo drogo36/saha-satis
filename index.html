@@ -158,7 +158,18 @@ svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sun
 .fchip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .mapbox{position:relative;touch-action:none;user-select:none}
 .mapbox svg{width:100%;height:auto;display:block;background:var(--sunk);border-radius:var(--r);border:1px solid var(--line);cursor:grab}
-.mapctl{position:absolute;right:10px;top:10px;display:grid;gap:6px}
+.nmap.cmap{aspect-ratio:36/32;cursor:grab;touch-action:none}
+.nmap svg.ov{background:none;border:0;border-radius:0;height:100%;cursor:inherit}
+.cm-layer{position:absolute;inset:0;transform-origin:50% 50%}
+.nmap .pin.cm{z-index:2;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.nmap .pin.cm.due{box-shadow:0 0 0 3px var(--accent)}
+.nmap .pin.cm.inr{border-color:var(--ink)}
+.nmap .pin.cm.on{border:3px solid var(--ink);z-index:3}
+.nmap .plbl{position:absolute;z-index:3;transform:translate(10px,-50%);font:600 12px/1.2 var(--f-body);color:#0b1d4a;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:5px;white-space:nowrap;pointer-events:none;max-width:45%;overflow:hidden;text-overflow:ellipsis}
+.cm-trf{position:absolute;left:8px;top:8px;z-index:4;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:600 13px/1 var(--f-body);text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.cm-scale{position:absolute;left:8px;bottom:6px;z-index:4;font:500 11px/1 'IBM Plex Mono',monospace;color:#222;background:rgba(255,255,255,.8);padding:2px 0;border-radius:3px;display:flex;flex-direction:column;gap:2px;white-space:nowrap}
+.cm-scale i{display:block;height:3px;border:2px solid #222;border-top:0}
+.mapctl{position:absolute;right:10px;top:10px;display:grid;gap:6px;z-index:5}
 .mapctl .btn{width:40px;justify-content:center;padding:0}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -573,33 +584,46 @@ function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return
   <h3>Sipariş ve faturalar</h3>${os.length?ordTable(os):`<div class="empty">Bu müşteriyle eşleşen belge yok. Excel yüklerken müşteri adı, buradaki firma adıyla aynı yazılmalı.</div>`}`}
 
 /* ---- map ---- */
-const M={z:1,px:0,py:0,W:600,H:520};
+const M={z:null,cx:0,cy:0,W:360,H:320,fk:""};
 function mapPoints(){return filtered().filter(hasGeo)}
-function mapSVG(){const pts=mapPoints();const {W,H}=M;const P=30;
-  if(!pts.length)return `<svg viewBox="0 0 ${W} ${H}" id="mapSvg"><text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="15">Konumu girilmiş müşteri yok</text></svg>`;
-  const lats=pts.map(p=>p.lat),lngs=pts.map(p=>p.lng);const mnLa=Math.min(...lats),mxLa=Math.max(...lats),mnLo=Math.min(...lngs),mxLo=Math.max(...lngs);
-  const kx=Math.cos((mnLa+mxLa)/2*Math.PI/180);const sx=(mxLo-mnLo)*kx||0.02,sy=(mxLa-mnLa)||0.02;const s=Math.min((W-2*P)/sx,(H-2*P)/sy);
-  const ox=(W-sx*s)/2,oy=(H-sy*s)/2;
-  const X=p=>W/2+((ox+(p.lng-mnLo)*kx*s)-W/2)*M.z+M.px,Y=p=>H/2+((H-oy-(p.lat-mnLa)*s)-H/2)*M.z+M.py;
-  // scale bar
-  const kmPx=s*M.z/111.32;let sk=[0.5,1,2,5,10,20].find(k=>k*kmPx>60)||20;
-  const t=today();let g="";
-  // route line
-  const r=buildRoute();if(r.order.length>1)g+=`<polyline points="${r.order.map(p=>X(p).toFixed(1)+","+Y(p).toFixed(1)).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>`;
-  [...pts].sort((a,b)=>(a.tier||"C")<(b.tier||"C")?1:-1).forEach(c=>{const rr={A:11,B:8,C:6}[c.tier||"C"];const x=X(c),y=Y(c);if(x<-20||y<-20||x>W+20||y>H+20)return;
+/* Ortak: OpenStreetMap karoları (ücretsiz, anahtarsız) */
+function tilesHTML(z,ox,oy,W,H){const pc=v=>(v*100).toFixed(3)+"%";const n=2**z;let t="";
+  for(let tx=Math.floor(ox/256);tx<=Math.floor((ox+W)/256);tx++)for(let ty=Math.floor(oy/256);ty<=Math.floor((oy+H)/256);ty++){if(ty<0||ty>=n)continue;const wx=((tx%n)+n)%n;
+    t+=`<img class="tl" alt="" loading="eager" onerror="this.style.visibility='hidden'" referrerpolicy="strict-origin-when-cross-origin" src="https://tile.openstreetmap.org/${z}/${wx}/${ty}.png" style="left:${pc((tx*256-ox)/W)};top:${pc((ty*256-oy)/H)};width:${pc(256/W)};height:${pc(256/H)}">`}
+  return t}
+function nmUnproj(x,y,z){const n=256*2**z;return {lng:x/n*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI}}
+function trafficLink(lat,lng,z){return `https://www.google.com/maps/@?api=1&map_action=map&center=${(+lat).toFixed(5)},${(+lng).toFixed(5)}&zoom=${Math.max(10,Math.min(18,z||13))}&layer=traffic`}
+function mapFit(pts){const {W,H}=M;const home=homePt&&homePt();
+  if(!pts.length){const c=posFresh()?U.lastPos:home||{lat:41.02,lng:28.97};M.z=pts.length||posFresh()||home?13:10;const q=nmProj(c.lat,c.lng,M.z);M.cx=q.x;M.cy=q.y;return}
+  const la=pts.map(p=>p.lat),lo=pts.map(p=>p.lng);const a={lat:Math.max(...la),lng:Math.min(...lo)},b={lat:Math.min(...la),lng:Math.max(...lo)};
+  let z=16;for(;z>9;z--){const A=nmProj(a.lat,a.lng,z),B=nmProj(b.lat,b.lng,z);if(B.x-A.x<=W-50&&B.y-A.y<=H-50)break}
+  const A=nmProj(a.lat,a.lng,z),B=nmProj(b.lat,b.lng,z);M.z=z;M.cx=(A.x+B.x)/2;M.cy=(A.y+B.y)/2}
+function mapSVG(){const pts=mapPoints();const {W,H}=M;
+  const fk=pts.length+":"+(pts[0]||{}).id+":"+(pts[pts.length-1]||{}).id;if(M.z==null||M.fk!==fk){M.fk=fk;mapFit(pts)}
+  const z=M.z,ox=M.cx-W/2,oy=M.cy-H/2;const pc=v=>(v*100).toFixed(3)+"%";
+  const at=p=>{const v=nmProj(p.lat,p.lng,z);return {x:v.x-ox,y:v.y-oy}};const vis=q=>q.x>-20&&q.y>-20&&q.x<W+20&&q.y<H+20;
+  const t=today();let svg="",pins="";
+  const r=buildRoute();if(r.order.length>1)svg+=`<polyline points="${r.order.map(p=>{const q=at(p);return q.x.toFixed(1)+","+q.y.toFixed(1)}).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+  [...pts].sort((a,b)=>(a.tier||"C")<(b.tier||"C")?1:-1).forEach(c=>{const q=at(c);if(!vis(q))return;const rr={A:22,B:17,C:13}[c.tier||"C"];
     const due=c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t;const sel=U.mapSel===c.id;const inR=U.selected.has(c.id);
-    g+=`<g data-pin="${c.id}" style="cursor:pointer">${due?`<circle cx="${x}" cy="${y}" r="${rr+5}" fill="none" stroke="var(--accent)" stroke-width="2"/>`:""}<circle cx="${x}" cy="${y}" r="${rr+(sel?3:0)}" fill="${STATUS_COL[c.status||"Aday"]}" stroke="${sel||inR?"var(--ink)":"var(--surface)"}" stroke-width="${sel||inR?3:1.5}"/>${M.z>=2.2||sel?`<text x="${x+rr+4}" y="${y+4}" font-size="12" fill="var(--ink)" font-family="Barlow,sans-serif" paint-order="stroke" stroke="var(--sunk)" stroke-width="3">${esc(c.name.slice(0,26))}</text>`:""}</g>`});
-  g+=`<g transform="translate(14,${H-18})"><line x1="0" y1="0" x2="${(sk*kmPx).toFixed(1)}" y2="0" stroke="var(--ink)" stroke-width="2"/><text x="0" y="-6" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${String(sk).replace(".",",")} km</text></g>`;
-  return `<svg viewBox="0 0 ${W} ${H}" id="mapSvg" role="img" aria-label="Müşteri konum haritası">${g}</svg>`}
+    pins+=`<span class="pin cm${due?" due":""}${sel?" on":""}${inR?" inr":""}" data-pin="${c.id}" role="button" tabindex="0" aria-label="${esc(c.name)}" style="left:${pc(q.x/W)};top:${pc(q.y/H)};width:${rr}px;height:${rr}px;background:${STATUS_COL[c.status||"Aday"]}"></span>${z>=15||sel?`<span class="plbl" style="left:${pc(q.x/W)};top:${pc(q.y/H)}">${esc(c.name.slice(0,26))}</span>`:""}`});
+  const me=posFresh()?at(U.lastPos):null;
+  const mpp=156543.03*Math.cos(nmUnproj(M.cx,M.cy,z).lat*Math.PI/180)/2**z;const sk=[0.1,0.2,0.5,1,2,5,10,20].find(k=>k*1000/mpp>50)||20;
+  const ctr=nmUnproj(M.cx,M.cy,z);
+  return `<div class="nmap cmap" id="mapSvg" role="img" aria-label="Müşteri konum haritası"><div class="cm-layer">${tilesHTML(z,ox,oy,W,H)}<svg class="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg>${pins}${me&&vis(me)?`<span class="me" title="Buradasın" style="left:${pc(me.x/W)};top:${pc(me.y/H)}"></span>`:""}</div>
+   ${pts.length?"":`<div class="wait" style="pointer-events:none"><span style="background:var(--surface);padding:6px 10px;border-radius:10px">Konumu girilmiş müşteri yok</span></div>`}
+   <a class="cm-trf" href="${esc(trafficLink(ctr.lat,ctr.lng,z))}" target="_blank" rel="noopener">🚦 Trafik</a>
+   <span class="cm-scale" style="width:${pc(sk*1000/mpp/W)}"><i></i>${String(sk).replace(".",",")} km</span><span class="att">© OpenStreetMap katkıcıları</span></div>`}
 function vMap(){const sel=U.mapSel?S.customers.get(U.mapSel):null;const pts=mapPoints();const noGeo=filtered().length-pts.length;
   return `<div class="row"><h2>Müşteri haritası</h2><span class="sp"></span><span class="chip st mono">${pts.length} nokta</span>${pts.length?`<button class="btn sm" data-act="addVisible">Filtredekileri rotaya ekle</button>`:""}</div>
   ${S.customers.size?filterChips():sampleCTA()}
   <div class="legend">${STATUS.map(s=>`<span><i style="background:${STATUS_COL[s]}"></i>${s}</span>`).join("")}<span><i style="border:2px solid var(--accent);background:transparent"></i>ziyaret zamanı</span><span>büyük nokta = A potansiyel</span></div>
-  <div class="mapbox" id="mapBox">${mapSVG()}<div class="mapctl"><button class="btn" data-act="zin" aria-label="Yakınlaştır">+</button><button class="btn" data-act="zout" aria-label="Uzaklaştır">−</button><button class="btn" data-act="zreset" aria-label="Sığdır">⤢</button></div></div>
+  <div class="mapbox" id="mapBox">${mapSVG()}<div class="mapctl"><button class="btn" data-act="zin" aria-label="Yakınlaştır">+</button><button class="btn" data-act="zout" aria-label="Uzaklaştır">−</button><button class="btn" data-act="zreset" aria-label="Sığdır">⤢</button><button class="btn" data-act="zme" aria-label="Konumuma git">📍</button></div></div>
   ${noGeo>0?`<p class="sub">${noGeo} müşterinin konumu yok, haritada görünmüyor.</p>`:""}
-  <p class="sub">Sürükleyerek gez, noktaya dokunup kartı aç. Harita kuş uçuşu konumu gösterir; yol tarifi Google Maps'te açılır.</p>
+  <p class="sub">Sürükleyerek gez, iki parmakla ya da +/− ile yakınlaştır, noktaya dokunup kartı aç. Mavi nokta sensin. “🚦 Trafik” anlık trafiği Google Maps'te gösterir.</p>
   ${sel?custCard(sel):""}`}
-function redrawMap(){const b=$("#mapBox");if(!b)return;const old=$("#mapSvg");const w=document.createElement("div");w.innerHTML=mapSVG();old.replaceWith(w.firstChild)}
+function redrawMap(){const b=$("#mapBox");if(!b)return;const old=$("#mapSvg");if(!old)return;const w=document.createElement("div");w.innerHTML=mapSVG();old.replaceWith(w.firstElementChild)}
+function mapZoom(d){const z2=Math.max(9,Math.min(18,M.z+d));const f=2**(z2-M.z);M.cx*=f;M.cy*=f;M.z=z2;redrawMap()}
 
 /* ---- report ---- */
 function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=settings();
@@ -910,7 +934,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.2.1";
+const APP_VERSION="2.3.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1249,9 +1273,7 @@ function nmZoom(lat,radius){const W=360,H=280;const mpp=(radius||3000)/(Math.min
 function nearMapHTML(){const P=U.prospects||{};const pos=P.pos;const W=360,H=280;
   if(!pos)return `<div class="nmap"><div class="wait">${P.err?esc(P.err):"📍 Konumun alınıyor…"}</div></div>`;
   const z=nmZoom(pos.lat,P.radius);const c=nmProj(pos.lat,pos.lng,z);const ox=c.x-W/2,oy=c.y-H/2;const pc=v=>(v*100).toFixed(3)+"%";
-  const L=(x)=>pc((x-ox)/W),T=(y)=>pc((y-oy)/H);const n=2**z;let t="";
-  for(let tx=Math.floor(ox/256);tx<=Math.floor((ox+W)/256);tx++)for(let ty=Math.floor(oy/256);ty<=Math.floor((oy+H)/256);ty++){if(ty<0||ty>=n)continue;const wx=((tx%n)+n)%n;
-    t+=`<img class="tl" alt="" loading="eager" onerror="this.style.visibility='hidden'" referrerpolicy="strict-origin-when-cross-origin" src="https://tile.openstreetmap.org/${z}/${wx}/${ty}.png" style="left:${L(tx*256)};top:${T(ty*256)};width:${pc(256/W)};height:${pc(256/H)}">`}
+  const L=(x)=>pc((x-ox)/W),T=(y)=>pc((y-oy)/H);let t=tilesHTML(z,ox,oy,W,H);
   const rPx=(P.radius||3000)/(156543.03*Math.cos(pos.lat*Math.PI/180)/2**z);
   const inBox=q=>{const v=nmProj(q.lat,q.lng,z);return {v,ok:v.x>ox+6&&v.x<ox+W-6&&v.y>oy+6&&v.y<oy+H-6}};
   let pins="";custList().filter(hasGeo).forEach(cu=>{const {v,ok}=inBox(cu);if(ok)pins+=`<span class="pin cu" title="${esc(cu.name)}" style="left:${L(v.x)};top:${T(v.y)};background:${STATUS_COL[cu.status||"Aday"]}"></span>`});
@@ -1264,7 +1286,7 @@ function nearMapSheet(){const P=U.prospects||{};const sel=U.nmSel!=null&&P.list?
    <span class="sub">${esc(st)}</span>
    <div class="legend"><span><i style="background:#1a73e8"></i>sen</span><span><i style="background:#f08a12"></i>bulunan işletme</span><span><i style="background:var(--ok)"></i>kayıtlı müşterin</span></div>
    ${sel?`<div class="item"><div class="row"><b style="flex:1 1 160px;min-width:0">${U.nmSel+1}. ${esc(sel.name)}</b><span class="chip mono">${sel.d<1?Math.round(sel.d*1000)+" m":sel.d.toFixed(1).replace(".",",")+" km"}</span></div><div class="row" style="gap:6px"><button class="btn sm pri" data-act="addPros" data-i="${U.nmSel}">+ Aday ekle</button><a class="btn sm" href="${esc(dirLink(sel))}" target="_blank" rel="noopener">Yol tarifi</a></div></div>`:""}
-   <div class="row"><button class="btn pri" data-act="closeSheet">${P.list&&P.list.length?"Listeyi gör":"Kapat"}</button>${P.pos?`<a class="btn" href="${esc("https://www.google.com/maps/search/?api=1&query="+P.pos.lat+","+P.pos.lng)}" target="_blank" rel="noopener">Google Maps'te aç</a>`:""}</div>`}
+   <div class="row"><button class="btn pri" data-act="closeSheet">${P.list&&P.list.length?"Listeyi gör":"Kapat"}</button>${P.pos?`<a class="btn" href="${esc(trafficLink(P.pos.lat,P.pos.lng,14))}" target="_blank" rel="noopener">🚦 Trafiği gör</a>`:""}</div>`}
 function vNear(){const P=U.prospects;
   return `<div class="row"><h2>Yakındaki potansiyeller</h2><span class="sp"></span>${P&&P.pos?`<button class="btn sm" data-act="nmOpen">🗺 Haritada gör</button>`:""}<button class="btn sm pri" data-act="findPros">${P?"Yenile":"📍 Çevremde ara"}</button></div>
   <span class="sub">Bulunduğun yerin 3 km çevresindeki yedek parçacı, servis ve lastikçileri haritadan bulur; listende olmayanları gösterir. Tek dokunuşla aday müşteri olarak eklersin.</span>
@@ -1652,8 +1674,9 @@ document.addEventListener("click",async e=>{
   else if(a==="addVisible"){addSel(mapPoints().filter(c=>c.status!=="Pasif").map(c=>c.id))}
   else if(a==="fchip"){const g=U.f[b.dataset.g],v=b.dataset.v;g.has(v)?g.delete(v):g.add(v)}
   else if(a==="setStatus"){const c=S.customers.get(id);if(c){await save(Object.assign({},c,{status:b.dataset.v}));toast("Aşama: "+b.dataset.v)}return}
-  else if(a==="zin"||a==="zout"){const f=a==="zin"?1.6:1/1.6;M.z=Math.max(1,Math.min(40,M.z*f));M.px*=f;M.py*=f;if(M.z===1){M.px=0;M.py=0}redrawMap();return}
-  else if(a==="zreset"){M.z=1;M.px=0;M.py=0;redrawMap();return}
+  else if(a==="zin"||a==="zout"){mapZoom(a==="zin"?1:-1);return}
+  else if(a==="zreset"){M.z=null;redrawMap();return}
+  else if(a==="zme"){b.disabled=true;getPos().then(p=>{U.lastPos=Object.assign({t:Date.now()},p);M.z=Math.max(M.z||14,14);const q=nmProj(p.lat,p.lng,M.z);M.cx=q.x;M.cy=q.y;M.fk=M.fk;redrawMap()}).catch(er=>toast(er.message)).finally(()=>{b.disabled=false});return}
   else if(a==="impCust"){U.import={kind:"customer"}}
   else if(a==="impOrd"){U.import={kind:"order"}}
   else if(a==="cancelImp"){U.import=null}
@@ -1663,12 +1686,20 @@ document.addEventListener("click",async e=>{
   else if(a==="addUnmatched"){const names=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
     await saveMany([...names].map(n=>({id:uid("c"),kind:"customer",name:n,status:"Aktif",tier:"B",freq:14,createdAt:Date.now()})));toast(names.size+" müşteri eklendi");return}
   render()});
-/* map drag + wheel */
-let drag=null;
-document.addEventListener("pointerdown",e=>{const svg=e.target.closest("#mapSvg");if(!svg)return;drag={x:e.clientX,y:e.clientY,px:M.px,py:M.py,k:M.W/svg.getBoundingClientRect().width};M.dragged=false});
-document.addEventListener("pointermove",e=>{if(!drag)return;const dx=(e.clientX-drag.x)*drag.k,dy=(e.clientY-drag.y)*drag.k;if(Math.abs(dx)+Math.abs(dy)>6)M.dragged=true;if(M.dragged){M.px=drag.px+dx;M.py=drag.py+dy;if(!M.raf)M.raf=requestAnimationFrame(()=>{M.raf=0;redrawMap()})}});
-document.addEventListener("pointerup",()=>{drag=null});
-document.addEventListener("wheel",e=>{if(!e.target.closest("#mapSvg"))return;e.preventDefault();const f=e.deltaY<0?1.25:0.8;M.z=Math.max(1,Math.min(40,M.z*f));M.px*=f;M.py*=f;if(M.z===1){M.px=0;M.py=0}redrawMap()},{passive:false});
+/* map drag + pinch + wheel (karolu harita) */
+let drag=null;const PTR=new Map();
+function cmLayer(){return document.querySelector("#mapSvg .cm-layer")}
+document.addEventListener("pointerdown",e=>{const el=e.target.closest("#mapSvg");if(!el)return;PTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const k=M.W/el.getBoundingClientRect().width;const ps=[...PTR.values()];
+  if(ps.length===2)drag={pinch:true,d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)||1,sc:1,k};else drag={x:e.clientX,y:e.clientY,dx:0,dy:0,k};M.dragged=false});
+document.addEventListener("pointermove",e=>{if(!drag||!PTR.has(e.pointerId))return;PTR.set(e.pointerId,{x:e.clientX,y:e.clientY});const L=cmLayer();
+  if(drag.pinch){const ps=[...PTR.values()];if(ps.length<2)return;drag.sc=Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/drag.d0;M.dragged=true;if(L)L.style.transform=`scale(${drag.sc})`;return}
+  drag.dx=e.clientX-drag.x;drag.dy=e.clientY-drag.y;if(Math.abs(drag.dx)+Math.abs(drag.dy)>6)M.dragged=true;if(M.dragged&&L)L.style.transform=`translate(${drag.dx}px,${drag.dy}px)`});
+function dragEnd(e){if(!PTR.has(e.pointerId))return;PTR.delete(e.pointerId);if(!drag)return;const d=drag;
+  if(d.pinch){if(PTR.size)return;drag=null;setTimeout(()=>{M.dragged=false},60);const dz=Math.round(Math.log2(d.sc||1));if(dz)mapZoom(dz);else redrawMap();return}
+  drag=null;if(M.dragged){M.cx-=d.dx*d.k;M.cy-=d.dy*d.k;redrawMap();setTimeout(()=>{M.dragged=false},60)}}
+document.addEventListener("pointerup",dragEnd);document.addEventListener("pointercancel",dragEnd);
+let _wh=0;document.addEventListener("wheel",e=>{if(!e.target.closest("#mapSvg"))return;e.preventDefault();if(Date.now()-_wh<250)return;_wh=Date.now();mapZoom(e.deltaY<0?1:-1)},{passive:false});
 
 document.addEventListener("change",async e=>{const t=e.target;
   if(t.dataset.act==="toggleSel"){t.checked?U.selected.add(t.dataset.id):U.selected.delete(t.dataset.id);keepUI();render()}

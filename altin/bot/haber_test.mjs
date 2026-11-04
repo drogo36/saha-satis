@@ -153,9 +153,18 @@ if (tone?.length) {
   results.push(run("Altın haber tonu", "Son 24 saatin tonu 7 günlük ortalamanın altındaysa alım yok", g));
   if (war?.length) { const w = warGate(war); results.push(run("Hepsi birlikte", "Takvim, savaş ve haber tonu", t => calendarClear(t) && w(t) && g(t))); }
 }
+// Filtrelerin gerçekten devreye girip girmediğini ölçer.
+const base = (() => { const acc = newAccount(DEFAULTS); for (let i = WINDOW; i < candles.length; i++) step(acc, candles, i, DEFAULTS); return acc.trades; })();
+const gateStats = g => {
+  const inRange = candles.slice(WINDOW);
+  return { blockedPct: +(inRange.filter(c => !g(c.t)).length / inRange.length * 100).toFixed(1), blockedEntries: base.filter(x => !g(x.openT)).length, entries: base.length };
+};
+const gates = { calendar: gateStats(calendarClear) };
+if (war?.length) gates.war = gateStats(warGate(war));
+if (tone?.length) gates.tone = gateStats(toneGate(tone));
 const first = candles[WINDOW], last = candles.at(-1);
 const out = { at: Math.floor(Date.now() / 1000), from, to, holdPct: +((last.c / first.c * (1 - DEFAULTS.spread) * (1 - DEFAULTS.fee / 100) ** 2 - 1) * 100).toFixed(2),
-  coverage, warBins: war?.length || 0, toneBins: tone?.length || 0, sample: { war: war?.slice(-2), tone: tone?.slice(-2) }, errors, results };
+  coverage, gates, warBins: war?.length || 0, toneBins: tone?.length || 0, sample: { war: war?.slice(-2), tone: tone?.slice(-2) }, errors, results };
 await writeFile(new URL("haber.json", import.meta.url), JSON.stringify(out, null, 1));
 console.log(JSON.stringify(out));
 }

@@ -1,0 +1,39 @@
+{
+ "at": 1793829812,
+ "from": 1786181400,
+ "to": 1793828700,
+ "holdPct": -2.48,
+ "warBins": 0,
+ "toneBins": 0,
+ "sample": {},
+ "errors": {
+  "war": "GDELT parçası alınamadı 20260731T09300",
+  "tone": "GDELT parçası alınamadı 20260731T09300"
+ },
+ "results": [
+  {
+   "name": "Yalnızca fiyat",
+   "rule": "Mevcut kurallar",
+   "final": 821.06,
+   "net": -178.94,
+   "trades": 23,
+   "wins": 4,
+   "maxDD": -215.28,
+   "half1": -67.64,
+   "half2": -111.29,
+   "open": false
+  },
+  {
+   "name": "Ekonomik takvim",
+   "rule": "Veriden 24 saat önce ve 2 saat sonra yeni alım yok",
+   "final": 865.07,
+   "net": -134.93,
+   "trades": 19,
+   "wins": 4,
+   "maxDD": -172.01,
+   "half1": -55.4,
+   "half2": -79.53,
+   "open": false
+  }
+ ]
+}

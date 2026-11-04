@@ -1,5 +1,5 @@
 {
- "at": 1793829812,
+ "at": 1793830063,
  "from": 1786181400,
  "to": 1793828700,
  "holdPct": -2.48,
@@ -7,8 +7,8 @@
  "toneBins": 0,
  "sample": {},
  "errors": {
-  "war": "GDELT parçası alınamadı 20260731T09300",
-  "tone": "GDELT parçası alınamadı 20260731T09300"
+  "war": "GDELT parçası alınamadı 20260731093000",
+  "tone": "GDELT parçası alınamadı 20260731093000"
  },
  "results": [
   {

@@ -1,5 +1,5 @@
 {
- "at": 1793830063,
+ "at": 1793830549,
  "from": 1786181400,
  "to": 1793828700,
  "holdPct": -2.48,
@@ -7,8 +7,8 @@
  "toneBins": 0,
  "sample": {},
  "errors": {
-  "war": "GDELT parçası alınamadı 20260731093000",
-  "tone": "GDELT parçası alınamadı 20260731093000"
+  "war": "GDELT 20260731093000: HTTP 429: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:",
+  "tone": "GDELT 20260821093000: HTTP 429: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:"
  },
  "results": [
   {

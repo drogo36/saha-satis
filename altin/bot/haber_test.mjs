@@ -1,6 +1,8 @@
 // Haber ve ekonomik takvim, robotun sonucunu iyileştiriyor mu? Kurallar veriye bakılmadan önce sabitlendi.
 // Yalnızca o ana kadar yayınlanmış veri kullanılır. Sonuç haber.json dosyasına yazılır. Gerçek emir vermez.
 import { writeFile } from "node:fs/promises";
+import { inflateRawSync } from "node:zlib";
+import { pathToFileURL } from "node:url";
 import { DEFAULTS, WINDOW, newAccount, step, openValue } from "./strategy.mjs";
 import { fetchCandles } from "./data.mjs";
 
@@ -16,30 +18,85 @@ const EVENTS = [
 ].map(([name, at]) => ({ name, t: utc(at) }));
 const calendarClear = t => !EVENTS.some(e => t >= e.t - 86400 && t <= e.t + 7200);
 
+// GDELT 2.0 ham dosyaları: her 15 dakikada bir yayınlanır. Sorgu servisi sınır koyduğu için doğrudan dosyalar okunur.
+const BASE = "http://data.gdeltproject.org/gdeltv2/";
 const stamp = t => new Date(t * 1000).toISOString().replace(/[-:T]|\.\d+|Z/g, "").slice(0, 14);
-async function gdelt(query, mode, from, to) {
-  const out = new Map();
-  for (let a = from; a < to; a += 7 * 86400) {
-    const b = Math.min(to, a + 7 * 86400);
-    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&format=json&startdatetime=${stamp(a)}&enddatetime=${stamp(b)}`;
-    let done = false, why = "";
-    for (let i = 0; i < 7 && !done; i++) {
-      await sleep(i === 0 ? 15000 : 60000 * i);
-      try {
-        const r = await fetch(url, { headers: { "User-Agent": "altin-robotu/1.0" } });
-        const text = await r.text();
-        if (!r.ok) { why = `HTTP ${r.status}: ${text.slice(0, 160)}`; continue; }
-        let j;
-        try { j = JSON.parse(text); } catch { why = `JSON değil: ${text.slice(0, 160)}`; continue; }
-        for (const p of j.timeline?.[0]?.data || []) {
-          const d = p.date; out.set(utc(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(9, 11)}:${d.slice(11, 13)}Z`), +p.value);
-        }
-        done = true;
-      } catch (e) { why = `${e.message} ${e.cause?.code || ""}`; }
+export function unzipOne(buf) {
+  let e = buf.length - 22;
+  while (e >= 0 && buf.readUInt32LE(e) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("zip sonu yok");
+  const c = buf.readUInt32LE(e + 16);
+  if (buf.readUInt32LE(c) !== 0x02014b50) throw new Error("zip dizini yok");
+  const method = buf.readUInt16LE(c + 10), size = buf.readUInt32LE(c + 20), off = buf.readUInt32LE(c + 42);
+  const start = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+  const body = buf.subarray(start, start + size);
+  return method === 0 ? body : inflateRawSync(body);
+}
+// Hataları sayar; eksik dosya oranı sonuçla birlikte raporlanır.
+async function readFiles(times, suffix, onText, deadline, workers = 8) {
+  let next = 0, ok = 0, missing = 0, failed = 0, bytes = 0, late = false;
+  async function worker() {
+    while (next < times.length) {
+      if (Date.now() > deadline) { late = true; return; }
+      const t = times[next++];
+      for (let i = 0; i < 3; i++) {
+        try {
+          const r = await fetch(`${BASE}${stamp(t)}${suffix}`, { headers: { "User-Agent": "altin-robotu/1.0" }, signal: AbortSignal.timeout(60000) });
+          if (r.status === 404) { missing++; break; }
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const buf = Buffer.from(await r.arrayBuffer());
+          bytes += buf.length;
+          onText(t, unzipOne(buf).toString("latin1"));
+          ok++;
+          break;
+        } catch { if (i === 2) failed++; else await sleep(2000 * (i + 1)); }
+      }
     }
-    if (!done) throw new Error(`GDELT ${stamp(a)}: ${why}`);
   }
-  return [...out.entries()].sort((x, y) => x[0] - y[0]);
+  await Promise.all(Array.from({ length: workers }, worker));
+  return { files: times.length, ok, missing, failed, late, mb: Math.round(bytes / 1e6) };
+}
+const hour = t => t - t % 3600;
+const quarters = (from, to, step = 900) => { const out = []; for (let t = from - from % step; t <= to; t += step) out.push(t); return out; };
+// Savaş: askerî güç ve kitlesel şiddet olaylarının (CAMEO 19 ve 20) saatlik haber payı, yüzde.
+export function warLine(text, add) {
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    const f = line.split("\t"), n = +f[33] || 0;
+    add(n, f[28] === "19" || f[28] === "20" ? n : 0);
+  }
+}
+async function warSeries(from, to, deadline) {
+  const bins = new Map();
+  const info = await readFiles(quarters(from, to), ".export.CSV.zip", (t, text) => {
+    const b = bins.get(hour(t)) || [0, 0];
+    warLine(text, (all, war) => { b[0] += all; b[1] += war; });
+    bins.set(hour(t), b);
+  }, deadline, 12);
+  return { info, series: [...bins.entries()].filter(([, b]) => b[0] > 0).map(([t, b]) => [t, b[1] / b[0] * 100]).sort((x, y) => x[0] - y[0]) };
+}
+// Ton: başlığında veya adresinde altın fiyatı geçen İngilizce haberlerin ortalama tonu (GKG).
+const GOLD = /gold[-_ ]?prices?|spot[-_ ]?gold/gi;
+export function goldTones(text, add) {
+  let last = -1;
+  for (const m of text.matchAll(GOLD)) {
+    const a = text.lastIndexOf("\n", m.index) + 1;
+    if (a === last) continue;
+    last = a;
+    const z = text.indexOf("\n", m.index);
+    const f = text.slice(a, z < 0 ? text.length : z).split("\t");
+    const tone = parseFloat(f[15]);
+    if (Number.isFinite(tone)) add(tone);
+  }
+}
+async function toneSeries(from, to, deadline) {
+  const bins = new Map();
+  const info = await readFiles(quarters(from, to, 1800), ".gkg.csv.zip", (t, text) => {
+    const b = bins.get(hour(t)) || [0, 0];
+    goldTones(text, x => { b[0]++; b[1] += x; });
+    bins.set(hour(t), b);
+  }, deadline, 8);
+  return { info, series: [...bins.entries()].filter(([, b]) => b[0] > 0).map(([t, b]) => [t, b[1] / b[0]]).sort((x, y) => x[0] - y[0]) };
 }
 // Her t için yalnızca t'den en az 1 saat önce biten saatlik kovalar kullanılır.
 const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
@@ -58,6 +115,7 @@ function toneGate(series) {
     return mean(past.slice(-24)) >= mean(past);
   };
 }
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 const candles = await fetchCandles(94);
 const from = candles[WINDOW].t, to = candles.at(-1).t, mid = (from + to) / 2;
 function run(name, rule, allowBuy) {
@@ -72,13 +130,22 @@ function run(name, rule, allowBuy) {
 const results = [run("Yalnızca fiyat", "Mevcut kurallar", null), run("Ekonomik takvim", "Veriden 24 saat önce ve 2 saat sonra yeni alım yok", calendarClear)];
 const errors = {};
 let war = null, tone = null;
-const warQuery = '(war OR missile OR airstrike OR invasion OR ceasefire) sourcelang:english';
-const goldQuery = '("gold price" OR "gold prices" OR "spot gold") sourcelang:english';
-try { war = await gdelt(warQuery, "timelinevol", from - 8 * 86400, to); } catch (e) { errors.war = e.message; }
-try { tone = await gdelt(goldQuery, "timelinetone", from - 8 * 86400, to); } catch (e) { errors.tone = e.message; }
+const started = Date.now();
+const coverage = {};
+const enough = i => i.ok >= i.files * 0.9;
+try {
+  const w = await warSeries(from - 8 * 86400, to, started + 25 * 60000);
+  coverage.war = w.info; console.log("savaş", JSON.stringify(w.info), w.series.length);
+  if (enough(w.info)) war = w.series; else errors.war = "Savaş verisi eksik kaldı";
+} catch (e) { errors.war = e.message; }
+try {
+  const g = await toneSeries(from - 8 * 86400, to, started + 70 * 60000);
+  coverage.tone = g.info; console.log("ton", JSON.stringify(g.info), g.series.length);
+  if (enough(g.info)) tone = g.series; else errors.tone = "Ton verisi eksik kaldı";
+} catch (e) { errors.tone = e.message; }
 if (war?.length) {
   const g = warGate(war);
-  results.push(run("Savaş haberi", "Savaş haberleri son 6 saatte olağandışı artınca yeni alım yok", g));
+  results.push(run("Savaş haberi", "Askerî çatışma haberlerinin payı son 6 saatte olağandışı artınca yeni alım yok", g));
   results.push(run("Takvim ve savaş", "İki filtre birlikte", t => calendarClear(t) && g(t)));
 }
 if (tone?.length) {
@@ -88,6 +155,7 @@ if (tone?.length) {
 }
 const first = candles[WINDOW], last = candles.at(-1);
 const out = { at: Math.floor(Date.now() / 1000), from, to, holdPct: +((last.c / first.c * (1 - DEFAULTS.spread) * (1 - DEFAULTS.fee / 100) ** 2 - 1) * 100).toFixed(2),
-  warBins: war?.length || 0, toneBins: tone?.length || 0, sample: { war: war?.slice(-2), tone: tone?.slice(-2) }, errors, results };
+  coverage, warBins: war?.length || 0, toneBins: tone?.length || 0, sample: { war: war?.slice(-2), tone: tone?.slice(-2) }, errors, results };
 await writeFile(new URL("haber.json", import.meta.url), JSON.stringify(out, null, 1));
 console.log(JSON.stringify(out));
+}

@@ -1,1 +1,1 @@
-{"version":"2.4.0","notes":"Öğle arasında yakındaki lokanta, kafe ve büfeleri uygulama kendisi bulur; TokenFlex geçenleri tek dokunuşla ✓ ile kaydedersin."}
+{"version": "2.5.0", "notes": "Rotaya başla düğmesi ilk müşteriden başlatır; yol tarifi Google, Yandex ya da Apple Haritalar'da açılır; öğlede bulunduğun yerin adını kendisi bulur."}

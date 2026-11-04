@@ -961,7 +961,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.5.0";
+const APP_VERSION="2.6.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -974,7 +974,7 @@ async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.git
 function updatedNotice(){try{const v=JSON.parse(localStorage.getItem("saha-guncel-not")||"null");if(v&&v.version===APP_VERSION){localStorage.removeItem("saha-guncel-not");setTimeout(()=>toast("✓ "+APP_VERSION+" sürümüne güncellendi"+(v.notes?": "+v.notes:""),{ms:6000}),1200)}}catch(e){}}
 function cmpVer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0)}return 0}
 async function applyUpdate(){toast("Güncelleniyor…");
-  try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html?t="+Date.now(),{cache:"no-store"});if(r.ok){const h=await r.text();if(h.includes("APP_VERSION"))localStorage.setItem("saha-app-html",h)}}catch(e){}
+  try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/index.html?t="+Date.now(),{cache:"no-store"});if(r.ok){const h=await r.text();if(h.includes("APP_VERSION")){try{localStorage.setItem("saha-app-html",h)}catch(e){toast("⚠ Telefon hafızası dolu olduğu için yeni sürüm kaydedilemedi. Rapor → Yedek al, sonra eski fatura/sipariş kayıtlarını sil.",{ms:8000});return}}}}catch(e){}
   if(/boot\.html$/.test(location.pathname)){location.reload();return}
   try{const regs=await navigator.serviceWorker?.getRegistrations?.()||[];await Promise.all(regs.map(r=>r.update().catch(()=>{})));
   const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
@@ -1098,13 +1098,24 @@ function buildPlan(){const cs=custList().filter(c=>hasGeo(c)&&c.status!=="Pasif"
     cur=cur==="Avrupa"?"Anadolu":"Avrupa"}
   return plan}
 function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/864e5)}
+/* Plandaki günün rotası: yalnızca gösterir, bugünkü rotayı değiştirmez */
+function planRouteHTML(names){const r=routeFor(names.map(c=>c.id),null);let n=0;
+  const rows=r.plan.rows.map(x=>{if(x.lunch)return `<div class="row" style="gap:8px"><span class="mono">${hhmm(x.start)}</span><span class="sub" style="flex:1 1 150px;min-width:0">☕ Öğle arası${x.place?": "+esc(x.place.name):""}</span></div>`;
+    n++;return `<div class="row" style="gap:8px"><span class="mono">${hhmm(x.arrive)}</span><span style="flex:1 1 150px;min-width:0;overflow-wrap:anywhere"><b>${n}. ${esc(x.c.name)}</b>${x.late?' <span class="chip bad">eve geç kalırsın</span>':""}<br><span class="why">${Math.round(x.tr)} dk yol · ${esc([x.c.region||x.c.district,x.c.city].filter(Boolean).join(" / ")||x.c.address||"")}</span></span></div>`}).join("");
+  const links=mapsRouteLinks(r),y=yandexRouteLink(r),first=routeStops(r)[0];
+  return `<div class="planRoute" style="display:grid;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+    ${rows}${r.nogeo.length?`<span class="why">Konumu olmayan: ${esc(r.nogeo.map(c=>c.name).join(", "))}</span>`:""}
+    <span class="chip ${r.plan.ok?"ok":"bad"} mono" style="justify-self:start">eve ${hhmm(r.plan.homeAt)} · ~${r.dist.toFixed(1)} km kuş uçuşu</span>
+    ${routeSVG(r)}
+    <div class="row" style="gap:6px">${links.map(l=>`<a class="btn sm" href="${esc(l.u)}" target="_blank" rel="noopener">Google Maps${links.length>1?` (${l.from}–${l.to})`:""}</a>`).join("")}${y?`<a class="btn sm" href="${esc(y)}" target="_blank" rel="noopener">Yandex Haritalar</a>`:""}${first?`<a class="btn sm" href="${esc(navUrl(first,"apple"))}" target="_blank" rel="noopener">Apple Haritalar (ilk durak)</a>`:""}</div>
+    <span class="why">Bu yalnızca önizleme; bugünkü rotan değişmez. Değiştirmek için “Rotaya yükle”ye bas.</span></div>`}
 function planPanel(){const P=(settings().plan)||null;
   if(!P||!P.days)return `<section class="panel"><div class="row"><h2>Gün aşırı plan</h2></div><span class="sub">Önümüzdeki 6 iş gününü Avrupa ve Anadolu yakası dönüşümlü olacak şekilde planlarım. Her gün evden çıkıp ${esc(day().arriveBy)}'da eve dönen bir rota olur; öncelikli ve yakın müşteriler aynı güne toplanır.</span><div class="row"><button class="btn pri" data-act="mkPlan">Planı oluştur</button></div></section>`;
   const t=today();
   return `<section class="panel"><div class="row"><h2>Gün aşırı plan</h2><span class="sp"></span><button class="btn sm" data-act="mkPlan">Yeniden oluştur</button></div>
    <div class="list">${P.days.map((d,i)=>{const dt=new Date(d.date);const names=d.ids.map(id=>S.customers.get(id)).filter(Boolean);
-     return `<div class="item" ${d.date===t?'style="border-color:var(--accent)"':""}><div class="row"><b>${DAYN[dt.getDay()]} ${fmtDate(d.date).slice(0,5)}</b><span class="chip ${d.side==="Avrupa"?"st":"warn"}">${d.side} yakası</span><span class="chip mono">${names.length} durak</span>${names.length?`<span class="chip ok mono">eve ${hhmm(d.homeAt)}</span>`:""}<span class="sp"></span>${names.length?`<button class="btn sm ${d.date===t?"pri":""}" data-act="loadPlan" data-i="${i}">Rotaya yükle</button>`:""}</div>
-      <div class="why">${names.length?esc(names.map(c=>c.name).join(" → ")):"Bu yakada sırası gelen müşteri yok."}</div></div>`}).join("")}</div>
+     return `<div class="item" ${d.date===t?'style="border-color:var(--accent)"':""}><div class="row"><b>${DAYN[dt.getDay()]} ${fmtDate(d.date).slice(0,5)}</b><span class="chip ${d.side==="Avrupa"?"st":"warn"}">${d.side} yakası</span><span class="chip mono">${names.length} durak</span>${names.length?`<span class="chip ok mono">eve ${hhmm(d.homeAt)}</span>`:""}<span class="sp"></span>${names.length?`<button class="btn sm" data-act="planView" data-i="${i}" aria-expanded="${U.planView===i}">${U.planView===i?"Rotayı gizle":"Rotayı kontrol et"}</button><button class="btn sm ${d.date===t?"pri":""}" data-act="loadPlan" data-i="${i}">Rotaya yükle</button>`:""}</div>
+      <div class="why">${names.length?esc(names.map(c=>c.name).join(" → ")):"Bu yakada sırası gelen müşteri yok."}</div>${U.planView===i&&names.length?planRouteHTML(names):""}</div>`}).join("")}</div>
    <span class="why">Bir müşterinin plana tekrar girmesi için “ziyaret sıklığı” gününün geçmesi gerekir; 2 yazarsan gün aşırı her turda gelir.</span></section>`}
 
 /* ---------- Mesajlar: geciken ödeme hatırlatma + stok kampanyası (telefonun kendi SMS / e-posta / WhatsApp'ı ile, ücretsiz) ---------- */
@@ -1704,7 +1715,8 @@ document.addEventListener("click",async e=>{
       U.msg2.camp=t.trim();toast("Metin hazır, düzenleyebilirsin")}catch(e){toast(e.message)}b.disabled=false;render();return}
   else if(a==="pickAddr"){const h=(U._hits||[])[Number(b.dataset.i)];if(h){setVal("cf_name",h.name,true);setVal("cf_addr",h.address);setVal("cf_region",h.region);setVal("cf_city",h.city);setVal("cf_geo",h.lat+", "+h.lng);$("#addrHits").innerHTML=`<span class="why">✓ Adres ve konum dolduruldu. Kontrol edip kaydet.</span>`}return}
   else if(a==="geoMissing"){geocodeMissing(b);return}
-  else if(a==="mkPlan"){b.disabled=true;b.textContent="Planlanıyor…";await sleep(30);const days=buildPlan();await save(Object.assign({},settings(),{plan:{at:today(),days}}));toast("6 günlük plan hazır");return}
+  else if(a==="planView"){const i=Number(b.dataset.i);U.planView=U.planView===i?null:i}
+  else if(a==="mkPlan"){U.planView=null;b.disabled=true;b.textContent="Planlanıyor…";await sleep(30);const days=buildPlan();await save(Object.assign({},settings(),{plan:{at:today(),days}}));toast("6 günlük plan hazır");return}
   else if(a==="loadPlan"){const d=settings().plan.days[Number(b.dataset.i)];U.selected=new Set(d.ids.filter(id=>S.customers.has(id)));U.start="";U.trip=null;keepUI();toast(d.side+" yakası rotası yüklendi");window.scrollTo(0,0)}
   else if(a==="lunchLocate"){if(U.lunch.cand)U.lunch.cand.key="";locateLunch();return}
   else if(a==="lunchYes"||a==="lunchNo"){const x=lunchSuggest()[Number(b.dataset.i)];if(!x)return;const pl={name:x.p.name,lat:+x.p.lat.toFixed(6),lng:+x.p.lng.toFixed(6)};const D=day();

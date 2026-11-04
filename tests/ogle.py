@@ -17,6 +17,7 @@ async def run(W):
         await ctx.unroute("https://overpass-api.de/**");await ctx.route("https://overpass-api.de/**",ov)
         await ctx.add_init_script("document.addEventListener('click',e=>{const a=e.target.closest('a[href]');if(a&&!/^https?:\\/\\/127/.test(a.href))e.preventDefault()},true);window.open=()=>null;")
         pg=await ctx.new_page();errs=[];pg.on("pageerror",lambda e:errs.append(str(e)[:160]))
+        await pg.clock.set_fixed_time("2026-11-04T09:30:00")  # öğle durağı saate bağlı: test günün her saatinde aynı sonucu versin
         await pg.goto("http://127.0.0.1:8767/boot.html");await pg.wait_for_timeout(1500)
         await pg.click("[data-act=sample]");await pg.wait_for_timeout(300)
         await pg.evaluate("saveDay({lunchPlaces:[]})");await pg.evaluate("U.tab='rota';U.lunch.open=true;render()");await pg.wait_for_timeout(200)

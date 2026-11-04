@@ -1,15 +1,51 @@
 {
- "at": 1793830549,
- "from": 1786181400,
- "to": 1793828700,
- "holdPct": -2.48,
- "warBins": 0,
- "toneBins": 0,
- "sample": {},
- "errors": {
-  "war": "GDELT 20260731093000: HTTP 429: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:",
-  "tone": "GDELT 20260821093000: HTTP 429: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset:"
+ "at": 1793836414,
+ "from": 1786187700,
+ "to": 1793835000,
+ "holdPct": -1.99,
+ "coverage": {
+  "war": {
+   "files": 9266,
+   "ok": 9264,
+   "missing": 2,
+   "failed": 0,
+   "late": false,
+   "mb": 602
+  },
+  "tone": {
+   "files": 4634,
+   "ok": 4634,
+   "missing": 0,
+   "failed": 0,
+   "late": false,
+   "mb": 19965
+  }
  },
+ "warBins": 2317,
+ "toneBins": 1805,
+ "sample": {
+  "war": [
+   [
+    1793829600,
+    6.200371684406149
+   ],
+   [
+    1793833200,
+    6.263102725366876
+   ]
+  ],
+  "tone": [
+   [
+    1793829600,
+    0.8578494909177423
+   ],
+   [
+    1793833200,
+    1.1577004365968557
+   ]
+  ]
+ },
+ "errors": {},
  "results": [
   {
    "name": "Yalnızca fiyat",
@@ -33,6 +69,54 @@
    "maxDD": -172.01,
    "half1": -55.4,
    "half2": -79.53,
+   "open": false
+  },
+  {
+   "name": "Savaş haberi",
+   "rule": "Askerî çatışma haberlerinin payı son 6 saatte olağandışı artınca yeni alım yok",
+   "final": 821.06,
+   "net": -178.94,
+   "trades": 23,
+   "wins": 4,
+   "maxDD": -215.28,
+   "half1": -67.64,
+   "half2": -111.29,
+   "open": false
+  },
+  {
+   "name": "Takvim ve savaş",
+   "rule": "İki filtre birlikte",
+   "final": 865.07,
+   "net": -134.93,
+   "trades": 19,
+   "wins": 4,
+   "maxDD": -172.01,
+   "half1": -55.4,
+   "half2": -79.53,
+   "open": false
+  },
+  {
+   "name": "Altın haber tonu",
+   "rule": "Son 24 saatin tonu 7 günlük ortalamanın altındaysa alım yok",
+   "final": 865.87,
+   "net": -134.13,
+   "trades": 13,
+   "wins": 1,
+   "maxDD": -134.13,
+   "half1": -63.6,
+   "half2": -70.54,
+   "open": false
+  },
+  {
+   "name": "Hepsi birlikte",
+   "rule": "Takvim, savaş ve haber tonu",
+   "final": 877.24,
+   "net": -122.76,
+   "trades": 12,
+   "wins": 1,
+   "maxDD": -122.76,
+   "half1": -63.6,
+   "half2": -59.16,
    "open": false
   }
  ]

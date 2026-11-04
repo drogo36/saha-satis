@@ -16,7 +16,7 @@ const EVENTS = [
 ].map(([name, at]) => ({ name, t: utc(at) }));
 const calendarClear = t => !EVENTS.some(e => t >= e.t - 86400 && t <= e.t + 7200);
 
-const stamp = t => new Date(t * 1000).toISOString().replace(/[-:]|\.\d+/g, "").slice(0, 14);
+const stamp = t => new Date(t * 1000).toISOString().replace(/[-:T]|\.\d+|Z/g, "").slice(0, 14);
 async function gdelt(query, mode, from, to) {
   const out = new Map();
   for (let a = from; a < to; a += 7 * 86400) {

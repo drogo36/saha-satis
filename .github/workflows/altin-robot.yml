@@ -1,0 +1,32 @@
+name: Altın Robotu (sanal)
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["altin/bot/strategy.mjs", "altin/bot/run.mjs", "altin/bot/data.mjs", ".github/workflows/altin-robot.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: altin-robot
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Robotu çalıştır
+        run: node altin/bot/run.mjs
+      - name: Durumu kaydet
+        run: |
+          git config user.name "altin-robot-bot"
+          git config user.email "altin-robot-bot@users.noreply.github.com"
+          git add altin/bot/state.json
+          git diff --cached --quiet && exit 0
+          git commit -m "altın: durum güncellendi [skip ci]"
+          for i in 1 2 3 4; do git pull --rebase -q && git push -q && break; sleep 6; done

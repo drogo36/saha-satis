@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Altın Robotu</title>
+<meta name="theme-color" content="#12110c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Altın Robotu">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#12110c;--panel:#1b1a13;--line:#34322a;--ink:#f1eee2;--muted:#a5a08f;--gold:#e2b24a;--up:#4ccb8f;--down:#f0877a;--chip:#2a281f;
+ --f:"Archivo",system-ui,sans-serif;--m:"JetBrains Mono",ui-monospace,Menlo,monospace;color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root{--bg:#f4f2ea;--panel:#fff;--line:#dbd7c8;--ink:#1c1a12;--muted:#68634f;--gold:#8f6a0c;--up:#0d7f4f;--down:#bb3a2d;--chip:#ece8da;color-scheme:light}}
+*{box-sizing:border-box}html,body{background:var(--bg);color:var(--ink);margin:0}body{font:15px/1.45 var(--f)}[hidden]{display:none!important}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header .wrap{display:flex;align-items:center;gap:10px;padding-block:14px}h1{font-size:20px;font-weight:800;margin:0}
+.chip{font:500 11px var(--m);padding:4px 7px;border-radius:5px;background:var(--chip);color:var(--muted);white-space:nowrap}.chip.g{background:var(--gold);color:#1a1405}
+.ago{margin-left:auto;font:12px var(--m);color:var(--muted)}
+main{display:grid;gap:14px;padding-block:4px 48px}section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;min-width:0}
+h2{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.big{font:500 clamp(34px,11vw,46px)/1.05 var(--m);letter-spacing:-.03em;font-variant-numeric:tabular-nums}.sub{font:500 15px var(--m)}
+.up{color:var(--up)}.down{color:var(--down)}.muted{color:var(--muted)}.small{font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.k .l{font-size:12px;color:var(--muted)}.k .v{font:500 16px var(--m);font-variant-numeric:tabular-nums}
+.rows{display:grid}.r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}.r:last-child{border-bottom:0}.r .v{font:13px var(--m);color:var(--muted);text-align:right;flex:none;max-width:50%}
+.mark{font-weight:800;margin-right:6px}
+.t{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line)}.t:last-child{border-bottom:0}.t b{font-weight:600}.t .a{font:500 14px var(--m);text-align:right}.t small{color:var(--muted);font-size:12px}
+svg{display:block;width:100%;height:auto}svg text{font:11px var(--m);fill:var(--muted)}.empty{color:var(--muted);font-size:14px}
+.note{border-left:3px solid var(--gold);padding:2px 0 2px 12px;font-size:14px}
+</style></head>
+<body>
+<header><div class="wrap"><h1>Altın Robotu</h1><span class="chip g">SANAL</span><span class="ago" id="ago"></span></div></header>
+<main class="wrap">
+  <section>
+    <h2>Geçmiş testi: 1000 TL ne oldu?</h2>
+    <div id="btMain" class="empty">Sonuç hazırlanıyor. Genelde birkaç dakika sürer.</div>
+    <div id="btChart"></div>
+    <div class="grid" id="btGrid"></div>
+    <p class="small muted" id="btNote" style="margin:0"></p>
+  </section>
+  <section>
+    <h2>Sanal robot, şu an</h2>
+    <div id="live" class="empty">Robot ilk ölçümünü bekliyor.</div>
+    <div id="pos"></div>
+  </section>
+  <section><h2>Piyasa okuması</h2><div class="rows" id="checks"><div class="empty">İlk ölçümden sonra görünür.</div></div></section>
+  <section><h2>Sanal işlemler</h2><div id="trades" class="empty">Henüz işlem yok.</div></section>
+  <section><h2>Geçmiş testin son işlemleri</h2><div id="btTrades" class="empty">Henüz yok.</div></section>
+  <p class="note" style="margin:0">Bu uygulama gerçek emir vermez, paran hesabında durur. Robot GitHub'da 15 dakikada bir sanal olarak çalışır, telefon kapalı olsa da devam eder. Yoğun saatlerde çalışma gecikebilir.</p>
+</main>
+<script>
+const BASE="https://raw.githubusercontent.com/drogo36/saha-satis/main/altin/bot/";
+const $=id=>document.getElementById(id);
+const nf=(n,d=2)=>new Intl.NumberFormat("tr-TR",{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
+const sg=(n,d=2)=>(n>0?"+":n<0?"−":"")+nf(Math.abs(n),d);
+const cl=n=>n>0?"up":n<0?"down":"muted";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dt=t=>new Date(t*1000).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const dd=t=>new Date(t*1000).toLocaleDateString("tr-TR",{day:"numeric",month:"long"});
+async function get(n){for(const u of [BASE+n+"?t="+Math.floor(Date.now()/60000),"bot/"+n+"?t="+Date.now()]){try{const r=await fetch(u,{cache:"no-store"});if(r.ok)return await r.json()}catch(e){}}return null}
+function chart(pts,start){
+  if(!pts||pts.length<2)return"";
+  const W=520,H=150,L=8,R=8,T=10,B=22,vals=pts.map(p=>p[1]),lo=Math.min(...vals,start),hi=Math.max(...vals,start),pad=(hi-lo)*.1||1,y0=lo-pad,y1=hi+pad,t0=pts[0][0],t1=pts.at(-1)[0];
+  const X=t=>L+(t-t0)*(W-L-R)/((t1-t0)||1),Y=v=>T+(y1-v)*(H-T-B)/(y1-y0),last=pts.at(-1)[1],c=last>=start?"var(--up)":"var(--down)";
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bakiye grafiği"><line x1="${L}" x2="${W-R}" y1="${Y(start)}" y2="${Y(start)}" stroke="var(--line)" stroke-dasharray="4 4"/><polyline points="${pts.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="${c}" stroke-width="2"/><circle cx="${X(t1)}" cy="${Y(last)}" r="3.5" fill="${c}"/><text x="${L}" y="${H-6}">${dd(t0)}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${dd(t1)}</text></svg>`;
+}
+const tradeRow=t=>`<div class="t"><b>${esc(t.reason)}</b><span class="a ${cl(t.pnl)}">${sg(t.pnl)} TL</span><small>${dt(t.openT)} → ${dt(t.closeT)}</small><small style="text-align:right">%${sg(t.pct)}</small></div>`;
+function k(l,v,c=""){return `<div class="k"><div class="l">${l}</div><div class="v ${c}">${v}</div></div>`}
+function renderBt(b){
+  if(!b)return;
+  $("btMain").className="";
+  $("btMain").innerHTML=`<div class="big ${cl(b.net)}">${nf(b.final)} TL</div><div class="sub ${cl(b.net)}">${sg(b.net)} TL · %${sg(b.pct)}</div><div class="small muted">${dd(b.from)} – ${dd(b.to)}, 1000 TL ile başladı</div>`;
+  $("btChart").innerHTML=chart(b.curve,b.start);
+  $("btGrid").innerHTML=k("İşlem",`${b.trades}`)+k("Kârlı / zararlı",`${b.wins} / ${b.losses}`)+k("En büyük düşüş",`${sg(b.maxDD)} TL`,"down")+k("Altını elde tutsan",`%${sg(b.holdPct)}`,cl(b.holdPct));
+  $("btNote").textContent=`Gerçek BtcTurk fiyatlarıyla. Komisyon %${nf(.2)}, makas %${nf(.1)}, zarar durdurmada %${nf(.1)} kayma dahil.${b.open?` Dönem sonunda açık pozisyon var (${sg(b.openPnl)} TL), sonuca dahil.`:""} Geçmiş sonuç geleceği garanti etmez.`;
+  if(b.list?.length){$("btTrades").className="";$("btTrades").innerHTML=b.list.slice(0,15).map(tradeRow).join("")}
+}
+function renderState(s){
+  if(!s)return;
+  const a=s.acc,net=s.value-s.cfg.capital,min=Math.round((Date.now()/1000-s.updatedAt)/60);
+  $("ago").textContent=min<1?"şimdi":min+" dk önce";
+  $("live").className="";
+  $("live").innerHTML=`<div class="big ${cl(net)}">${nf(s.value)} TL</div><div class="sub ${cl(net)}">${sg(net)} TL, ${dd(s.startedAt)} tarihinden beri</div><div class="grid" style="margin-top:12px">${k("Ons (XAUT) satış",nf(s.price.bid,0)+" TL")}${k("Gram karşılığı",nf(s.price.gram)+" TL")}</div>`;
+  const p=a.pos;
+  $("pos").innerHTML=p?`<div class="rows"><div class="r"><span>Pozisyon açık</span><span class="v">${nf(p.cost)} TL</span></div><div class="r"><span>Birim maliyet</span><span class="v">${nf(p.unit,0)} TL</span></div><div class="r"><span>Hedef satış</span><span class="v">${nf(p.target,0)} TL</span></div><div class="r"><span>Zarar durdurma</span><span class="v">${nf(p.stopPrice,0)} TL</span></div><div class="r"><span>Açık kâr/zarar</span><span class="v ${cl(s.openPnl)}">${sg(s.openPnl)} TL</span></div></div>`:`<div class="small muted">${a.pending?"Alım sinyali geldi, sonraki mumda sanal alım yapılacak.":"Pozisyon yok, alım koşulları bekleniyor."}</div>`;
+  const r=s.read;
+  if(r?.checks)$("checks").innerHTML=r.checks.map(c=>`<div class="r"><span><span class="mark ${c.ok?"up":"down"}">${c.ok?"✓":"✕"}</span>${esc(c.name)}</span><span class="v">${esc(c.value)}</span></div>`).join("");
+  if(a.trades.length){$("trades").className="";$("trades").innerHTML=[...a.trades].reverse().slice(0,20).map(tradeRow).join("")}
+}
+async function load(){renderBt(await get("backtest.json"));renderState(await get("state.json"))}
+load();setInterval(load,60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>

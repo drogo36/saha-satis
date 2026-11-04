@@ -22,20 +22,22 @@ async function gdelt(query, mode, from, to) {
   for (let a = from; a < to; a += 7 * 86400) {
     const b = Math.min(to, a + 7 * 86400);
     const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&format=json&startdatetime=${stamp(a)}&enddatetime=${stamp(b)}`;
-    let done = false;
+    let done = false, why = "";
     for (let i = 0; i < 4 && !done; i++) {
       await sleep(6000 * (i + 1));
       try {
         const r = await fetch(url, { headers: { "User-Agent": "altin-robotu/1.0" } });
-        if (!r.ok) continue;
-        const j = JSON.parse(await r.text());
+        const text = await r.text();
+        if (!r.ok) { why = `HTTP ${r.status}: ${text.slice(0, 160)}`; continue; }
+        let j;
+        try { j = JSON.parse(text); } catch { why = `JSON değil: ${text.slice(0, 160)}`; continue; }
         for (const p of j.timeline?.[0]?.data || []) {
           const d = p.date; out.set(utc(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(9, 11)}:${d.slice(11, 13)}Z`), +p.value);
         }
         done = true;
-      } catch {}
+      } catch (e) { why = `${e.message} ${e.cause?.code || ""}`; }
     }
-    if (!done) throw new Error("GDELT parçası alınamadı " + stamp(a));
+    if (!done) throw new Error(`GDELT ${stamp(a)}: ${why}`);
   }
   return [...out.entries()].sort((x, y) => x[0] - y[0]);
 }
@@ -70,7 +72,7 @@ function run(name, rule, allowBuy) {
 const results = [run("Yalnızca fiyat", "Mevcut kurallar", null), run("Ekonomik takvim", "Veriden 24 saat önce ve 2 saat sonra yeni alım yok", calendarClear)];
 const errors = {};
 let war = null, tone = null;
-const warQuery = '(war OR missile OR airstrike OR invasion OR sanctions OR ceasefire) sourcelang:english';
+const warQuery = '(war OR missile OR airstrike OR invasion OR ceasefire) sourcelang:english';
 const goldQuery = '("gold price" OR "gold prices" OR "spot gold") sourcelang:english';
 try { war = await gdelt(warQuery, "timelinevol", from - 8 * 86400, to); } catch (e) { errors.war = e.message; }
 try { tone = await gdelt(goldQuery, "timelinetone", from - 8 * 86400, to); } catch (e) { errors.tone = e.message; }

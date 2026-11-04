@@ -1,0 +1,27 @@
+name: Altın Robotu haber testi
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["altin/bot/haber_test.mjs", ".github/workflows/altin-haber.yml"]
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Haberli ve haberli olmayan testler
+        run: node altin/tests/strategy.test.mjs && node altin/bot/haber_test.mjs
+      - name: Sonucu kaydet
+        run: |
+          git config user.name "altin-robot-bot"
+          git config user.email "altin-robot-bot@users.noreply.github.com"
+          git add altin/bot/haber.json
+          git diff --cached --quiet && exit 0
+          git commit -m "altın: haber testi sonucu [skip ci]"
+          for i in 1 2 3 4; do git pull --rebase -q && git push -q && break; sleep 6; done

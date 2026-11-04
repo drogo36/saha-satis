@@ -90,7 +90,7 @@ export function step(acc, candles, i, cfg) {
   }
   const read = readMarket(candles.slice(Math.max(0, i - WINDOW + 1), i + 1), now.c * (1 - half), now.c * (1 + half), cfg);
   if (now.t < acc.waitUntil || acc.dayPnl <= -cfg.dailyLoss || acc.dayBuys >= cfg.maxBuys) return read;
-  if (read.ok) acc.pending = { resistance: read.resistance };
+  if (read.ok && (!cfg.allowBuy || cfg.allowBuy(now.t))) acc.pending = { resistance: read.resistance };
   return read;
 }
 

@@ -23,8 +23,8 @@ async function gdelt(query, mode, from, to) {
     const b = Math.min(to, a + 7 * 86400);
     const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=${mode}&format=json&startdatetime=${stamp(a)}&enddatetime=${stamp(b)}`;
     let done = false, why = "";
-    for (let i = 0; i < 4 && !done; i++) {
-      await sleep(6000 * (i + 1));
+    for (let i = 0; i < 7 && !done; i++) {
+      await sleep(i === 0 ? 15000 : 60000 * i);
       try {
         const r = await fetch(url, { headers: { "User-Agent": "altin-robotu/1.0" } });
         const text = await r.text();

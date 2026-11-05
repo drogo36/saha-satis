@@ -1,1 +1,1 @@
-{"version": "2.7.0", "notes": "Öğle arasında “TokenFlex'te ara” eklendi: konumuna en yakın yemek yeri kutuda hazır gelir, düğme adı kopyalar ve siteyi açar."}
+{"version": "2.8.0", "notes": "Rotadaki müşteriye varınca uygulama açıksa ziyaret kendiliğinden başlar. Açık ziyaret uygulama kapanınca kaybolmaz."}

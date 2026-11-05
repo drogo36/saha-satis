@@ -1,1 +1,1 @@
-{"version": "2.6.0", "notes": "Gün aşırı planda her günün yanında “Rotayı kontrol et” düğmesi var; zayıf bağlantıda eski sürümün açılması düzeltildi."}
+{"version": "2.7.0", "notes": "Öğle arasında “TokenFlex'te ara” eklendi: konumuna en yakın yemek yeri kutuda hazır gelir, düğme adı kopyalar ve siteyi açar."}

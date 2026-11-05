@@ -1,24 +1,41 @@
 {
- "at": 1793836414,
+ "at": 1793836816,
  "from": 1786187700,
  "to": 1793835000,
  "holdPct": -1.99,
  "coverage": {
   "war": {
    "files": 9266,
-   "ok": 9264,
-   "missing": 2,
+   "ok": 9266,
+   "missing": 0,
    "failed": 0,
    "late": false,
    "mb": 602
   },
   "tone": {
    "files": 4634,
-   "ok": 4634,
-   "missing": 0,
+   "ok": 4633,
+   "missing": 1,
    "failed": 0,
    "late": false,
-   "mb": 19965
+   "mb": 19960
+  }
+ },
+ "gates": {
+  "calendar": {
+   "blockedPct": 11.7,
+   "blockedEntries": 5,
+   "entries": 23
+  },
+  "war": {
+   "blockedPct": 0.6,
+   "blockedEntries": 0,
+   "entries": 23
+  },
+  "tone": {
+   "blockedPct": 49.7,
+   "blockedEntries": 14,
+   "entries": 23
   }
  },
  "warBins": 2317,
@@ -31,7 +48,7 @@
    ],
    [
     1793833200,
-    6.263102725366876
+    5.05594346765374
    ]
   ],
   "tone": [
@@ -41,7 +58,7 @@
    ],
    [
     1793833200,
-    1.1577004365968557
+    0.6667496776650884
    ]
   ]
  },

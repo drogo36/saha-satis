@@ -1,1 +1,1 @@
-{"version": "2.10.0", "notes": "Rotada olmayan bir müşterinin yanında 1 dakika kalınca uygulama ziyaret başlatmak isteyip istemediğini sorar."}
+{"version": "2.11.0", "notes": "Haritaya ısı görünümü ve alan çizerek müşteri seçme eklendi. Ziyaret formuna kendi alanlarını ekleyebilirsin."}

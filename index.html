@@ -164,6 +164,8 @@ svg.map{width:100%;height:auto;max-width:100%;display:block;background:var(--sun
 .nmap .pin.cm{z-index:2;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .nmap .pin.cm.due{box-shadow:0 0 0 3px var(--accent)}
 .nmap .pin.cm.inr{border-color:var(--ink)}
+.nmap.cmap.lasso{cursor:crosshair;box-shadow:0 0 0 2px var(--accent)}
+.nmap .pin.cm.las{box-shadow:0 0 0 3px #f08a12}
 .nmap .pin.cm.on{border:3px solid var(--ink);z-index:3}
 .nmap .plbl{position:absolute;z-index:3;transform:translate(10px,-50%);font:600 12px/1.2 var(--f-body);color:#0b1d4a;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:5px;white-space:nowrap;pointer-events:none;max-width:45%;overflow:hidden;text-overflow:ellipsis}
 .cm-trf{position:absolute;left:8px;top:8px;z-index:4;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:600 13px/1 var(--f-body);text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.2)}
@@ -631,19 +633,26 @@ function mapFit(pts){const {W,H}=M;const home=homePt&&homePt();
   const la=pts.map(p=>p.lat),lo=pts.map(p=>p.lng);const a={lat:Math.max(...la),lng:Math.min(...lo)},b={lat:Math.min(...la),lng:Math.max(...lo)};
   let z=16;for(;z>9;z--){const A=nmProj(a.lat,a.lng,z),B=nmProj(b.lat,b.lng,z);if(B.x-A.x<=W-50&&B.y-A.y<=H-50)break}
   const A=nmProj(a.lat,a.lng,z),B=nmProj(b.lat,b.lng,z);M.z=z;M.cx=(A.x+B.x)/2;M.cy=(A.y+B.y)/2}
+/* Isı haritası: ciro, potansiyel ya da ziyaret yoğunluğunu haritada renkle gösterir */
+const HEAT={ciro:"Ciro",potansiyel:"Potansiyel",ziyaret:"Ziyaret"};
+function heatVal(c,m){if(m==="ciro")return custRevenue(c);if(m==="ziyaret")return visitsOf(c).length;return Number(c.estMonthly)||{A:100000,B:50000,C:20000}[c.tier||"C"]||0}
+function heatSVG(pts,at,vis,z){const m=U.mapHeat;if(!HEAT[m])return "";const vals=pts.map(c=>heatVal(c,m));const mx=Math.max(0,...vals);if(!mx)return "";
+  const mpp=156543.03*Math.cos(nmUnproj(M.cx,M.cy,z).lat*Math.PI/180)/2**z,r=Math.max(38,Math.min(90,1500/mpp));
+  let g=`<defs><radialGradient id="heatG"><stop offset="0%" stop-color="#e0293a"/><stop offset="55%" stop-color="#f08a12" stop-opacity=".65"/><stop offset="100%" stop-color="#f08a12" stop-opacity="0"/></radialGradient></defs>`;
+  pts.forEach((c,i)=>{if(!(vals[i]>0))return;const q=at(c);if(!vis(q))return;g+=`<circle class="heat" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#heatG)" fill-opacity="${(.2+.6*Math.sqrt(vals[i]/mx)).toFixed(2)}"/>`});return g}
 function mapSVG(){const pts=mapPoints();const {W,H}=M;
   const fk=pts.length+":"+(pts[0]||{}).id+":"+(pts[pts.length-1]||{}).id;if(M.z==null||M.fk!==fk){M.fk=fk;mapFit(pts)}
   const z=M.z,ox=M.cx-W/2,oy=M.cy-H/2;const pc=v=>(v*100).toFixed(3)+"%";
   const at=p=>{const v=nmProj(p.lat,p.lng,z);return {x:v.x-ox,y:v.y-oy}};const vis=q=>q.x>-20&&q.y>-20&&q.x<W+20&&q.y<H+20;
-  const t=today();let svg="",pins="";
+  const t=today();let svg=heatSVG(pts,at,vis,z),pins="";
   const r=buildRoute();if(r.order.length>1)svg+=`<polyline points="${r.order.map(p=>{const q=at(p);return q.x.toFixed(1)+","+q.y.toFixed(1)}).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
   [...pts].sort((a,b)=>(a.tier||"C")<(b.tier||"C")?1:-1).forEach(c=>{const q=at(c);if(!vis(q))return;const rr={A:22,B:17,C:13}[c.tier||"C"];
-    const due=c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t;const sel=U.mapSel===c.id;const inR=U.selected.has(c.id);
-    pins+=`<span class="pin cm${due?" due":""}${sel?" on":""}${inR?" inr":""}" data-pin="${c.id}" role="button" tabindex="0" aria-label="${esc(c.name)}" style="left:${pc(q.x/W)};top:${pc(q.y/H)};width:${rr}px;height:${rr}px;background:${STATUS_COL[c.status||"Aday"]}"></span>${z>=15||sel?`<span class="plbl" style="left:${pc(q.x/W)};top:${pc(q.y/H)}">${esc(c.name.slice(0,26))}</span>`:""}`});
+    const due=c.status!=="Pasif"&&c.nextVisit&&c.nextVisit<=t;const sel=U.mapSel===c.id;const inR=U.selected.has(c.id);const las=U.lassoSel&&U.lassoSel.includes(c.id);
+    pins+=`<span class="pin cm${due?" due":""}${sel?" on":""}${inR?" inr":""}${las?" las":""}" data-pin="${c.id}" role="button" tabindex="0" aria-label="${esc(c.name)}" style="left:${pc(q.x/W)};top:${pc(q.y/H)};width:${rr}px;height:${rr}px;background:${STATUS_COL[c.status||"Aday"]}"></span>${z>=15||sel?`<span class="plbl" style="left:${pc(q.x/W)};top:${pc(q.y/H)}">${esc(c.name.slice(0,26))}</span>`:""}`});
   const me=posFresh()?at(U.lastPos):null;
   const mpp=156543.03*Math.cos(nmUnproj(M.cx,M.cy,z).lat*Math.PI/180)/2**z;const sk=[0.1,0.2,0.5,1,2,5,10,20].find(k=>k*1000/mpp>50)||20;
   const ctr=nmUnproj(M.cx,M.cy,z);
-  return `<div class="nmap cmap" id="mapSvg" role="img" aria-label="Müşteri konum haritası"><div class="cm-layer">${tilesHTML(z,ox,oy,W,H)}<svg class="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg>${pins}${me&&vis(me)?`<span class="me" title="Buradasın" style="left:${pc(me.x/W)};top:${pc(me.y/H)}"></span>`:""}</div>
+  return `<div class="nmap cmap${U.lasso?" lasso":""}" id="mapSvg" role="img" aria-label="Müşteri konum haritası"><div class="cm-layer">${tilesHTML(z,ox,oy,W,H)}<svg class="ov" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${svg}</svg>${pins}${me&&vis(me)?`<span class="me" title="Buradasın" style="left:${pc(me.x/W)};top:${pc(me.y/H)}"></span>`:""}</div>
    ${pts.length?"":`<div class="wait" style="pointer-events:none"><span style="background:var(--surface);padding:6px 10px;border-radius:10px">Konumu girilmiş müşteri yok</span></div>`}
    <a class="cm-trf" href="${esc(trafficLink(ctr.lat,ctr.lng,z))}" target="_blank" rel="noopener">🚦 Trafik</a>
    <span class="cm-scale" style="width:${pc(sk*1000/mpp/W)}"><i></i>${String(sk).replace(".",",")} km</span><span class="att">© OpenStreetMap katkıcıları</span></div>`}
@@ -651,6 +660,9 @@ function vMap(){const sel=U.mapSel?S.customers.get(U.mapSel):null;const pts=mapP
   return `<div class="row"><h2>Müşteri haritası</h2><span class="sp"></span><span class="chip st mono">${pts.length} nokta</span>${pts.length?`<button class="btn sm" data-act="addVisible">Filtredekileri rotaya ekle</button>`:""}</div>
   ${S.customers.size?filterChips():sampleCTA()}
   <div class="legend">${STATUS.map(s=>`<span><i style="background:${STATUS_COL[s]}"></i>${s}</span>`).join("")}<span><i style="border:2px solid var(--accent);background:transparent"></i>ziyaret zamanı</span><span>büyük nokta = A potansiyel</span></div>
+  <div class="row" style="gap:6px"><button class="btn sm ${U.lasso?"pri":""}" data-act="mapLasso">${U.lasso?"✕ Çizimi iptal et":"✏️ Alan çiz, seç"}</button><span class="muted" style="font-size:13px">Isı:</span>${[["","Kapalı"],...Object.entries(HEAT)].map(([k,l])=>`<button class="fchip" data-act="mapHeat" data-v="${k}" aria-pressed="${(U.mapHeat||"")===k}">${l}</button>`).join("")}</div>
+  ${U.lasso?`<span class="sub">Parmağınla müşterilerin çevresine bir alan çiz.</span>`:""}${HEAT[U.mapHeat]?`<span class="sub">${pts.some(c=>heatVal(c,U.mapHeat)>0)?{ciro:"Koyu kırmızı bölgelerde kayıtlı ciro daha yüksek.",potansiyel:"Koyu kırmızı bölgelerde potansiyel daha yüksek. Tahmini alım yazılı değilse A/B/C sınıfı kullanılır.",ziyaret:"Koyu kırmızı bölgelere daha çok ziyaret yaptın."}[U.mapHeat]:"Bu müşteriler için gösterilecek kayıt yok."}</span>`:""}
+  ${(()=>{const L=(U.lassoSel||[]).map(i=>S.customers.get(i)).filter(Boolean);return U.lassoSel?`<section class="panel" id="lassoPanel"><b>${L.length} müşteri seçildi</b><span class="sub" style="overflow-wrap:anywhere">${esc(L.slice(0,5).map(c=>c.name).join(", "))}${L.length>5?` ve ${L.length-5} müşteri daha`:""}</span><div class="row"><button class="btn sm pri" data-act="lassoAdd">Rotaya ekle</button><button class="btn sm ghost" data-act="lassoClear">Temizle</button></div><span class="why">Güne sığmayan duraklar rota hesabında dışarıda kalır.</span></section>`:""})()}
   <div class="mapbox" id="mapBox">${mapSVG()}<div class="mapctl"><button class="btn" data-act="zin" aria-label="Yakınlaştır">+</button><button class="btn" data-act="zout" aria-label="Uzaklaştır">−</button><button class="btn" data-act="zreset" aria-label="Sığdır">⤢</button><button class="btn" data-act="zme" aria-label="Konumuma git">📍</button></div></div>
   ${noGeo>0?`<p class="sub">${noGeo} müşterinin konumu yok, haritada görünmüyor.</p>`:""}
   <p class="sub">Sürükleyerek gez, iki parmakla ya da +/− ile yakınlaştır, noktaya dokunup kartı aç. Mavi nokta sensin. “🚦 Trafik” anlık trafiği Google Maps'te gösterir.</p>
@@ -685,6 +697,7 @@ function vReport(){const cs=custList();const t=today(),ym=t.slice(0,7);const st=
    ${overdue.length?`<div class="list">${overdue.slice(0,15).map(c=>`<div class="row">${tierBadge(c)}<span style="flex:1;min-width:0">${esc(c.name)}</span><span class="chip warn mono">${daysSince(c.nextVisit)} gün</span><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div>`:'<span class="muted">Geciken ziyaret yok.</span>'}</section>`}
 
 /* ---- visits ---- */
+const vFields=()=>Array.isArray(settings().visitFields)?settings().visitFields:[];
 function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
   return `<section class="panel live"><h2>Ziyaret notu: ${esc(c.name)}</h2>
   <form id="visitForm" class="grid3" data-id="${c.id}">
@@ -697,11 +710,12 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
    <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no (kodlar stokla otomatik eşleşir)<input id="vf_parts" autocomplete="off" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label><div id="vfCodes" style="grid-column:1/-1"></div>
    <div class="row" style="grid-column:1/-1"><span class="why" style="flex:1 1 200px">Notu serbestçe yaz ya da klavyedeki mikrofonla söyle; AI sonucu, tutarı, parçaları ve sonraki ziyareti doldursun.</span><button class="btn sm" type="button" data-act="aiFill">✨ AI ile düzenle</button></div>
    <div style="grid-column:1/-1;display:grid;gap:6px"><label class="btn sm" for="vf_photo" style="justify-self:start">📷 Fotoğraf ekle (raf, fatura, kartvizit)</label><input id="vf_photo" type="file" accept="image/*" capture="environment" multiple hidden><div class="thumbs" id="vfPhotos">${U.pendingPhotos.map(id=>`<img data-ph="${id}" alt="Fotoğraf">`).join("")}</div></div>
+   ${vFields().map((l,i)=>`<label class="f">${esc(l)}<input id="vf_x${i}" name="x_${i}" autocomplete="off"></label>`).join("")}
    <label class="f" style="grid-column:1/-1">Görüşme notu<textarea id="vf_note" name="note" placeholder="Rakip fiyatı, stok durumu, ödeme vadesi, söz verilenler…"></textarea></label>
    <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Kaydet</button><button class="btn ghost" type="button" data-act="cancelVisit">Vazgeç</button></div>
   </form></section>`}
 function visitItem(v){const c=S.customers.get(v.customerId);return `<div class="item"><div class="row"><span class="t" style="min-width:0">${esc(c?c.name:v.customerName||"Silinmiş müşteri")}</span><span class="chip ${RESULTS[v.result]||""}">${esc(v.result)}</span><span class="sp"></span><span class="mono muted" style="font-size:13px">${fmtDate(v.date)} ${esc(v.start||"")}${v.end?"–"+esc(v.end):""}</span></div>
-  ${v.parts?`<div class="meta"><span class="mono">${esc(v.parts)}</span></div>`:""}${v.note?`<div class="note">${esc(v.note)}</div>`:""}${(v.photos||[]).length?`<div class="thumbs">${v.photos.map(id=>`<img data-ph="${id}" data-act="viewPhoto" alt="Ziyaret fotoğrafı">`).join("")}</div>`:""}
+  ${v.parts?`<div class="meta"><span class="mono">${esc(v.parts)}</span></div>`:""}${v.extra?`<div class="meta">${Object.entries(v.extra).map(([k,t])=>`<span>${esc(k)}: ${esc(t)}</span>`).join("")}</div>`:""}${v.note?`<div class="note">${esc(v.note)}</div>`:""}${(v.photos||[]).length?`<div class="thumbs">${v.photos.map(id=>`<img data-ph="${id}" data-act="viewPhoto" alt="Ziyaret fotoğrafı">`).join("")}</div>`:""}
   <div class="row">${v.amount?`<span class="chip ok mono">${tl(v.amount)}</span>`:""}<span class="sp"></span><button class="btn sm ghost" data-act="delVisit" data-id="${v.id}">Sil</button></div></div>`}
 function vVisits(){
   if(U.visitFor){const c=S.customers.get(U.visitFor);if(c)return visitForm(c)}
@@ -783,7 +797,7 @@ async function doImport(){const I=U.import;const m=I.map;
     U.import=null;await saveMany(out);toast(out.length+" "+type+" kaydedildi")}}
 async function exportX(kind){if(!await loadXLSX()){toast("Excel oluşturucu yüklenemedi. İlk seferde internet gerekir.");return}
   let rows,name;if(kind==="stock"){rows=products().map(p=>({"Stok kodu":p.sku||"","Ürün":p.name,"OEM no":p.oem||"","Marka / araç":p.brand||"","Fiyat":p.price===""?"":p.price,"Stok":p.stock===""?"":p.stock,"Kritik seviye":p.min??5}));name="stok"}else if(kind==="order"){rows=[...S.orders.values()].map(o=>({Tarih:fmtDate(o.date),Tür:o.type,"Belge no":o.no,Müşteri:o.customer,"Stok kodu":o.sku||(o.lines||[]).map(l=>l.sku).filter(Boolean).join(", "),Parça:o.item,Adet:o.qty,Tutar:o.amount}));name="siparis-fatura"}
-  else{rows=[...S.visits.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(v=>({Tarih:fmtDate(v.date),Başlangıç:v.start,Bitiş:v.end,Müşteri:S.customers.get(v.customerId)?.name||v.customerName,Sonuç:v.result,Tutar:v.amount||"",Parçalar:v.parts,Not:v.note,"Sonraki ziyaret":fmtDate(v.nextVisit)}));name="ziyaretler"}
+  else{rows=[...S.visits.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(v=>({Tarih:fmtDate(v.date),Başlangıç:v.start,Bitiş:v.end,Müşteri:S.customers.get(v.customerId)?.name||v.customerName,Sonuç:v.result,Tutar:v.amount||"",Parçalar:v.parts,Not:v.note,"Sonraki ziyaret":fmtDate(v.nextVisit),...(v.extra||{})}));name="ziyaretler"}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Kayıtlar");
   const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});const fn=`${name}-${today()}.xlsx`;
   downloadBlob(new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),fn);toast(fn+" indirildi")}
@@ -798,7 +812,10 @@ async function restoreFrom(file){try{const o=JSON.parse(await file.text());const
 function versionPanel(){return `<section class="panel"><h2>Uygulama</h2><div class="row"><span class="chip mono">sürüm ${APP_VERSION}</span><span class="sp"></span><button class="btn sm" data-act="checkUpd">Güncellemeleri denetle</button></div><span class="why">Uygulama açıldığında ve her 30 dakikada bir yeni sürümü kendisi kontrol eder.</span></section>`}
 function samplePanel(){const n=sampleItems().length;return n?`<section class="panel"><h2>Örnek veriler</h2><span class="sub">Denemek için yüklenen ${n} örnek kayıt (müşteri, ziyaret, sipariş, stok) duruyor. Gerçek kayıtlarına dokunmadan hepsini silebilirsin.</span><div class="row"><button class="btn sm" data-act="clearSample">Örnek verileri temizle</button></div></section>`:""}
 function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.size+S.orders.size;
-  return `<section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
+  return `<section class="panel" id="vfldPanel"><h2>Ziyaret formu alanları</h2><span class="sub">Her ziyarette doldurmak istediğin bilgileri ekle: rakip marka, raf durumu gibi.</span>
+   <div class="list">${vFields().map((l,i)=>`<div class="row"><span style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(l)}</span><button class="btn sm ghost" data-act="delVfld" data-i="${i}">Kaldır</button></div>`).join("")||'<span class="why">Henüz ek alan yok.</span>'}</div>
+   <form id="vfldForm" class="row"><input id="vfld_label" name="label" maxlength="30" placeholder="örn. Rakip marka" style="flex:1 1 180px;min-width:0" required><button class="btn sm" type="submit">＋ Alan ekle</button></form></section>
+  <section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
    <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span></div>
    <div class="row"><button class="btn pri" data-act="backup">Yedek al</button><label class="btn" for="restoreFile">Yedekten geri yükle</label><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></section>`}
 
@@ -967,7 +984,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.10.0";
+const APP_VERSION="2.11.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1813,6 +1830,11 @@ document.addEventListener("click",async e=>{
   else if(a==="addPri"){addSel(custList().filter(c=>c.status!=="Pasif"&&!U.selected.has(c.id)).sort((x,y)=>priority(y).score-priority(x).score).slice(0,6).map(c=>c.id))}
   else if(a==="addNear"){const r=buildRoute();addSel(custList().filter(c=>hasGeo(c)&&!U.selected.has(c.id)&&c.status!=="Pasif"&&r.order.some(s=>km(s,c)<=2.5)).map(c=>c.id))}
   else if(a==="addRegion"){addSel(custList().filter(c=>(c.region||c.district)===U.region&&c.status!=="Pasif").map(c=>c.id))}
+  else if(a==="mapHeat"){U.mapHeat=b.dataset.v||""}
+  else if(a==="mapLasso"){U.lasso=!U.lasso;if(U.lasso)U.lassoSel=null}
+  else if(a==="lassoClear"){U.lassoSel=null}
+  else if(a==="lassoAdd"){addSel(U.lassoSel||[]);U.lassoSel=null}
+  else if(a==="delVfld"){const old=vFields(),i=Number(b.dataset.i),lb=old[i];await save(Object.assign({},settings(),{visitFields:old.filter((_,j)=>j!==i)}));toast("“"+lb+"” alanı kaldırıldı. Eski ziyaretlerdeki bilgiler silinmedi.",{label:"Geri al",fn:async()=>{await save(Object.assign({},settings(),{visitFields:old}))}});return}
   else if(a==="addVisible"){addSel(mapPoints().filter(c=>c.status!=="Pasif").map(c=>c.id))}
   else if(a==="fchip"){const g=U.f[b.dataset.g],v=b.dataset.v;g.has(v)?g.delete(v):g.add(v)}
   else if(a==="setStatus"){const c=S.customers.get(id);if(c){await save(Object.assign({},c,{status:b.dataset.v}));toast("Aşama: "+b.dataset.v)}return}
@@ -1831,7 +1853,20 @@ document.addEventListener("click",async e=>{
 /* map drag + pinch + wheel (karolu harita) */
 let drag=null;const PTR=new Map();
 function cmLayer(){return document.querySelector("#mapSvg .cm-layer")}
-document.addEventListener("pointerdown",e=>{const el=e.target.closest("#mapSvg");if(!el)return;PTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
+/* Alan çiz: parmakla çizilen alanın içindeki müşterileri seçer */
+let lasso=null;
+function lassoPt(e){const r=$("#mapSvg").getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*M.W,y:(e.clientY-r.top)/r.height*M.H}}
+function inPoly(p,P){let on=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)on=!on}return on}
+function lassoFinish(){const P=lasso.pts;lasso=null;U.lasso=false;M.dragged=true;setTimeout(()=>{M.dragged=false},60);
+  if(P.length<3){toast("Alan çizilemedi. Müşterilerin çevresine parmağınla bir daire çiz.");render();return}
+  const ox=M.cx-M.W/2,oy=M.cy-M.H/2;const ids=mapPoints().filter(c=>{if(c.status==="Pasif")return false;const v=nmProj(c.lat,c.lng,M.z);return inPoly({x:v.x-ox,y:v.y-oy},P)}).map(c=>c.id);
+  U.lassoSel=ids.length?ids:null;if(!ids.length)toast("Çizdiğin alanda aktif müşteri yok.");render()}
+document.addEventListener("pointerdown",e=>{if(!U.lasso||lasso||!e.target.closest("#mapSvg"))return;const sv=document.querySelector("#mapSvg svg.ov");if(!sv)return;
+  const ln=document.createElementNS("http://www.w3.org/2000/svg","polyline");ln.setAttribute("fill","rgba(240,138,18,.2)");ln.setAttribute("stroke","#f08a12");ln.setAttribute("stroke-width","3");ln.setAttribute("vector-effect","non-scaling-stroke");sv.appendChild(ln);
+  lasso={id:e.pointerId,pts:[lassoPt(e)],ln};M.dragged=true;e.stopImmediatePropagation()});
+document.addEventListener("pointermove",e=>{if(!lasso||e.pointerId!==lasso.id)return;const p=lassoPt(e),l=lasso.pts[lasso.pts.length-1];if(Math.hypot(p.x-l.x,p.y-l.y)<4)return;lasso.pts.push(p);lasso.ln.setAttribute("points",lasso.pts.map(q=>q.x.toFixed(1)+","+q.y.toFixed(1)).join(" "))});
+document.addEventListener("pointerup",e=>{if(lasso&&e.pointerId===lasso.id)lassoFinish()});document.addEventListener("pointercancel",e=>{if(lasso&&e.pointerId===lasso.id){lasso.ln.remove();lasso=null;render()}});
+document.addEventListener("pointerdown",e=>{if(U.lasso||lasso)return;const el=e.target.closest("#mapSvg");if(!el)return;PTR.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const k=M.W/el.getBoundingClientRect().width;const ps=[...PTR.values()];
   if(ps.length===2)drag={pinch:true,d0:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)||1,sc:1,k};else drag={x:e.clientX,y:e.clientY,dx:0,dy:0,k};M.dragged=false});
 document.addEventListener("pointermove",e=>{if(!drag||!PTR.has(e.pointerId))return;PTR.set(e.pointerId,{x:e.clientX,y:e.clientY});const L=cmLayer();
@@ -1899,11 +1934,12 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:String(fd.name).trim(),lat:+pos.lat.toFixed(6),lng:+pos.lng.toFixed(6)}]});toast("Kaydedildi: "+fd.name);return}
   else if(f.id==="dayForm"){const g=parseCoords(fd.geo);if(fd.geo&&!g){toast("Ev konumu okunamadı.");return}
     await saveDay({home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,mapApp:MAP_APPS[fd.mapApp]?fd.mapApp:"google",...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
+  else if(f.id==="vfldForm"){const l=String(fd.label||"").trim().slice(0,30);const F=vFields();if(!l)return;if(F.some(x=>trLow(x)===trLow(l))){toast("Bu alan zaten var.");return}if(F.length>=8){toast("En fazla 8 alan ekleyebilirsin.");return}await save(Object.assign({},settings(),{visitFields:[...F,l]}));f.reset();toast("Alan eklendi. Ziyaret formunda görünür.");return}
   else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:fd.name.trim(),lat:g.lat,lng:g.lng}]});toast("Yemek yeri eklendi")}
   else if(f.id==="setForm"){await save(Object.assign({},settings(),{target:parseNum(fd.target)}));toast("Hedef kaydedildi")}
   else if(f.id==="visitForm"){const c=S.customers.get(f.dataset.id);
-    const v={id:uid("v"),kind:"visit",customerId:c.id,customerName:c.name,date:fd.date,start:fd.start,end:fd.end,result:fd.result,amount:parseNum(fd.amount),parts:fd.parts,note:fd.note,nextVisit:fd.nextVisit,photos:U.pendingPhotos.slice()};U.pendingPhotos=[];U.arrived=null;
+    const v={id:uid("v"),kind:"visit",customerId:c.id,customerName:c.name,date:fd.date,start:fd.start,end:fd.end,result:fd.result,amount:parseNum(fd.amount),parts:fd.parts,note:fd.note,nextVisit:fd.nextVisit,photos:U.pendingPhotos.slice()};(()=>{const x={};vFields().forEach((l,i)=>{const t=String(fd["x_"+i]||"").trim();if(t)x[l]=t});if(Object.keys(x).length)v.extra=x})();U.pendingPhotos=[];U.arrived=null;
     U.visitFor=null;if(U.live&&U.live.customerId===c.id)U.live=null;U.selected.delete(c.id);keepUI();
     let status=c.status||"Aday";if(fd.result==="Sipariş alındı")status="Aktif";else if(fd.result==="Teklif verildi"&&status!=="Aktif")status="Teklif";else if(status==="Aday"&&fd.result!=="Ulaşılamadı")status="Görüşülüyor";
     await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});

@@ -371,12 +371,16 @@ function travelMin(a,b){const D=day();return km(a,b)*1.35/(Number(D.speed)||22)*
 const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
 const posFresh=()=>U.lastPos&&Date.now()-(U.lastPos.t||0)<15*60e3;
 let _brC=null;
+const ROUTE_MAX=25,ROUTE_MS=150;
 function buildRoute(){const D=day();const live=nowMin()>toMin(D.dayStart)-30&&nowMin()<toMin(D.arriveBy)+120;
   const here=!U.start&&live&&posFresh()&&homePt()&&km(U.lastPos,homePt())>0.3?{lat:U.lastPos.lat,lng:U.lastPos.lng,here:true}:null;
   const startMin=live?Math.max(toMin(D.dayStart),nowMin()):null;
   const key=[...U.selected].join(",")+"|"+U.start+"|"+DV+"|"+(here?here.lat.toFixed(3)+here.lng.toFixed(3):"")+"|"+(startMin==null?"":Math.floor(startMin/5))+"|"+(U.forceAll?1:0)+"|"+JSON.stringify(D);
   if(_brC&&_brC.k===key)return _brC.v;
-  let ids=[...U.selected];let r=routeFor(ids,U.start,{here,startMin});const overflow=[];
+  let ids=[...U.selected];const overflow=[];
+  // Bir güne sığmayacak kadar çok durak seçildiyse hesabı önce önceliğe göre daraltır; yoksa telefon uzun süre donar
+  if(!U.forceAll&&homePt()){const geo=custList().filter(c=>U.selected.has(c.id)&&hasGeo(c));if(geo.length>ROUTE_MAX){const cut=new Set(geo.sort((a,b)=>priority(b).score-priority(a).score).slice(ROUTE_MAX).map(c=>{overflow.push(c);return c.id}));ids=ids.filter(id=>!cut.has(id))}}
+  let r=routeFor(ids,U.start,{here,startMin});
   // 18:00'de evde olmak için sığmayan durakları otomatik olarak yarına bırak
   // Yolu en çok uzatan ve önceliği en düşük durağı çıkar; 18:00'e sığana kadar tekrarla
   if(!U.forceAll&&r.end){let guard=0;while(!r.plan.ok&&r.order.length&&guard++<40){
@@ -384,7 +388,7 @@ function buildRoute(){const D=day();const live=nowMin()>toMin(D.dayStart)-30&&no
     for(let i=1;i<pts.length-1;i++){const a=pts[i-1],c=pts[i],b=pts[i+1];const save=(a?km(a,c):0)+km(c,b)-(a?km(a,b):0);const w=save/(1+priority(c).score/40);if(w>bs){bs=w;bi=i}}
     const c=pts[bi];overflow.push(c);ids=ids.filter(id=>id!==c.id);r=routeFor(ids,U.start,{here,startMin})}}
   // Boş vakit kaldıysa çıkarılanları öncelik sırasıyla geri eklemeyi dene
-  if(overflow.length&&r.plan.ok){overflow.sort((a,b)=>priority(b).score-priority(a).score);for(const c of [...overflow]){const t=routeFor([...ids,c.id],U.start,{here,startMin});if(t.plan.ok){ids.push(c.id);r=t;overflow.splice(overflow.indexOf(c),1)}}}
+  if(overflow.length&&r.plan.ok){overflow.sort((a,b)=>priority(b).score-priority(a).score);for(const c of overflow.slice(0,ROUTE_MAX)){const t=routeFor([...ids,c.id],U.start,{here,startMin});if(t.plan.ok){ids.push(c.id);r=t;overflow.splice(overflow.indexOf(c),1)}}}
   r.overflow=overflow;r.live=live;_brC={k:key,v:r};return r}
 function routeFor(ids,startStr,opt={}){const idset=new Set(ids);
   const sel=custList().filter(c=>idset.has(c.id));
@@ -396,9 +400,9 @@ function routeFor(ids,startStr,opt={}){const idset=new Set(ids);
   // 2-opt with fixed start and fixed end (home)
   const pts=[...(start?[start]:[]),...order,...(end?[end]:[])];const lo=start?1:0,hi=pts.length-(end?2:1);
   const seg=(i,j)=>pts[i]&&pts[j]?km(pts[i],pts[j]):0;
-  let improved=true,guard=0;
-  while(improved&&guard++<60){improved=false;
-    for(let i=lo;i<hi;i++)for(let k=i+1;k<=hi;k++){
+  let improved=true,guard=0;const t0=performance.now(); // uzun rotada süre sınırı: sıra biraz daha az iyi olabilir ama telefon donmaz
+  while(improved&&guard++<60&&performance.now()-t0<ROUTE_MS){improved=false;
+    for(let i=lo;i<hi&&performance.now()-t0<ROUTE_MS;i++)for(let k=i+1;k<=hi;k++){
       const before=seg(i-1,i)+seg(k,k+1),after=seg(i-1,k)+seg(i,k+1);
       if(after+1e-6<before){pts.splice(i,k-i+1,...pts.slice(i,k+1).reverse());improved=true}}}
   order=pts.slice(lo,hi+1);
@@ -488,7 +492,7 @@ function vRoute(){
   const pickable=cs.filter(c=>(!U.region||(c.region||c.district)===U.region)&&(!q||trLow(c.name+" "+(c.district||"")).includes(q)));
   return `${kpis()}
   ${live?`<section class="panel live"><div class="row"><h2>Ziyarette: ${esc(live.name)}</h2><span class="chip warn mono">başladı ${esc(U.live.start)}</span></div>
-    <span class="sub">Görüşmeyi bitirince sonucu ve notunu gir.</span><div class="row"><button class="btn pri" data-act="visit" data-id="${live.id}">Ziyareti bitir ve not al</button><button class="btn ghost" data-act="cancelLive">Vazgeç</button></div></section>`:""}
+    <span class="sub">${U.live.left?`📍 Saat ${esc(U.live.left)} civarı buradan ayrıldın. Görüşme bittiyse notunu gir.`:"Görüşmeyi bitirince sonucu ve notunu gir."}</span>${hasGeo(live)?"":`<span class="why">Bu müşterinin konumu kayıtlı değil. Şu an oradaysan kaydet, bir dahaki sefere ziyaret kendiliğinden başlasın.</span>`}<div class="row"><button class="btn pri" data-act="visit" data-id="${live.id}">Ziyareti bitir ve not al</button>${hasGeo(live)?"":`<button class="btn" data-act="liveGeo" data-id="${live.id}">📍 Konumu kaydet</button>`}<button class="btn ghost" data-act="cancelLive">Vazgeç</button></div></section>`:""}
   ${tripCard()}
   ${sampleCTA()}
   ${sampleItems().length&&S.customers.size>sampleItems().filter(d=>d.kind==="customer").length?`<div class="banner">Gerçek kayıtlarının yanında ${sampleItems().length} örnek kayıt duruyor. <button class="btn sm" data-act="clearSample">Örnekleri temizle</button></div>`:""}
@@ -686,7 +690,7 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
   <form id="visitForm" class="grid3" data-id="${c.id}">
    <label class="f">Tarih<input id="vf_date" type="date" name="date" value="${today()}" required></label>
    <label class="f">Başlangıç<input id="vf_start" type="time" name="start" value="${lv?lv.start:nowTime()}"></label>
-   <label class="f">Bitiş<input id="vf_end" type="time" name="end" value="${nowTime()}"></label>
+   <label class="f">Bitiş<input id="vf_end" type="time" name="end" value="${lv&&lv.left?lv.left:nowTime()}"></label>
    <label class="f">Sonuç<select id="vf_res" name="result">${Object.keys(RESULTS).map(k=>`<option>${k}</option>`).join("")}</select></label>
    <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
    <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return ymd(d)})()}"></label>
@@ -963,7 +967,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.8.0";
+const APP_VERSION="2.9.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1390,14 +1394,19 @@ function vDayEnd(){const d=U.repDate||today();const R=dayReport(d);const txt=rep
 let _watch=null;
 function ensurePos(){if(U.tab!=="rota"||posFresh()||U._posBusy||!("geolocation" in navigator))return;U._posBusy=true;
   getPos().then(p=>{U.lastPos=Object.assign(p,{t:Date.now()});learnHome(p);U._posBusy=false;render()}).catch(()=>{U._posBusy=false;U._posFail=Date.now()})}
-const ARR_KM=0.15,ARR_LEAVE_KM=0.25,ARR_MAX_ACC=100,ARR_FAST=3; // 150 m'ye girince aday olur, 250 m'den uzaklaşınca düşer; 100 m'den kötü konum ve ~11 km/s üstü hız sayılmaz
+const ARR_LEFT_KM=0.3,ARR_KM=0.15,ARR_LEAVE_KM=0.25,ARR_MAX_ACC=100,ARR_FAST=3; // 150 m'ye girince aday olur, 250 m'den uzaklaşınca düşer; 100 m'den kötü konum ve ~11 km/s üstü hız sayılmaz
 const autoVisitOn=()=>day().autoVisit!==false;
 const arrSkipped=id=>!!(U.arrSkip&&U.arrSkip.date===today()&&U.arrSkip.ids.includes(id));
 function arrSkip(id){if(!U.arrSkip||U.arrSkip.date!==today())U.arrSkip={date:today(),ids:[]};if(!U.arrSkip.ids.includes(id))U.arrSkip.ids.push(id);keepUI()}
 function arrivalStops(){const t=today(),skip=U.trip?U.trip.skip:[];return custList().filter(c=>U.selected.has(c.id)&&hasGeo(c)&&!skip.includes(c.id)&&!arrSkipped(c.id)&&!(U.live&&U.live.customerId===c.id)&&!visitsOf(c).some(v=>v.date===t))}
 function arrivalClear(){clearTimeout(U._arrT);U._arrT=null;U.arrived=null;U.arrAt=0}
 function arrivalArm(){if(U.arrived&&!U._arrT&&!U.live&&!U.visitFor&&autoVisitOn())U._arrT=setTimeout(arrivalFire,U.arrDwell??30000)}
-function arrivalCheck(pos){if(pos.acc>ARR_MAX_ACC)return;let ch=false;const cur=U.arrived&&S.customers.get(U.arrived);
+/* Açık ziyarette müşteriden uzaklaşınca not girmeyi hatırlatır, bitiş saatini hazırlar. Ziyareti kendisi kapatmaz. */
+function leaveCheck(pos){const c=U.live&&S.customers.get(U.live.customerId);if(!c||!hasGeo(c))return false;const d=km(pos,c),L=U.live;
+  if(d<ARR_KM){const ch=!L.near||!!L.left;if(ch){L.near=true;delete L.left;keepUI()}return ch}
+  if(L.near&&!L.left&&d>ARR_LEFT_KM){L.left=nowTime();keepUI();toast(c.name+" ziyaretinden ayrıldın. Notunu girmeyi unutma.");return true}
+  return false}
+function arrivalCheck(pos){if(pos.acc>ARR_MAX_ACC)return;let ch=leaveCheck(pos);const cur=U.arrived&&S.customers.get(U.arrived);
   if(U.arrived&&(!cur||!hasGeo(cur)||km(pos,cur)>ARR_LEAVE_KM)){arrivalClear();ch=true}
   if(!U.arrived&&!U.visitFor&&!(pos.speed>ARR_FAST)){const hits=arrivalStops().map(c=>({c,d:km(pos,c)})).filter(x=>x.d<ARR_KM).sort((x,y)=>x.d-y.d);
     if(hits.length){const st=tripState(),hit=(st&&st.cur&&hits.find(x=>x.c.id===st.cur.id))||hits[0];U.arrived=hit.c.id;U.arrAt=Date.now();ch=true}}
@@ -1408,10 +1417,10 @@ async function arrivalFire(){const id=U.arrived;if(!id||U.live||U.visitFor||!aut
   U._arrT=-1; /* konum beklenirken yeniden kurulmasın */
   const pos=(await arrFix())||U.lastPos;const c=S.customers.get(id);if(U._arrT===-1)U._arrT=null;if(U.arrived!==id||U.live||U.visitFor)return;
   if(!c||!arrivalStops().some(x=>x.id===id)||!pos||km(pos,c)>ARR_LEAVE_KM||pos.speed>ARR_FAST){arrivalClear();render();return}
-  U.live={customerId:id,start:new Date(U.arrAt||Date.now()).toTimeString().slice(0,5),date:today(),auto:true};arrivalClear();keepUI();
+  U.live={customerId:id,start:new Date(U.arrAt||Date.now()).toTimeString().slice(0,5),date:today(),auto:true,near:true};arrivalClear();keepUI();
   toast("Ziyaret kendiliğinden başladı: "+c.name,{label:"Geri al",fn:async()=>{U.live=null;arrSkip(id);render()}});render()}
 function mapMeUpdate(){const el=document.querySelector("#mapSvg .me");if(!el||M.z==null||!U.lastPos)return;const v=nmProj(U.lastPos.lat,U.lastPos.lng,M.z);el.style.left=((v.x-M.cx+M.W/2)/M.W*100).toFixed(3)+"%";el.style.top=((v.y-M.cy+M.H/2)/M.H*100).toFixed(3)+"%"}
-function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();arrivalArm();const want=U.selected.size>0&&document.visibilityState==="visible"&&"geolocation" in navigator;
+function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();arrivalArm();const want=(U.selected.size>0||!!U.live)&&document.visibilityState==="visible"&&"geolocation" in navigator;
   if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed,t:Date.now()};U.lastPos=pos;if(U.geoDenied){U.geoDenied=false;render()}mapMeUpdate();arrivalCheck(pos)},e=>{if(e.code===1&&!U.geoDenied){U.geoDenied=true;render()}},{enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
   else if(!want&&_watch!=null){navigator.geolocation.clearWatch(_watch);_watch=null}}
 function homeBanner(){if(U.tab!=="rota"||U.detail)return "";const D=day();const H=homePt();let out="";
@@ -1713,6 +1722,10 @@ document.addEventListener("click",async e=>{
     U.prospects.list.splice(Number(b.dataset.i),1);U.nmSel=null;toast(x.name+" aday olarak eklendi");render();if(U.sheet==="nearMap")renderSheet();return}
   else if(a==="repCopy"){try{await navigator.clipboard.writeText(reportText(dayReport(U.repDate||today())));toast("Kopyalandı")}catch(e){toast("Kopyalanamadı")}return}
   else if(a==="viewPhoto"){U.photoView=b.src;U.sheet="photo";renderSheet();return}
+  else if(a==="liveGeo"){const c=S.customers.get(id);if(!c||hasGeo(c))return;b.disabled=true;let pos=null;try{pos=await arrFix()}catch(er){}if(!pos&&U.lastPos&&Date.now()-(U.lastPos.t||0)<60e3)pos=U.lastPos;
+    if(!pos||pos.acc>ARR_MAX_ACC){b.disabled=false;toast(pos?"Konum yeterince net değil. Açık havada tekrar dene.":"Konum alınamadı, tekrar dene.");return}
+    const lat=+pos.lat.toFixed(6),lng=+pos.lng.toFixed(6);await save(Object.assign({},c,{lat,lng}));if(U.live&&U.live.customerId===id){U.live.near=true;keepUI()}
+    toast("Konum kaydedildi. Bir dahaki ziyarette kendiliğinden başlar.",{label:"Geri al",fn:async()=>{const n=S.customers.get(id);if(!n)return;const o=Object.assign({},n);delete o.lat;delete o.lng;await save(o)}});return}
   else if(a==="arrClose"){if(U.arrived)arrSkip(U.arrived);arrivalClear()}
   else if(a==="autoVisit"){const on=!autoVisitOn();await saveDay({autoVisit:on});arrivalClear();toast(on?"Varınca ziyaret kendiliğinden başlayacak":"Otomatik başlatma kapatıldı. Varınca yalnızca sorarım.")}
   else if(a==="msgTab"){U.msg2.tab=b.dataset.v;if(b.dataset.v!=="kampanya")U.msg2.queue=null}

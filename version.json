@@ -1,1 +1,1 @@
-{"version": "2.8.0", "notes": "Rotadaki müşteriye varınca uygulama açıksa ziyaret kendiliğinden başlar. Açık ziyaret uygulama kapanınca kaybolmaz."}
+{"version": "2.9.0", "notes": "Çok duraklı rotada donma giderildi. Müşteriden ayrılınca not hatırlatılır; konumu olmayan müşterinin konumu ziyaretten tek dokunuşla kaydedilir."}

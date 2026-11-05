@@ -333,7 +333,7 @@ function render(){
   const fe=document.activeElement,fid=fe&&fe.id,pos=fe&&fe.selectionStart;
   const locked=CLOUD.on&&!CLOUD.user;document.querySelector("nav.bottom").hidden=locked;$(".iconbtn[data-act=openSearch]").hidden=locked;
   if(locked){app.innerHTML=lockScreen();U.sheet=null;renderSheet();return}
-  setHTML(app,updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="stok"?vStockPage():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders()));
+  setHTML(app,updateBanner()+(U.tab==="rota"||U.tab==="rapor"?moveBanner():"")+homeBanner()+arrivalBanner()+nearBanner()+(U.tab==="mesaj"?"":overdueBanner())+(U.detail?vDetail():U.tab==="rota"?vRoute():U.tab==="harita"?vMap():U.tab==="musteri"?vCustomers():U.tab==="ziyaret"?vVisits():U.tab==="rapor"?vReport():U.tab==="asistan"?vAI():U.tab==="mesaj"?vMsg():U.tab==="daha"?vMore():U.tab==="stok"?vStockPage():U.tab==="satis"?vSales():U.tab==="yakin"?vNear():U.tab==="gunsonu"?vDayEnd():vOrders()));
   renderSheet();hydratePhotos();greet();arrivalWatch();labelTables();
   if(fid&&document.activeElement!==document.getElementById(fid)){const el=document.getElementById(fid);if(el){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}
 }
@@ -537,7 +537,7 @@ function dayPanel(){const D=day();const L=D.lunchPlaces||[];
     <label class="f">Öğle bitiş<input id="df_lt" type="time" name="lunchTo" value="${esc(D.lunchTo)}"></label>
     <label class="f">Yemek süresi (dk)<input id="df_lm" type="number" min="15" name="lunchMin" value="${esc(D.lunchMin)}"></label>
     <label class="f">Trafikte ort. hız (km/s)<input id="df_sp" type="number" min="8" name="speed" value="${esc(D.speed)}"></label>
-    <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="autoVisit">📍 Varınca ziyareti otomatik başlat: ${autoVisitOn()?"Açık":"Kapalı"}</button></div>
+    <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="autoVisit">📍 Varınca ziyareti otomatik başlat: ${autoVisitOn()?"Açık":"Kapalı"}</button><button class="btn sm" type="button" data-act="nearAsk">📍 Rotada olmayan yakındaki müşteriyi sor: ${nearAskOn()?"Açık":"Kapalı"}</button></div>
     <label class="f" style="grid-column:1/-1">Yol tarifi hangi haritada açılsın?<select id="df_map" name="mapApp">${Object.keys(MAP_APPS).map(k=>`<option value="${k}" ${k===mapApp()?"selected":""}>${MAP_APPS[k]}</option>`).join("")}</select></label>
     <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Ayarları kaydet</button><span class="why">Yol süresi kuş uçuşu mesafe ×1,35 ÷ hız + 5 dk park olarak tahmin edilir.</span></div>
    </form>
@@ -967,7 +967,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.9.0";
+const APP_VERSION="2.10.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1410,7 +1410,22 @@ function arrivalCheck(pos){if(pos.acc>ARR_MAX_ACC)return;let ch=leaveCheck(pos);
   if(U.arrived&&(!cur||!hasGeo(cur)||km(pos,cur)>ARR_LEAVE_KM)){arrivalClear();ch=true}
   if(!U.arrived&&!U.visitFor&&!(pos.speed>ARR_FAST)){const hits=arrivalStops().map(c=>({c,d:km(pos,c)})).filter(x=>x.d<ARR_KM).sort((x,y)=>x.d-y.d);
     if(hits.length){const st=tripState(),hit=(st&&st.cur&&hits.find(x=>x.c.id===st.cur.id))||hits[0];U.arrived=hit.c.id;U.arrAt=Date.now();ch=true}}
+  if(nearCheck(pos))ch=true;
   if(ch)render()}
+/* Rotada olmayan müşteri: 80 m içinde 1 dakika kalınca yalnızca sorar, kendiliğinden başlatmaz. "Hayır" o müşteriyi bugünlük, diğerlerini 30 dakika susturur. */
+const NEAR_KM=0.08,NEAR_MS=60000,NEAR_QUIET=30*60e3,NEAR_MAX_ACC=50;
+const nearAskOn=()=>day().nearAsk!==false;
+function inWorkHours(){const D=day(),n=nowMin();return n>=toMin(D.dayStart)&&n<=toMin(D.arriveBy)}
+function nearStops(){const t=today(),H=homePt();return custList().filter(c=>!U.selected.has(c.id)&&hasGeo(c)&&c.status!=="Pasif"&&!arrSkipped(c.id)&&!(H&&km(H,c)<0.2)&&!visitsOf(c).some(v=>v.date===t))}
+function nearClear(){clearTimeout(U._nearT);U._nearT=null;U.nearCand=null;U.nearAsk=null;U.nearAt=0}
+function nearCheck(pos){const id=U.nearAsk||(U.nearCand&&U.nearCand.id);
+  if(id){const c=S.customers.get(id);if(!c||!hasGeo(c)||km(pos,c)>ARR_LEAVE_KM||U.live||U.arrived){nearClear();return true}return false}
+  if(!nearAskOn()||U.live||U.arrived||U.visitFor||!inWorkHours()||pos.speed>ARR_FAST||pos.acc>NEAR_MAX_ACC||Date.now()<(U.nearQuiet||0))return false;
+  const hit=nearStops().map(c=>({c,d:km(pos,c)})).filter(x=>x.d<NEAR_KM).sort((x,y)=>x.d-y.d)[0];
+  if(hit){U.nearCand={id:hit.c.id,at:Date.now()};U._nearT=setTimeout(nearFire,U.nearDwell??NEAR_MS)}return false}
+async function nearFire(){U._nearT=null;const C=U.nearCand;if(!C)return;const pos=(await arrFix())||U.lastPos;if(U.nearCand!==C)return;const c=S.customers.get(C.id);
+  if(!c||!pos||km(pos,c)>ARR_LEAVE_KM||pos.speed>ARR_FAST||U.live||U.arrived||U.visitFor){nearClear();render();return}
+  U.nearAsk=C.id;U.nearAt=C.at;U.nearCand=null;render()}
 function arrFix(){return new Promise(res=>{navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}),()=>res(null),{enableHighAccuracy:true,timeout:U.arrFixMs??8000,maximumAge:0})})}
 /* Kısa bekleme bitti: hâlâ oradaysan ziyareti başlatır. Konum o an alınamazsa (bina içi) son konuma güvenir. */
 async function arrivalFire(){const id=U.arrived;if(!id||U.live||U.visitFor||!autoVisitOn()){U._arrT=null;return}
@@ -1420,7 +1435,7 @@ async function arrivalFire(){const id=U.arrived;if(!id||U.live||U.visitFor||!aut
   U.live={customerId:id,start:new Date(U.arrAt||Date.now()).toTimeString().slice(0,5),date:today(),auto:true,near:true};arrivalClear();keepUI();
   toast("Ziyaret kendiliğinden başladı: "+c.name,{label:"Geri al",fn:async()=>{U.live=null;arrSkip(id);render()}});render()}
 function mapMeUpdate(){const el=document.querySelector("#mapSvg .me");if(!el||M.z==null||!U.lastPos)return;const v=nmProj(U.lastPos.lat,U.lastPos.lng,M.z);el.style.left=((v.x-M.cx+M.W/2)/M.W*100).toFixed(3)+"%";el.style.top=((v.y-M.cy+M.H/2)/M.H*100).toFixed(3)+"%"}
-function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();arrivalArm();const want=(U.selected.size>0||!!U.live)&&document.visibilityState==="visible"&&"geolocation" in navigator;
+function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();arrivalArm();const want=(U.selected.size>0||!!U.live||(nearAskOn()&&inWorkHours()&&S.customers.size>0))&&document.visibilityState==="visible"&&"geolocation" in navigator;
   if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed,t:Date.now()};U.lastPos=pos;if(U.geoDenied){U.geoDenied=false;render()}mapMeUpdate();arrivalCheck(pos)},e=>{if(e.code===1&&!U.geoDenied){U.geoDenied=true;render()}},{enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
   else if(!want&&_watch!=null){navigator.geolocation.clearWatch(_watch);_watch=null}}
 function homeBanner(){if(U.tab!=="rota"||U.detail)return "";const D=day();const H=homePt();let out="";
@@ -1450,6 +1465,8 @@ function moveBanner(){if(location.hostname==="drogo36.github.io"||location.proto
    <span class="sub">Uygulama artık doğrudan GitHub'da yayında; ücretsiz servislere bağlı kalmaz. Taşınmak 3 adım:</span>
    <ol class="sub" style="margin:0;padding-left:20px;display:grid;gap:4px"><li><b>Yedek al</b> (aşağıdaki düğme) ve dosyayı iCloud Drive'a kaydet.</li><li>Safari'de <b style="user-select:all">drogo36.github.io/saha-satis/boot.html</b> adresini aç → Paylaş → <b>Ana Ekrana Ekle</b>.</li><li>Yeni uygulamada Rapor → <b>Yedekten geri yükle</b>. Sonra bu eski simgeyi sil.</li></ol>
    <div class="row"><button class="btn pri sm" data-act="backup">1. Yedek al</button><a class="btn sm" href="${HOME_URL}" target="_blank" rel="noopener">2. Yeni adresi aç</a><button class="btn ghost sm" data-act="moveLater">Bugün gizle</button></div></section>`}
+function nearBanner(){const c=U.nearAsk&&S.customers.get(U.nearAsk);if(!c||U.live||U.visitFor)return "";
+  return `<div class="hero" id="nearBanner" style="gap:10px"><span style="font-size:13px;opacity:.85">📍 Yakınındasın</span><b style="font-size:18px;overflow-wrap:anywhere">${esc(c.name)}</b><span style="font-size:13px;opacity:.9">Bu müşteri bugünkü rotanda yok. Ziyaret başlatayım mı?</span><div class="row"><button class="btn" style="background:#fff;color:var(--navy);border:0" data-act="nearStart" data-id="${c.id}">Ziyareti başlat</button><button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.4)" data-act="nearNo" data-id="${c.id}">Hayır</button></div></div>`}
 function arrivalBanner(){const c=U.arrived&&S.customers.get(U.arrived);if(!c||U.tab!=="rota")return "";const lv=U.live&&S.customers.get(U.live.customerId);
   const closeBtn=t=>`<button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.4)" data-act="arrClose">${t}</button>`,mainBtn=(act,id,t)=>`<button class="btn" style="background:#fff;color:var(--navy);border:0" data-act="${act}" data-id="${id}">${t}</button>`;
   const auto=!lv&&autoVisitOn();
@@ -1726,6 +1743,9 @@ document.addEventListener("click",async e=>{
     if(!pos||pos.acc>ARR_MAX_ACC){b.disabled=false;toast(pos?"Konum yeterince net değil. Açık havada tekrar dene.":"Konum alınamadı, tekrar dene.");return}
     const lat=+pos.lat.toFixed(6),lng=+pos.lng.toFixed(6);await save(Object.assign({},c,{lat,lng}));if(U.live&&U.live.customerId===id){U.live.near=true;keepUI()}
     toast("Konum kaydedildi. Bir dahaki ziyarette kendiliğinden başlar.",{label:"Geri al",fn:async()=>{const n=S.customers.get(id);if(!n)return;const o=Object.assign({},n);delete o.lat;delete o.lng;await save(o)}});return}
+  else if(a==="nearStart"){const c=S.customers.get(id);if(!c)return;U.live={customerId:id,start:new Date(U.nearAt||Date.now()).toTimeString().slice(0,5),date:today(),near:true};nearClear();keepUI();toast("Ziyaret başladı "+U.live.start)}
+  else if(a==="nearNo"){arrSkip(id);U.nearQuiet=Date.now()+NEAR_QUIET;nearClear()}
+  else if(a==="nearAsk"){const on=!nearAskOn();await saveDay({nearAsk:on});nearClear();toast(on?"Rotada olmayan yakındaki müşteriyi soracağım":"Rotada olmayan müşteriyi artık sormayacağım")}
   else if(a==="arrClose"){if(U.arrived)arrSkip(U.arrived);arrivalClear()}
   else if(a==="autoVisit"){const on=!autoVisitOn();await saveDay({autoVisit:on});arrivalClear();toast(on?"Varınca ziyaret kendiliğinden başlayacak":"Otomatik başlatma kapatıldı. Varınca yalnızca sorarım.")}
   else if(a==="msgTab"){U.msg2.tab=b.dataset.v;if(b.dataset.v!=="kampanya")U.msg2.queue=null}

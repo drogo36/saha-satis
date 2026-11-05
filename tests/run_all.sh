@@ -28,6 +28,7 @@ run "Öğle: TokenFlex'te ara" tests/tokenflex.py
 run "Rotaya başla, haritalar, yer adı" tests/rota.py
 run "Varınca ziyareti başlatma, harita bağlantıları" tests/varis.py
 run "Hız: çok duraklı rota, ayrılış, konum kaydı" tests/hiz.py
+run "Rotada olmayan yakın müşteri sorusu" tests/yakinsor.py
 run "Plan: rotayı kontrol et, eski sürüm" tests/plan.py
 run "Kendiliğinden güncelleme" tests/upd.py
 [ -n "${SRV:-}" ] && kill $SRV 2>/dev/null

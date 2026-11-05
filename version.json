@@ -1,1 +1,1 @@
-{"version": "2.9.0", "notes": "Çok duraklı rotada donma giderildi. Müşteriden ayrılınca not hatırlatılır; konumu olmayan müşterinin konumu ziyaretten tek dokunuşla kaydedilir."}
+{"version": "2.10.0", "notes": "Rotada olmayan bir müşterinin yanında 1 dakika kalınca uygulama ziyaret başlatmak isteyip istemediğini sorar."}

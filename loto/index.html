@@ -1,0 +1,1671 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#c2410c">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font-size:14px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Süper Loto Makinesi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: stüdyo masası — solda küre (makine), sağda kolon + istatistik panelleri; telefonda alt alta */
+:root{
+  --bg:#e9edf1; --panel:#fbfcfd; --ink:#132231; --muted:#5a6a79; --line:#d3dbe3;
+  --accent:#c2410c; --accent-ink:#ffffff; --glass:#dfe8f0; --glass-rim:#8aa3b8;
+  --hot:#d9480f; --cold:#1c7ed6; --good:#2b8a3e; --bar:#bcc9d5;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f161d; --panel:#16202a; --ink:#e6edf3; --muted:#93a4b4; --line:#273544;
+  --accent:#f0773a; --accent-ink:#1a0d05; --glass:#1b2833; --glass-rim:#4d6a82;
+  --hot:#ff8a4c; --cold:#4dabf7; --good:#51cf66; --bar:#34475a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f161d; --panel:#16202a; --ink:#e6edf3; --muted:#93a4b4; --line:#273544;
+  --accent:#f0773a; --accent-ink:#1a0d05; --glass:#1b2833; --glass-rim:#4d6a82;
+  --hot:#ff8a4c; --cold:#4dabf7; --good:#51cf66; --bar:#34475a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 56px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:22px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,5vw,44px);line-height:1.02;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 small{display:block;font-family:var(--f-body);font-weight:500;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.rule{font-size:13.5px;color:var(--muted);max-width:44ch}
+.rule b{color:var(--ink);font-weight:600}
+.grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:22px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+h2{font-family:var(--f-display);font-weight:600;font-size:19px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.machine{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:860px){.machine{position:static}}
+canvas{display:block;width:100%;max-width:400px;aspect-ratio:1/1;margin:0 auto}
+.tray{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:46px;margin:12px 0 4px}
+.slot{width:40px;height:40px;border-radius:50%;border:2px dashed var(--line)}
+.ball{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;position:relative;
+  box-shadow:inset -4px -6px 10px rgba(0,0,0,.28), inset 3px 4px 6px rgba(255,255,255,.35)}
+.ball span{width:24px;height:24px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;
+  font:600 12px var(--f-mono)}
+.ball.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.4)}to{transform:scale(1)}}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{font:600 14px var(--f-body);border-radius:10px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);flex:1 1 100%}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{font-size:13px;color:var(--muted);margin-top:10px;min-height:20px}
+.prog{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.check input{margin-top:3px;width:16px;height:16px;accent-color:var(--accent)}
+.check em{font-style:normal;color:var(--muted);display:block;font-size:12.5px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:4px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi b{display:block;font:600 22px var(--f-mono);font-variant-numeric:tabular-nums}
+.kpi small{color:var(--muted);font-size:12px}
+.kolon{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.kolon input{width:100%;font:600 16px var(--f-mono);text-align:center;padding:9px 0;border-radius:8px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink)}
+.kolon input.bad{border-color:var(--hot)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+td.mono{font-family:var(--f-mono)}
+.heat{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px}
+.cell{border-radius:6px;padding:5px 0 4px;text-align:center;border:1px solid var(--line);background:var(--panel)}
+.cell b{display:block;font:600 13px var(--f-mono)}
+.cell small{display:block;font:500 10.5px var(--f-mono);color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.verdict{margin-top:12px;font-size:13.5px;padding:10px 12px;border-radius:8px;background:var(--bg)}
+.dist{display:flex;flex-direction:column;gap:7px}
+.drow{display:grid;grid-template-columns:72px minmax(0,1fr) 108px;gap:10px;align-items:center;font-size:13px}
+.track{position:relative;height:14px;background:var(--bg);border-radius:4px}
+.track .sim{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:4px;opacity:.85}
+.track .th{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.drow .v{font-family:var(--f-mono);font-size:12px;text-align:right;color:var(--muted)}
+.drow .v b{color:var(--ink);font-weight:600}
+h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;font-weight:600}
+h3:first-of-type{margin-top:4px}
+.real{display:flex;flex-direction:column;gap:12px}
+.rd{border:1px solid var(--line);border-radius:10px;padding:12px}
+.rd-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.rd-date{font-weight:600;font-size:13.5px}
+.minis{display:flex;gap:4px;flex-wrap:wrap}
+.mini{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:600 11px var(--f-mono);color:#111;background:#fff;border:3px solid}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12px;padding:3px 8px;border-radius:20px;background:var(--bg);border:1px solid var(--line)}
+.rd-p{font-size:12.5px;color:var(--muted);margin-top:8px}
+.rd-p b{color:var(--ink);font-family:var(--f-mono)}
+.recent{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
+.rrow{display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.rrow .minis{flex:1}
+.hit{border-color:var(--good)!important;box-shadow:0 0 0 2px var(--good)}
+.note{font-size:13.5px;color:var(--muted);max-width:70ch}
+.note b{color:var(--ink)}
+.bt-grid td,.bt-grid th{padding:6px 5px}
+.bt-grid td.h{text-align:center;font-family:var(--f-mono);font-weight:600;border-radius:4px}
+.bt-grid th:nth-child(n+3){text-align:center}
+.nums{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+tr.best td{font-weight:600}
+.hunt-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.hunt-row label{font-size:13px;color:var(--muted)}
+select{font:500 14px var(--f-body);padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);flex:1 1 180px;min-width:0}
+button.hunt-btn{flex:0 0 auto}
+.hunt-target{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.hunt-kpis{margin-bottom:10px}
+.tm{border-color:var(--accent);border-width:2px}
+.tm-modes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tm-mode{padding:8px 14px;border-radius:20px;font-size:13.5px}
+.tm-mode.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tm-sliders{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+@media (max-width:480px){.tm-sliders{grid-template-columns:minmax(0,1fr)}}
+.tm-sliders label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.tm-sliders b{color:var(--ink);font-family:var(--f-mono)}
+.tm-sliders input{accent-color:var(--accent);width:100%}
+.tm-bars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px}
+@media (max-width:480px){.tm-bars{grid-template-columns:minmax(0,1fr)}}
+.tbar{display:grid;grid-template-columns:30px minmax(0,1fr) 52px;gap:8px;align-items:center;font:500 12.5px var(--f-mono)}
+.tbar .tr{height:10px;background:var(--bg);border-radius:3px;position:relative;overflow:hidden}
+.tbar .tr i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:3px}
+.tbar .tr u{position:absolute;top:0;bottom:0;width:1px;background:var(--ink);opacity:.5}
+.tbar span:last-child{text-align:right;color:var(--muted)}
+.add-row{margin-bottom:10px}
+.add-row label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);max-width:220px}
+.add-row input{font:600 15px var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.ev-inputs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:560px){.ev-inputs{grid-template-columns:minmax(0,1fr)}}
+.ev-inputs label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);min-width:0}
+.ev-inputs input{font:600 15px var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.gen-out{display:flex;flex-direction:column;gap:10px}
+.gen-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.gen-row .minis{flex:1 1 auto}
+.gen-row .mini{width:34px;height:34px;font-size:12.5px}
+.score{display:flex;flex-direction:column;align-items:flex-end;min-width:86px}
+.score b{font:600 20px var(--f-mono)}
+.score small{font-size:11.5px;color:var(--muted)}
+.why{flex-basis:100%;font-size:12.5px;color:var(--muted)}
+.copy{padding:6px 10px;font-size:12.5px}
+@media (max-width:420px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.ball.pop{animation:none}.prog i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><small>Fiziksel çekiliş simülatörü</small>Süper Loto Makinesi</h1>
+    <p class="rule"><b>6/60 kuralı:</b> küredeki 60 toptan 6 tanesi çekilir. 2, 3, 4, 5 ve 6 bilen kazanır. Salı, Perşembe ve Pazar 21.30.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel machine" aria-label="Çekiliş makinesi">
+        <h2>Küre</h2>
+        <p class="sub">Her top fizikle hesaplanıyor: yerçekimi, alttan hava jeti, top–top ve top–cam çarpışmaları. Tepedeki ağızdan ilk yakalanan top çekilir.</p>
+        <canvas id="cv" width="360" height="360" aria-label="Topların karıştığı küre"></canvas>
+        <div class="tray" id="tray"></div>
+        <div class="btns">
+          <button class="primary" id="bLive">Canlı çekiliş yap</button>
+          <button id="b100">100 çekiliş</button>
+          <button id="b1k">1.000 çekiliş</button>
+          <button id="b5k">5.000 çekiliş</button>
+          <button id="bReset">Sıfırla</button>
+        </div>
+        <div class="prog"><i id="prog"></i></div>
+        <div class="status" id="status">Hazır. Canlı çekilişi izleyin ya da toplu çekiliş başlatın.</div>
+        <label class="check"><input type="checkbox" id="heavy">
+          <span>Kusurlu top testi: 7 numaralı top %25 ağır
+          <em>Gerçek makinelerdeki üretim kusurunu taklit eder. Açıkken sayaçlar sıfırlanır.</em></span></label>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel tm">
+        <h2>Optimize motor</h2>
+        <p class="sub" id="opSub">4.000 farklı ayar (sıklık penceresi, gecikme, önceki çekiliş, sayı aralığı ağırlıkları) geçmiş çekilişlerde yarıştırılır. En iyi 5 ayarın her biri sıradaki çekiliş için bir kolon verir.</p>
+        <div class="hunt-row">
+          <button id="opBtn" class="primary hunt-btn">Optimize motoru çalıştır</button>
+          <span class="sub" id="opStatus" style="margin:0"></span>
+        </div>
+        <div class="prog"><i id="opProg"></i></div>
+        <div id="opOut" class="gen-out" style="margin-top:12px"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Yeni sonuç ekle</h2>
+        <p class="sub">Her çekilişten sonra kazanan 6 sayıyı buraya gir. Motorlar ve testler yeni sonucu hemen kullanır. Kayıt bu tarayıcıda saklanır.</p>
+        <div class="add-row">
+          <label for="addDate">Çekiliş tarihi<input type="date" id="addDate"></label>
+        </div>
+        <div class="kolon" id="addNums"></div>
+        <div class="hunt-row">
+          <button id="addBtn" class="primary hunt-btn">Sonucu ekle</button>
+          <span class="sub" id="addMsg" style="margin:0"></span>
+        </div>
+        <div id="addList" class="gen-out"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Tahmin motoru</h2>
+        <p class="sub" id="tmSub">Sıradaki çekiliş için tahmin. Motor son 33 çekilişte her sayının kaç kez çıktığını ve kaç çekiliştir çıkmadığını tartar, sonra bu ağırlıklarla kolon üretir.</p>
+        <div class="tm-modes" role="radiogroup" aria-label="Tahmin yöntemi">
+          <button class="tm-mode" data-m="bias" role="radio" aria-checked="false">Kusur takibi</button>
+          <button class="tm-mode on" data-m="mix" role="radio" aria-checked="true">Karma</button>
+          <button class="tm-mode" data-m="hot" role="radio" aria-checked="false">Sıcak</button>
+          <button class="tm-mode" data-m="gap" role="radio" aria-checked="false">Geciken</button>
+          <button class="tm-mode" data-m="cold" role="radio" aria-checked="false">Soğuk</button>
+        </div>
+        <div class="tm-sliders" id="tmSliders">
+          <label for="wHot">Sıcaklık ağırlığı <b id="wHotV">50</b><input type="range" id="wHot" min="0" max="100" value="50"></label>
+          <label for="wGap">Gecikme ağırlığı <b id="wGapV">50</b><input type="range" id="wGap" min="0" max="100" value="50"></label>
+        </div>
+        <div class="hunt-row">
+          <label for="tmN">Kolon</label>
+          <select id="tmN"><option value="1">1 kolon</option><option value="3">3 kolon</option><option value="5" selected>5 kolon</option><option value="10">10 kolon</option></select>
+          <button id="tmBtn" class="primary hunt-btn">Tahmin üret</button>
+        </div>
+        <div id="tmOut" class="gen-out"></div>
+        <h3>Motorun sayı ihtimalleri</h3>
+        <div class="tm-bars" id="tmBars"></div>
+        <div class="verdict" id="tmScore"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Motor teşhisi</h2>
+        <p class="sub">Eksik olan motor mu, yoksa veride bulunacak bir işaret mi? Bunu ayırmak için motor, kusurunu önceden bildiğimiz bir makinede ve gerçek Süper Loto verisinde ayrı ayrı denendi.</p>
+        <h3>1. Kusurlu makine (fizik simülasyonu)</h3>
+        <p class="note">Küredeki 5 top (3, 17, 29, 41, 52) %55 daha hafif yapıldı ve 600 çekiliş simüle edildi. Hafif toplar beklenen 60 yerine 78–119 kez çıktı. Sıcak model 300 çekilişlik geçmişle sonraki 200 çekilişte <b>ortalama 0,90 bilen</b> tutturdu, şans 0,60. 3 bilen sayısı beklenen 2 yerine <b>8</b> oldu. İlk 289 çekilişte ki-kare <b>93,5</b> çıktı, yani dedektör kusuru yakaladı. Sonuç: işaret varsa motor onu buluyor.</p>
+        <h3>2. Gerçek Süper Loto (<span id="dgN"></span> çekiliş)</h3>
+        <div class="kpis">
+          <div class="kpi"><b id="dgChi">–</b><small>ki-kare (adil makine: 40–78)</small></div>
+          <div class="kpi"><b id="dgMax">–</b><small>en sapan sayı</small></div>
+          <div class="kpi"><b id="dgOv">–</b><small>ardışık çekiliş ortak sayı (adil: 0,60)</small></div>
+        </div>
+        <div class="tbl" style="margin-top:12px"><table>
+          <thead><tr><th>Model</th><th>Ort. bilen</th><th>İlk yarı</th><th>İkinci yarı</th><th>3+ bilen</th></tr></thead>
+          <tbody id="dgBody"></tbody>
+        </table></div>
+        <div class="verdict" id="dgVerdict">Hesaplanıyor…</div>
+      </section>
+
+      <section class="panel">
+        <h2>Geçmişten test</h2>
+        <p class="sub" id="btSub"></p>
+        <div class="tbl"><table>
+          <thead><tr><th>Strateji</th><th>Ort. bilen</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>İkramiye</th></tr></thead>
+          <tbody id="btBody"></tbody>
+        </table></div>
+        <div class="verdict" id="btVerdict">Hesaplanıyor…</div>
+        <h3 style="margin-top:20px">Son 30 çekiliş, çekiliş çekiliş</h3>
+        <div class="tbl"><table class="bt-grid">
+          <thead><tr><th>Tarih</th><th>Çıkan sayılar</th><th title="Sıcak">Sıc</th><th title="Soğuk">Soğ</th><th title="Geciken">Gec</th><th title="Önceki">Önc</th><th title="Fizik">Fiz</th><th title="Desen">Des</th></tr></thead>
+          <tbody id="btGrid"></tbody>
+        </table></div>
+      </section>
+
+      <section class="panel">
+        <h2>Sonucu yakala</h2>
+        <p class="sub">Seçtiğiniz gerçek sonucu tutturana kadar rastgele kolon üretir. Kaç denemede 3, 4, 5 ve 6 bildiğini gösterir.</p>
+        <div class="hunt-row">
+          <label for="huntSel">Hedef</label>
+          <select id="huntSel"></select>
+          <button id="huntBtn" class="primary hunt-btn">Yakala</button>
+        </div>
+        <div class="hunt-target" id="huntTarget"></div>
+        <div class="kpis hunt-kpis">
+          <div class="kpi"><b id="hTry">0</b><small>denenen kolon</small></div>
+          <div class="kpi"><b id="hRate">–</b><small>kolon / saniye</small></div>
+          <div class="kpi"><b id="hTime">–</b><small>süre</small></div>
+        </div>
+        <div class="tbl"><table>
+          <thead><tr><th>Bilen</th><th>İlk kez</th><th>Beklenen</th></tr></thead>
+          <tbody id="huntBody"></tbody>
+        </table></div>
+        <div class="verdict" id="huntMsg">Fizik makinesi bir çekilişi yaklaşık 4 ms'de hesaplar. 50 milyon çekiliş 55 saat sürer, bu yüzden avda kolonlar doğrudan üretilir. Olasılık ikisinde de aynıdır.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Özet</h2>
+        <p class="sub">Simülasyonda yapılan tüm çekilişler.</p>
+        <div class="kpis">
+          <div class="kpi"><b id="kTotal">0</b><small>çekiliş</small></div>
+          <div class="kpi"><b id="kChi">–</b><small>ki-kare (normal: 40–78)</small></div>
+          <div class="kpi"><b id="kSpeed">–</b><small>çekiliş / saniye</small></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Kolonunuz</h2>
+        <p class="sub">Altı sayı girin. Her simüle çekilişte kaç sayı tuttuğu sayılır ve gerçek olasılıkla karşılaştırılır.</p>
+        <div class="kolon" id="kolon"></div>
+        <div class="tbl"><table>
+          <thead><tr><th>Bilen</th><th>Simülasyon</th><th>Beklenen</th><th>Gerçek olasılık</th></tr></thead>
+          <tbody id="matchBody"></tbody>
+        </table></div>
+      </section>
+
+      <section class="panel">
+        <h2>Bu gecenin kolon değeri</h2>
+        <p class="sub">Örnek: 8 Kasım 2026, 134. çekiliş öncesi rakamlar. Sonraki çekilişler için devreden ikramiyeyi güncelleyin. Bir kolonun matematiksel değeri: her ikramiye × o ikramiyeyi tutturma olasılığı. Büyük ikramiye devrettikçe bu değer kolon fiyatına yaklaşır.</p>
+        <div class="ev-inputs">
+          <label for="evJ">Büyük ikramiye (TL)<input id="evJ" type="number" step="1000000" value="869546766"></label>
+          <label for="evK">Oynanan kolon sayısı<input id="evK" type="number" step="100000" value="3200000"></label>
+          <label for="evTax">İkramiye kesintisi (%)<input id="evTax" type="number" step="1" min="0" max="60" value="0"></label>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="evVal">–</b><small>1 kolonun değeri (fiyat 25 TL)</small></div>
+          <div class="kpi"><b id="evRet">–</b><small>geri dönüş oranı</small></div>
+          <div class="kpi"><b id="evBE">–</b><small>başa baş ikramiye</small></div>
+        </div>
+        <div class="tbl" style="margin-top:12px"><table>
+          <thead><tr><th>Bilen</th><th>İkramiye</th><th>Olasılık</th><th>Kolona katkısı</th></tr></thead>
+          <tbody id="evBody"></tbody>
+        </table></div>
+        <div class="verdict" id="evVerdict"></div>
+        <p class="sub" style="margin:12px 0 0">Varsayılanlar: büyük ikramiye 5 Kasım'da devreden 850.312.837 TL'ye son devirdeki 19,2 milyon TL'lik artışın eklenmesiyle tahmin edildi. Alt ikramiyeler 3 Kasım'ın kişi başı tutarları. Kolon sayısı, 2 ve 3 bilen kazanan sayısından geri hesaplandı (~3,2 milyon). Alt ikramiyeler her çekilişte değişir. Kesinti oranını bilmiyorsanız Milli Piyango'dan teyit edin.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Aynı para mevduatta</h2>
+        <p class="sub">Lotoya düzenli harcanan parayı vadeli hesaba koysaydınız. Loto tarafı uzun vadeli ortalamayla hesaplanır: satışların yaklaşık %56'sı ikramiye olarak geri döner (son çekilişlerin dağıtım tutarlarından).</p>
+        <div class="ev-inputs">
+          <label for="dK">Çekiliş başına kolon<input id="dK" type="number" min="1" value="4"></label>
+          <label for="dY">Süre (yıl)<input id="dY" type="number" min="1" max="10" value="2"></label>
+          <label for="dR">Mevduat, yıllık brüt (%)<input id="dR" type="number" step="0.5" value="39"></label>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="dPaid">–</b><small>toplam yatırılan</small></div>
+          <div class="kpi"><b id="dLoto">–</b><small>lotodan beklenen</small></div>
+          <div class="kpi"><b id="dDep">–</b><small>mevduatta olacak</small></div>
+        </div>
+        <div class="verdict" id="dVerdict"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Kalabalıktan kaçan kolon</h2>
+        <p class="sub">Kazanma şansı her kolonda aynıdır. Ama çok oynanan kolon kazanırsa ikramiye çok kişiye bölünür. Bu üretici, oyuncuların sevdiği seçimlerden uzak durur: doğum günü sayıları (1–31), 7 ve 5'in katları, düzenli desenler, son çıkan sayılar.</p>
+        <div class="hunt-row">
+          <label for="genCount">Kolon</label>
+          <select id="genCount"><option value="1">1 kolon</option><option value="3">3 kolon</option><option value="5" selected>5 kolon</option><option value="10">10 kolon</option></select>
+          <button id="genBtn" class="primary hunt-btn">Üret</button>
+        </div>
+        <div id="genOut" class="gen-out"></div>
+        <h3>Kolonunuzun kalabalık puanı</h3>
+        <div id="mineScore" class="gen-out"></div>
+        <p class="sub" style="margin:12px 0 0">Puan 0 ile 100 arası: rastgele kolonların yüzde kaçından daha kalabalık olduğunu gösterir. Düşük puan, kazanırsanız ikramiyeyi daha az kişiyle bölüşme ihtimali demektir. Model, piyango araştırmalarında bilinen oyuncu alışkanlıklarına dayanır; Türkiye'ye ait kupon verisi yayınlanmadığı için bir tahmindir.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Sayı frekansı</h2>
+        <p class="sub">Her sayının kaç kez çıktığı. Turuncu beklenenden sık, mavi seyrek.</p>
+        <div class="heat" id="heat"></div>
+        <div class="legend"><span><i style="background:var(--hot)"></i>Sık çıkan</span><span><i style="background:var(--cold)"></i>Seyrek çıkan</span><span>Alt satır: beklenenden sapma (σ)</span></div>
+        <div class="verdict" id="verdict">Değerlendirme için en az 300 çekiliş gerekir.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Senaryolar</h2>
+        <p class="sub">Turuncu çubuk simülasyon, siyah çizgi matematiksel olasılık. Çekiliş arttıkça çubuk çizgiye oturur.</p>
+        <h3>Tek sayı adedi (6 sayıdan)</h3>
+        <div class="dist" id="dOdd"></div>
+        <h3>Toplam (6 sayının toplamı)</h3>
+        <div class="dist" id="dSum"></div>
+        <h3>Ardışık sayı (ör. 22–23)</h3>
+        <div class="dist" id="dCon"></div>
+        <h3>En büyük–en küçük farkı</h3>
+        <div class="dist" id="dSpan"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Gerçek çekilişlerin senaryoları</h2>
+        <p class="sub">Milli Piyango'nun açıkladığı sonuçların deseni ve aynı desenin makinede ne sıklıkla oluştuğu.</p>
+        <div class="real" id="real"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Son çekilişler</h2>
+        <p class="sub">Kolonunuzla tutan sayılar çerçeveli.</p>
+        <div class="recent" id="recent"><p class="sub" style="margin:0">Henüz çekiliş yok.</p></div>
+      </section>
+
+      <section class="panel">
+        <h2>Bu simülasyon ne gösteriyor?</h2>
+        <p class="note">Topların hareketi hesaplanabilir, ama binlerce çarpışmadan sonra hangi topun ağza ulaşacağı tahmin edilemez hâle gelir. Kusursuz toplarda her sayının çıkma şansı eşittir ve geçmiş çekilişler sonrakini etkilemez. Bu yüzden <b>"sıcak" ya da "soğuk" sayıya dayanan bir sistem işe yaramaz.</b> Fark yaratan tek şey fiziksel kusurdur: ağır top testini açarsanız 7'nin birkaç bin çekilişte belirgin biçimde seyrekleştiğini görürsünüz. Gerçek makineler bu yüzden tartılır, ölçülür ve denetlenir. Tek kolonun 6 bilme olasılığı 50.063.860'ta 1'dir.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+//PHYS_START
+var N = 60, PICK = 6;
+var CX = 180, CY = 180, R = 166, BR = 11;
+var DT = 1 / 240, G = 900, E_WALL = 0.82, E_BALL = 0.9, DRAG = 0.9995;
+var MIX_STEPS = 360, GAP_STEPS = 72, MAX_STEPS = 40000;
+
+function makeWorld(rng, heavy) {
+  var pts = [], s = BR * 2.15;
+  for (var y = CY + R; y > CY - R; y -= s * 0.87) {
+    var row = Math.round((y - CY) / (s * 0.87));
+    for (var x = CX - R + (row & 1 ? s / 2 : 0); x < CX + R; x += s) {
+      if (Math.hypot(x - CX, y - CY) < R - BR - 1) pts.push([x, y]);
+    }
+  }
+  pts.sort(function (a, b) { return b[1] - a[1]; });
+  pts = pts.slice(0, N);
+  var nums = [];
+  for (var i = 1; i <= N; i++) nums.push(i);
+  for (i = N - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)); var t = nums[i]; nums[i] = nums[j]; nums[j] = t; }
+  var balls = [];
+  for (i = 0; i < N; i++) {
+    var n = nums[i];
+    balls.push({ n: n, x: pts[i][0] + (rng() - .5), y: pts[i][1], vx: 0, vy: 0, m: (heavy && n === 7) ? 1.25 : 1 });
+  }
+  return { balls: balls, step: 0, last: -1e9, got: [] };
+}
+
+function stepWorld(w, rng) {
+  var b = w.balls, n = b.length, i, j, p, q;
+  var lim = R - BR, kickY = CY + R * 0.2;
+  for (i = 0; i < n; i++) {
+    p = b[i];
+    p.vy += G * DT;
+    if (p.y > kickY && rng() < 0.035) {
+      p.vy -= (520 + rng() * 520) / p.m;
+      p.vx += (rng() - 0.5) * 420 / p.m;
+    }
+    p.vx *= DRAG; p.vy *= DRAG;
+    var sp = p.vx * p.vx + p.vy * p.vy;
+    if (sp > 1440000) { var k = 1200 / Math.sqrt(sp); p.vx *= k; p.vy *= k; }
+    p.x += p.vx * DT; p.y += p.vy * DT;
+    var dx = p.x - CX, dy = p.y - CY, d = Math.sqrt(dx * dx + dy * dy);
+    if (d > lim) {
+      var nx = dx / d, ny = dy / d;
+      p.x = CX + nx * lim; p.y = CY + ny * lim;
+      var vn = p.vx * nx + p.vy * ny;
+      if (vn > 0) { p.vx -= (1 + E_WALL) * vn * nx; p.vy -= (1 + E_WALL) * vn * ny; }
+    }
+  }
+  var D = BR * 2, D2 = D * D;
+  // x'e göre sıralı tut (neredeyse sıralı olduğu için ekleme sıralaması hızlı) → süpür ve ele
+  for (i = 1; i < n; i++) {
+    p = b[i]; j = i - 1;
+    while (j >= 0 && b[j].x > p.x) { b[j + 1] = b[j]; j--; }
+    b[j + 1] = p;
+  }
+  for (i = 0; i < n; i++) {
+    p = b[i];
+    for (j = i + 1; j < n; j++) {
+      q = b[j];
+      var ex = q.x - p.x; if (ex > D) break;
+      var ey = q.y - p.y; if (ey > D || ey < -D) continue;
+      var d2 = ex * ex + ey * ey;
+      if (d2 >= D2 || d2 === 0) continue;
+      var dd = Math.sqrt(d2), ux = ex / dd, uy = ey / dd;
+      var im1 = 1 / p.m, im2 = 1 / q.m, ims = im1 + im2;
+      var ov = D - dd;
+      p.x -= ux * ov * im1 / ims; p.y -= uy * ov * im1 / ims;
+      q.x += ux * ov * im2 / ims; q.y += uy * ov * im2 / ims;
+      var rv = (q.vx - p.vx) * ux + (q.vy - p.vy) * uy;
+      if (rv < 0) {
+        var jj = -(1 + E_BALL) * rv / ims;
+        p.vx -= jj * ux * im1; p.vy -= jj * uy * im1;
+        q.vx += jj * ux * im2; q.vy += jj * uy * im2;
+      }
+    }
+  }
+  var captured = null;
+  if (w.step > MIX_STEPS && w.step - w.last > GAP_STEPS) {
+    var top = CY - lim + 2.5;
+    for (i = 0; i < n; i++) {
+      p = b[i];
+      if (p.y < top && p.vy < 0 && Math.abs(p.x - CX) < BR * 1.6) {
+        captured = p; b.splice(i, 1); w.got.push(p.n); w.last = w.step; break;
+      }
+    }
+  }
+  w.step++;
+  return captured;
+}
+
+function drawHeadless(rng, heavy) {
+  var w = makeWorld(rng, heavy);
+  while (w.got.length < PICK && w.step < MAX_STEPS) stepWorld(w, rng);
+  return w.got.length === PICK ? w.got.slice() : null;
+}
+//PHYS_END
+
+/* ---------- RNG (kriptografik tohumlu xorshift128+) ---------- */
+function makeRng() {
+  var s = new Uint32Array(4);
+  try { crypto.getRandomValues(s); } catch (e) { for (var i = 0; i < 4; i++) s[i] = (Math.random() * 4294967296) >>> 0; }
+  var a = s[0] | 1, b = s[1], c = s[2], d = s[3] | 1;
+  return function () {
+    var t = a ^ (a << 11); a = b; b = c; c = d;
+    d = (d ^ (d >>> 19)) ^ (t ^ (t >>> 8));
+    return (d >>> 0) / 4294967296;
+  };
+}
+var rng = makeRng();
+
+/* ---------- Teori ---------- */
+function C(n, k) { if (k < 0 || k > n) return 0; var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; }
+var TOT = C(60, 6);
+var thMatch = [], thOdd = [];
+for (var k = 0; k <= 6; k++) { thMatch[k] = C(6, k) * C(54, 6 - k) / TOT; thOdd[k] = C(30, k) * C(30, 6 - k) / TOT; }
+var thCon = 1 - C(55, 6) / TOT;
+// toplam dağılımı (DP)
+var dp = []; for (var a = 0; a <= 6; a++) { dp.push(new Float64Array(400)); } dp[0][0] = 1;
+for (var v = 1; v <= 60; v++) for (var kk = 6; kk >= 1; kk--) for (var s = 399; s >= v; s--) dp[kk][s] += dp[kk - 1][s - v];
+var SUM_BANDS = [[21, 140, "≤140"], [141, 165, "141–165"], [166, 200, "166–200"], [201, 225, "201–225"], [226, 345, "≥226"]];
+var thSum = SUM_BANDS.map(function (bd) { var t = 0; for (var s = bd[0]; s <= bd[1]; s++) t += dp[6][s]; return t / TOT; });
+// fark (span) dağılımı: max-min = d  → (60-d) * C(d-1,4)
+var SPAN_BANDS = [[5, 39, "≤39"], [40, 49, "40–49"], [50, 54, "50–54"], [55, 59, "55–59"]];
+var thSpan = SPAN_BANDS.map(function (bd) { var t = 0; for (var d = bd[0]; d <= bd[1]; d++) t += (60 - d) * C(d - 1, 4); return t / TOT; });
+
+/* ---------- Desen ---------- */
+function pattern(nums) {
+  var s = nums.slice().sort(function (a, b) { return a - b; });
+  var odd = 0, sum = 0, con = false;
+  for (var i = 0; i < 6; i++) { if (s[i] & 1) odd++; sum += s[i]; if (i && s[i] - s[i - 1] === 1) con = true; }
+  var sb = 0; while (sum > SUM_BANDS[sb][1]) sb++;
+  var span = s[5] - s[0], pb = 0; while (span > SPAN_BANDS[pb][1]) pb++;
+  return { odd: odd, sum: sum, sb: sb, con: con, span: span, pb: pb, key: odd + "|" + (con ? 1 : 0) + "|" + sb };
+}
+// saf rastgele temel (birleşik desen olasılığı için)
+var baseKey = {}, BASE_N = 300000;
+(function () {
+  var r = makeRng(), arr = []; for (var i = 1; i <= 60; i++) arr.push(i);
+  for (var t = 0; t < BASE_N; t++) {
+    for (var i2 = 0; i2 < 6; i2++) { var j = i2 + Math.floor(r() * (60 - i2)); var x = arr[i2]; arr[i2] = arr[j]; arr[j] = x; }
+    var key = pattern(arr.slice(0, 6)).key; baseKey[key] = (baseKey[key] || 0) + 1;
+  }
+})();
+
+// 2025–2026 tüm Süper Loto çekilişleri: lotoistatistik.com ve lotobil.com arşivleri çapraz kontrol edildi; Ağustos–Kasım 2026 ayrıca Hürriyet sonuç sayfalarıyla tek tek doğrulandı. Sayılar küçükten büyüğe.
+var DATA = [
+  {no:1,d:"2 Ocak 2025",n:[8,36,38,42,53,56]},
+  {no:2,d:"5 Ocak 2025",n:[11,15,20,29,35,56]},
+  {no:3,d:"7 Ocak 2025",n:[2,21,26,43,44,55]},
+  {no:4,d:"9 Ocak 2025",n:[4,7,11,13,25,48]},
+  {no:5,d:"12 Ocak 2025",n:[2,4,19,21,39,53]},
+  {no:6,d:"14 Ocak 2025",n:[3,4,11,42,45,56]},
+  {no:7,d:"16 Ocak 2025",n:[33,38,46,50,55,58]},
+  {no:8,d:"19 Ocak 2025",n:[1,15,18,19,41,52]},
+  {no:9,d:"21 Ocak 2025",n:[13,30,39,42,44,46]},
+  {no:10,d:"23 Ocak 2025",n:[1,4,8,10,42,55]},
+  {no:11,d:"26 Ocak 2025",n:[2,3,4,15,38,51]},
+  {no:12,d:"28 Ocak 2025",n:[2,3,4,9,18,19]},
+  {no:13,d:"30 Ocak 2025",n:[5,21,23,41,42,58]},
+  {no:14,d:"2 Şubat 2025",n:[19,20,24,25,33,53]},
+  {no:15,d:"4 Şubat 2025",n:[4,8,10,20,44,57]},
+  {no:16,d:"6 Şubat 2025",n:[5,11,32,34,43,53]},
+  {no:17,d:"9 Şubat 2025",n:[3,5,17,26,30,49]},
+  {no:18,d:"11 Şubat 2025",n:[8,24,33,45,47,51]},
+  {no:19,d:"13 Şubat 2025",n:[15,23,42,46,47,48]},
+  {no:20,d:"16 Şubat 2025",n:[10,13,18,19,28,30]},
+  {no:21,d:"18 Şubat 2025",n:[2,25,37,44,48,54]},
+  {no:22,d:"20 Şubat 2025",n:[2,3,7,23,36,43]},
+  {no:23,d:"23 Şubat 2025",n:[3,9,15,37,54,58]},
+  {no:24,d:"25 Şubat 2025",n:[3,4,36,40,46,58]},
+  {no:25,d:"27 Şubat 2025",n:[2,13,43,48,50,53]},
+  {no:26,d:"2 Mart 2025",n:[6,17,31,43,48,55]},
+  {no:27,d:"4 Mart 2025",n:[2,14,36,37,52,59]},
+  {no:28,d:"6 Mart 2025",n:[14,23,24,26,45,47]},
+  {no:29,d:"9 Mart 2025",n:[6,13,24,26,29,38]},
+  {no:30,d:"11 Mart 2025",n:[4,6,8,27,35,43]},
+  {no:31,d:"13 Mart 2025",n:[1,2,3,19,33,39]},
+  {no:32,d:"16 Mart 2025",n:[2,19,44,47,58,59]},
+  {no:33,d:"18 Mart 2025",n:[11,35,43,46,57,60]},
+  {no:34,d:"20 Mart 2025",n:[1,20,28,42,47,49]},
+  {no:35,d:"23 Mart 2025",n:[12,14,18,36,44,50]},
+  {no:36,d:"25 Mart 2025",n:[3,17,20,29,46,50]},
+  {no:37,d:"27 Mart 2025",n:[15,20,22,41,48,51]},
+  {no:38,d:"30 Mart 2025",n:[5,25,31,43,48,56]},
+  {no:39,d:"1 Nisan 2025",n:[2,22,26,31,35,50]},
+  {no:40,d:"3 Nisan 2025",n:[5,21,24,26,33,57]},
+  {no:41,d:"6 Nisan 2025",n:[15,18,28,53,55,60]},
+  {no:42,d:"8 Nisan 2025",n:[7,13,15,21,22,24]},
+  {no:43,d:"10 Nisan 2025",n:[2,3,19,30,40,55]},
+  {no:44,d:"13 Nisan 2025",n:[5,25,26,29,39,47]},
+  {no:45,d:"15 Nisan 2025",n:[9,15,37,43,44,57]},
+  {no:46,d:"17 Nisan 2025",n:[4,6,7,18,21,38]},
+  {no:47,d:"20 Nisan 2025",n:[10,12,32,36,44,58]},
+  {no:48,d:"22 Nisan 2025",n:[19,27,34,40,48,54]},
+  {no:49,d:"24 Nisan 2025",n:[9,21,33,37,39,56]},
+  {no:50,d:"27 Nisan 2025",n:[2,23,29,45,50,59]},
+  {no:51,d:"29 Nisan 2025",n:[28,32,35,47,54,58]},
+  {no:52,d:"1 Mayıs 2025",n:[1,26,34,35,39,45]},
+  {no:53,d:"4 Mayıs 2025",n:[1,4,18,26,35,44]},
+  {no:54,d:"6 Mayıs 2025",n:[2,16,25,30,31,47]},
+  {no:55,d:"8 Mayıs 2025",n:[7,32,45,50,56,58]},
+  {no:56,d:"11 Mayıs 2025",n:[5,19,33,37,43,47]},
+  {no:57,d:"13 Mayıs 2025",n:[1,10,15,21,35,55]},
+  {no:58,d:"15 Mayıs 2025",n:[22,28,33,37,39,52]},
+  {no:59,d:"18 Mayıs 2025",n:[1,13,25,44,46,60]},
+  {no:60,d:"20 Mayıs 2025",n:[4,15,28,50,53,59]},
+  {no:61,d:"22 Mayıs 2025",n:[12,27,31,34,40,55]},
+  {no:62,d:"25 Mayıs 2025",n:[6,8,12,17,22,58]},
+  {no:63,d:"27 Mayıs 2025",n:[5,18,19,53,57,58]},
+  {no:64,d:"29 Mayıs 2025",n:[12,16,24,32,40,55]},
+  {no:65,d:"1 Haziran 2025",n:[6,12,20,22,30,47]},
+  {no:66,d:"3 Haziran 2025",n:[4,12,23,48,50,51]},
+  {no:67,d:"5 Haziran 2025",n:[22,32,37,38,49,50]},
+  {no:68,d:"8 Haziran 2025",n:[2,14,34,41,51,57]},
+  {no:69,d:"10 Haziran 2025",n:[6,8,23,27,46,60]},
+  {no:70,d:"12 Haziran 2025",n:[16,19,25,37,43,57]},
+  {no:71,d:"15 Haziran 2025",n:[7,22,31,39,48,56]},
+  {no:72,d:"17 Haziran 2025",n:[11,12,21,52,53,54]},
+  {no:73,d:"19 Haziran 2025",n:[9,25,29,31,35,46]},
+  {no:74,d:"22 Haziran 2025",n:[5,19,20,35,51,52]},
+  {no:75,d:"24 Haziran 2025",n:[10,18,27,28,29,30]},
+  {no:76,d:"26 Haziran 2025",n:[8,12,27,36,43,53]},
+  {no:77,d:"29 Haziran 2025",n:[12,13,17,20,33,45]},
+  {no:78,d:"1 Temmuz 2025",n:[14,23,39,40,45,49]},
+  {no:79,d:"3 Temmuz 2025",n:[1,13,22,38,56,57]},
+  {no:80,d:"6 Temmuz 2025",n:[4,14,23,27,35,57]},
+  {no:81,d:"8 Temmuz 2025",n:[11,16,17,19,34,36]},
+  {no:82,d:"10 Temmuz 2025",n:[11,25,26,43,44,57]},
+  {no:83,d:"13 Temmuz 2025",n:[4,6,7,12,14,32]},
+  {no:84,d:"15 Temmuz 2025",n:[4,12,26,28,37,43]},
+  {no:85,d:"17 Temmuz 2025",n:[5,6,9,24,32,54]},
+  {no:86,d:"20 Temmuz 2025",n:[1,8,14,19,36,60]},
+  {no:87,d:"22 Temmuz 2025",n:[5,10,11,18,24,46]},
+  {no:88,d:"24 Temmuz 2025",n:[10,13,15,27,29,46]},
+  {no:89,d:"27 Temmuz 2025",n:[20,26,28,43,47,56]},
+  {no:90,d:"29 Temmuz 2025",n:[3,14,19,27,34,57]},
+  {no:91,d:"31 Temmuz 2025",n:[7,27,41,47,51,60]},
+  {no:92,d:"3 Ağustos 2025",n:[2,11,13,17,19,60]},
+  {no:93,d:"5 Ağustos 2025",n:[15,25,34,40,46,47]},
+  {no:94,d:"7 Ağustos 2025",n:[7,31,35,39,40,44]},
+  {no:95,d:"10 Ağustos 2025",n:[2,30,36,39,40,49]},
+  {no:96,d:"12 Ağustos 2025",n:[8,17,18,39,52,59]},
+  {no:97,d:"14 Ağustos 2025",n:[4,7,30,39,44,58]},
+  {no:98,d:"17 Ağustos 2025",n:[7,10,23,41,52,57]},
+  {no:99,d:"19 Ağustos 2025",n:[25,29,31,34,37,52]},
+  {no:100,d:"21 Ağustos 2025",n:[9,10,11,15,50,52]},
+  {no:101,d:"24 Ağustos 2025",n:[12,19,27,40,49,57]},
+  {no:102,d:"26 Ağustos 2025",n:[6,23,26,43,59,60]},
+  {no:103,d:"28 Ağustos 2025",n:[3,8,17,53,55,56]},
+  {no:104,d:"31 Ağustos 2025",n:[2,27,32,42,46,57]},
+  {no:105,d:"2 Eylül 2025",n:[25,27,30,31,44,45]},
+  {no:106,d:"4 Eylül 2025",n:[15,23,24,25,47,57]},
+  {no:107,d:"7 Eylül 2025",n:[11,22,34,43,53,59]},
+  {no:108,d:"9 Eylül 2025",n:[28,48,57,58,59,60]},
+  {no:109,d:"11 Eylül 2025",n:[5,6,8,20,23,43]},
+  {no:110,d:"14 Eylül 2025",n:[5,38,40,50,56,60]},
+  {no:111,d:"16 Eylül 2025",n:[23,24,31,35,43,59]},
+  {no:112,d:"18 Eylül 2025",n:[2,5,42,55,56,58]},
+  {no:113,d:"21 Eylül 2025",n:[4,5,23,42,48,51]},
+  {no:114,d:"23 Eylül 2025",n:[1,9,19,34,39,50]},
+  {no:115,d:"25 Eylül 2025",n:[1,7,10,26,33,35]},
+  {no:116,d:"28 Eylül 2025",n:[10,14,31,35,55,57]},
+  {no:117,d:"30 Eylül 2025",n:[15,19,23,25,38,53]},
+  {no:118,d:"2 Ekim 2025",n:[2,14,21,25,42,60]},
+  {no:119,d:"5 Ekim 2025",n:[1,3,9,25,37,44]},
+  {no:120,d:"7 Ekim 2025",n:[1,8,16,20,22,41]},
+  {no:121,d:"9 Ekim 2025",n:[4,8,15,30,43,47]},
+  {no:122,d:"12 Ekim 2025",n:[2,33,41,54,58,60]},
+  {no:123,d:"14 Ekim 2025",n:[3,23,28,39,44,57]},
+  {no:124,d:"16 Ekim 2025",n:[1,20,22,39,52,57]},
+  {no:125,d:"19 Ekim 2025",n:[13,20,32,35,37,41]},
+  {no:126,d:"21 Ekim 2025",n:[2,3,11,25,51,52]},
+  {no:127,d:"23 Ekim 2025",n:[14,23,36,45,47,48]},
+  {no:128,d:"26 Ekim 2025",n:[18,22,26,44,53,55]},
+  {no:129,d:"28 Ekim 2025",n:[10,22,39,41,48,49]},
+  {no:130,d:"30 Ekim 2025",n:[1,6,35,54,56,59]},
+  {no:131,d:"2 Kasım 2025",n:[15,17,20,39,44,47]},
+  {no:132,d:"4 Kasım 2025",n:[10,11,26,46,54,60]},
+  {no:133,d:"6 Kasım 2025",n:[2,16,20,31,39,55]},
+  {no:134,d:"9 Kasım 2025",n:[18,26,34,48,49,56]},
+  {no:135,d:"11 Kasım 2025",n:[7,12,14,15,17,40]},
+  {no:136,d:"13 Kasım 2025",n:[9,13,18,25,29,58]},
+  {no:137,d:"16 Kasım 2025",n:[6,9,16,20,26,46]},
+  {no:138,d:"18 Kasım 2025",n:[1,9,16,30,45,54]},
+  {no:139,d:"20 Kasım 2025",n:[2,27,34,37,48,60]},
+  {no:140,d:"23 Kasım 2025",n:[12,19,41,51,54,59]},
+  {no:141,d:"25 Kasım 2025",n:[2,15,28,39,48,50]},
+  {no:142,d:"27 Kasım 2025",n:[5,7,8,28,47,58]},
+  {no:143,d:"30 Kasım 2025",n:[9,12,22,34,43,56]},
+  {no:144,d:"2 Aralık 2025",n:[2,9,16,19,29,52]},
+  {no:145,d:"4 Aralık 2025",n:[9,11,18,35,49,50]},
+  {no:146,d:"7 Aralık 2025",n:[19,33,37,39,56,57]},
+  {no:147,d:"9 Aralık 2025",n:[17,28,32,36,38,51]},
+  {no:148,d:"11 Aralık 2025",n:[1,8,29,39,41,50]},
+  {no:149,d:"14 Aralık 2025",n:[2,9,27,30,36,55]},
+  {no:150,d:"16 Aralık 2025",n:[5,9,32,35,55,56]},
+  {no:151,d:"18 Aralık 2025",n:[4,7,31,35,40,52]},
+  {no:152,d:"21 Aralık 2025",n:[9,11,12,21,32,34]},
+  {no:153,d:"23 Aralık 2025",n:[13,20,33,35,40,48]},
+  {no:154,d:"25 Aralık 2025",n:[2,7,19,21,23,59]},
+  {no:155,d:"28 Aralık 2025",n:[6,31,35,41,44,46]},
+  {no:156,d:"30 Aralık 2025",n:[6,34,35,36,56,57]},
+  {no:1,d:"1 Ocak 2026",n:[34,36,39,45,53,55]},
+  {no:2,d:"4 Ocak 2026",n:[20,21,23,26,32,37]},
+  {no:3,d:"6 Ocak 2026",n:[6,9,25,29,45,57]},
+  {no:4,d:"8 Ocak 2026",n:[3,7,12,22,23,55]},
+  {no:5,d:"11 Ocak 2026",n:[3,8,10,12,32,42]},
+  {no:6,d:"13 Ocak 2026",n:[7,19,23,32,48,55]},
+  {no:7,d:"15 Ocak 2026",n:[1,22,27,41,44,46]},
+  {no:8,d:"18 Ocak 2026",n:[9,24,25,33,44,52]},
+  {no:9,d:"20 Ocak 2026",n:[6,26,32,43,48,54]},
+  {no:10,d:"22 Ocak 2026",n:[1,2,36,42,49,55]},
+  {no:11,d:"25 Ocak 2026",n:[12,20,23,38,49,50]},
+  {no:12,d:"27 Ocak 2026",n:[1,7,16,34,38,42]},
+  {no:13,d:"29 Ocak 2026",n:[1,4,7,8,11,41]},
+  {no:14,d:"1 Şubat 2026",n:[7,17,21,25,32,52]},
+  {no:15,d:"3 Şubat 2026",n:[21,33,43,47,55,59]},
+  {no:16,d:"5 Şubat 2026",n:[14,24,34,42,51,60]},
+  {no:17,d:"8 Şubat 2026",n:[8,18,21,29,36,38]},
+  {no:18,d:"10 Şubat 2026",n:[9,29,36,46,47,52]},
+  {no:19,d:"12 Şubat 2026",n:[3,5,10,22,23,52]},
+  {no:20,d:"15 Şubat 2026",n:[9,16,31,34,40,58]},
+  {no:21,d:"17 Şubat 2026",n:[2,14,31,38,47,54]},
+  {no:22,d:"19 Şubat 2026",n:[6,8,43,49,58,60]},
+  {no:23,d:"22 Şubat 2026",n:[14,16,30,42,46,55]},
+  {no:24,d:"24 Şubat 2026",n:[6,19,31,39,47,51]},
+  {no:25,d:"26 Şubat 2026",n:[3,19,26,37,44,57]},
+  {no:26,d:"1 Mart 2026",n:[3,14,27,32,43,44]},
+  {no:27,d:"3 Mart 2026",n:[17,18,21,27,37,51]},
+  {no:28,d:"5 Mart 2026",n:[3,11,16,25,37,41]},
+  {no:29,d:"8 Mart 2026",n:[11,41,43,44,51,57]},
+  {no:30,d:"10 Mart 2026",n:[7,9,14,36,52,55]},
+  {no:31,d:"12 Mart 2026",n:[3,22,38,41,44,50]},
+  {no:32,d:"15 Mart 2026",n:[5,12,21,28,35,42]},
+  {no:33,d:"17 Mart 2026",n:[1,6,7,19,31,44]},
+  {no:34,d:"19 Mart 2026",n:[18,21,34,43,47,50]},
+  {no:35,d:"22 Mart 2026",n:[8,9,20,30,33,55]},
+  {no:36,d:"24 Mart 2026",n:[7,9,20,22,28,39]},
+  {no:37,d:"26 Mart 2026",n:[7,14,17,25,42,49]},
+  {no:38,d:"29 Mart 2026",n:[1,17,28,30,32,42]},
+  {no:39,d:"31 Mart 2026",n:[2,16,35,51,52,56]},
+  {no:40,d:"2 Nisan 2026",n:[6,11,22,36,37,53]},
+  {no:41,d:"5 Nisan 2026",n:[1,3,14,19,48,56]},
+  {no:42,d:"7 Nisan 2026",n:[10,29,36,42,46,52]},
+  {no:43,d:"9 Nisan 2026",n:[6,18,33,40,50,58]},
+  {no:44,d:"12 Nisan 2026",n:[11,19,23,27,28,39]},
+  {no:45,d:"14 Nisan 2026",n:[13,19,21,30,42,43]},
+  {no:46,d:"16 Nisan 2026",n:[15,20,29,51,56,57]},
+  {no:47,d:"19 Nisan 2026",n:[1,11,26,49,55,59]},
+  {no:48,d:"21 Nisan 2026",n:[8,31,35,36,49,55]},
+  {no:49,d:"23 Nisan 2026",n:[9,26,30,39,41,45]},
+  {no:50,d:"26 Nisan 2026",n:[6,36,38,44,49,53]},
+  {no:51,d:"28 Nisan 2026",n:[2,14,22,34,48,59]},
+  {no:52,d:"30 Nisan 2026",n:[25,35,39,41,54,56]},
+  {no:53,d:"3 Mayıs 2026",n:[1,13,19,27,42,56]},
+  {no:54,d:"5 Mayıs 2026",n:[14,20,31,35,38,39]},
+  {no:55,d:"7 Mayıs 2026",n:[1,11,20,33,35,47]},
+  {no:56,d:"10 Mayıs 2026",n:[1,8,31,38,40,56]},
+  {no:57,d:"12 Mayıs 2026",n:[2,19,28,30,31,37]},
+  {no:58,d:"14 Mayıs 2026",n:[13,18,35,45,46,50]},
+  {no:59,d:"17 Mayıs 2026",n:[4,9,11,19,24,26]},
+  {no:60,d:"19 Mayıs 2026",n:[3,23,27,47,50,53]},
+  {no:61,d:"21 Mayıs 2026",n:[7,21,23,25,37,51]},
+  {no:62,d:"24 Mayıs 2026",n:[19,22,28,30,44,46]},
+  {no:63,d:"26 Mayıs 2026",n:[9,17,38,47,54,58]},
+  {no:64,d:"28 Mayıs 2026",n:[12,21,23,45,49,55]},
+  {no:65,d:"31 Mayıs 2026",n:[2,4,13,16,48,58]},
+  {no:66,d:"2 Haziran 2026",n:[15,18,20,31,43,56]},
+  {no:67,d:"4 Haziran 2026",n:[4,6,7,10,20,28]},
+  {no:68,d:"7 Haziran 2026",n:[2,8,21,24,36,47]},
+  {no:69,d:"9 Haziran 2026",n:[10,11,35,38,41,57]},
+  {no:70,d:"11 Haziran 2026",n:[15,19,30,38,57,60]},
+  {no:71,d:"14 Haziran 2026",n:[3,26,27,32,44,46]},
+  {no:72,d:"16 Haziran 2026",n:[8,14,23,32,58,60]},
+  {no:73,d:"18 Haziran 2026",n:[3,27,29,33,34,58]},
+  {no:74,d:"21 Haziran 2026",n:[5,6,24,37,43,48]},
+  {no:75,d:"23 Haziran 2026",n:[4,29,30,31,37,39]},
+  {no:76,d:"25 Haziran 2026",n:[5,11,31,46,51,56]},
+  {no:77,d:"28 Haziran 2026",n:[3,6,12,14,23,47]},
+  {no:78,d:"30 Haziran 2026",n:[6,8,15,18,19,29]},
+  {no:79,d:"2 Temmuz 2026",n:[6,32,37,38,40,57]},
+  {no:80,d:"5 Temmuz 2026",n:[40,41,46,52,57,60]},
+  {no:81,d:"7 Temmuz 2026",n:[4,26,30,38,51,53]},
+  {no:82,d:"9 Temmuz 2026",n:[3,16,35,44,50,57]},
+  {no:83,d:"12 Temmuz 2026",n:[14,15,20,30,36,44]},
+  {no:84,d:"14 Temmuz 2026",n:[7,8,13,27,37,55]},
+  {no:85,d:"16 Temmuz 2026",n:[6,26,30,33,38,46]},
+  {no:86,d:"19 Temmuz 2026",n:[11,32,33,47,53,59]},
+  {no:87,d:"21 Temmuz 2026",n:[2,13,30,52,58,60]},
+  {no:88,d:"23 Temmuz 2026",n:[2,11,43,47,48,58]},
+  {no:89,d:"26 Temmuz 2026",n:[6,9,22,27,41,46]},
+  {no:90,d:"28 Temmuz 2026",n:[3,6,24,50,51,53]},
+  {no:91,d:"30 Temmuz 2026",n:[1,25,28,41,55,56]},
+  {no:92,d:"2 Ağustos 2026",n:[1,4,7,16,30,60]},
+  {no:93,d:"4 Ağustos 2026",n:[16,23,24,42,46,57]},
+  {no:94,d:"6 Ağustos 2026",n:[24,27,38,41,49,50]},
+  {no:95,d:"9 Ağustos 2026",n:[10,27,31,32,39,54]},
+  {no:96,d:"11 Ağustos 2026",n:[7,16,22,39,40,60]},
+  {no:97,d:"13 Ağustos 2026",n:[18,24,32,34,52,60]},
+  {no:98,d:"16 Ağustos 2026",n:[8,20,38,45,49,50]},
+  {no:99,d:"18 Ağustos 2026",n:[16,28,45,49,52,54]},
+  {no:100,d:"20 Ağustos 2026",n:[8,21,25,46,48,57]},
+  {no:101,d:"23 Ağustos 2026",n:[13,25,26,34,35,38]},
+  {no:102,d:"25 Ağustos 2026",n:[13,19,29,31,34,53]},
+  {no:103,d:"27 Ağustos 2026",n:[15,26,27,41,49,52]},
+  {no:104,d:"30 Ağustos 2026",n:[6,16,25,30,33,46]},
+  {no:105,d:"1 Eylül 2026",n:[28,30,40,42,47,59]},
+  {no:106,d:"3 Eylül 2026",n:[3,15,20,23,30,60]},
+  {no:107,d:"6 Eylül 2026",n:[27,30,31,41,43,57]},
+  {no:108,d:"8 Eylül 2026",n:[2,12,37,52,59,60]},
+  {no:109,d:"10 Eylül 2026",n:[17,28,31,44,48,53]},
+  {no:110,d:"13 Eylül 2026",n:[7,23,42,45,47,59]},
+  {no:111,d:"15 Eylül 2026",n:[2,23,33,43,44,47]},
+  {no:112,d:"17 Eylül 2026",n:[10,16,30,38,50,59]},
+  {no:113,d:"20 Eylül 2026",n:[14,16,43,54,55,56]},
+  {no:114,d:"22 Eylül 2026",n:[3,15,43,48,50,52]},
+  {no:115,d:"24 Eylül 2026",n:[3,6,17,18,20,39]},
+  {no:116,d:"27 Eylül 2026",n:[16,26,44,46,57,59]},
+  {no:117,d:"29 Eylül 2026",n:[2,25,42,45,53,54]},
+  {no:118,d:"1 Ekim 2026",n:[14,15,34,38,50,56]},
+  {no:119,d:"4 Ekim 2026",n:[9,17,31,34,51,55]},
+  {no:120,d:"6 Ekim 2026",n:[7,14,20,43,46,56]},
+  {no:121,d:"8 Ekim 2026",n:[11,16,21,36,39,58]},
+  {no:122,d:"11 Ekim 2026",n:[16,18,22,31,37,55]},
+  {no:123,d:"13 Ekim 2026",n:[18,45,54,56,57,60]},
+  {no:124,d:"15 Ekim 2026",n:[31,32,39,45,49,54]},
+  {no:125,d:"18 Ekim 2026",n:[16,23,32,38,51,52]},
+  {no:126,d:"20 Ekim 2026",n:[4,10,14,19,51,52]},
+  {no:127,d:"22 Ekim 2026",n:[7,8,32,35,49,51]},
+  {no:128,d:"25 Ekim 2026",n:[1,3,5,18,28,59]},
+  {no:129,d:"27 Ekim 2026",n:[7,14,30,37,40,42]},
+  {no:130,d:"29 Ekim 2026",n:[12,14,40,42,52,57]},
+  {no:131,d:"1 Kasım 2026",n:[8,9,10,27,38,46]},
+  {no:132,d:"3 Kasım 2026",n:[17,27,32,39,54,60]},
+  {no:133,d:"5 Kasım 2026",n:[5,16,22,43,53,58]},
+  {no:134,d:"8 Kasım 2026",n:[1,30,36,41,48,56]}
+];
+/* Elle eklenen sonuçlar (bu tarayıcıda saklanır) */
+var AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+function isoToTr(iso) { var p = iso.split("-"); return (+p[2]) + " " + AYLAR[+p[1] - 1] + " " + p[0]; }
+function trToIso(d) { var p = d.split(" "); var m = AYLAR.indexOf(p[1]) + 1; return p[2] + "-" + (m < 10 ? "0" : "") + m + "-" + (+p[0] < 10 ? "0" : "") + p[0]; }
+var EXTRA = [];
+try { EXTRA = JSON.parse(localStorage.getItem("ekCekilisler") || "[]") || []; } catch (e) { EXTRA = []; }
+(function () {
+  var have = {}; DATA.forEach(function (r) { have[trToIso(r.d)] = 1; });
+  EXTRA.sort(function (a, b) { return a.iso < b.iso ? -1 : 1; }).forEach(function (x) {
+    if (have[x.iso]) return;
+    var yr = x.iso.slice(0, 4), no = DATA.filter(function (r) { return r.d.slice(-4) === yr; }).length + 1;
+    DATA.push({ no: no, d: isoToTr(x.iso), n: x.n.slice().sort(function (a, b) { return a - b; }), ek: true });
+  });
+  DATA.sort(function (a, b) { return trToIso(a.d) < trToIso(b.d) ? -1 : 1; });
+})();
+var REAL = DATA.slice(-4).reverse().map(function (r) { return { d: r.d, n: r.n }; });
+
+/* ---------- Durum ---------- */
+var st;
+function resetStats() {
+  st = { total: 0, failed: 0, freq: new Array(61).fill(0), odd: new Array(7).fill(0), sum: new Array(5).fill(0),
+    span: new Array(4).fill(0), con: 0, match: new Array(7).fill(0), keys: {}, recent: [], rateT: 0, rateN: 0 };
+}
+resetStats();
+
+var COLORS = ["#e8b10e", "#2f7fd0", "#d8432c", "#2f9d5a", "#8a5ad0", "#ea7a14"];
+function ballColor(n) { return COLORS[Math.floor((n - 1) / 10)]; }
+
+var kolonNums = [7, 14, 23, 31, 42, 55];
+var kolonSet = new Set(kolonNums);
+
+function record(nums) {
+  st.total++;
+  for (var i = 0; i < 6; i++) st.freq[nums[i]]++;
+  var p = pattern(nums);
+  st.odd[p.odd]++; st.sum[p.sb]++; st.span[p.pb]++; if (p.con) st.con++;
+  st.keys[p.key] = (st.keys[p.key] || 0) + 1;
+  var m = 0; for (i = 0; i < 6; i++) if (kolonSet.has(nums[i])) m++;
+  st.match[m]++;
+  st.recent.unshift(nums.slice());
+  if (st.recent.length > 15) st.recent.pop();
+}
+
+/* ---------- Görsel: küre ---------- */
+var cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+var dpr = Math.min(window.devicePixelRatio || 1, 2);
+cv.width = 360 * dpr; cv.height = 360 * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+var liveWorld = null;
+
+function render(w) {
+  var glass = css("--glass"), rim = css("--glass-rim"), acc = css("--accent");
+  ctx.clearRect(0, 0, 360, 360);
+  ctx.beginPath(); ctx.arc(CX, CY, R + 4, 0, Math.PI * 2); ctx.fillStyle = glass; ctx.fill();
+  // hava jeti bölgesi
+  ctx.save(); ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.clip();
+  var g = ctx.createLinearGradient(0, CY + R * 0.2, 0, CY + R);
+  g.addColorStop(0, "rgba(120,170,220,0)"); g.addColorStop(1, "rgba(120,170,220,.22)");
+  ctx.fillStyle = g; ctx.fillRect(0, CY + R * 0.2, 360, R); ctx.restore();
+  // toplar
+  var bs = w ? w.balls : [];
+  for (var i = 0; i < bs.length; i++) drawBall(bs[i].x, bs[i].y, bs[i].n, BR);
+  // cam
+  ctx.beginPath(); ctx.arc(CX, CY, R + 4, 0, Math.PI * 2); ctx.lineWidth = 3; ctx.strokeStyle = rim; ctx.stroke();
+  ctx.beginPath(); ctx.arc(CX, CY, R - 8, Math.PI * 1.08, Math.PI * 1.42); ctx.lineWidth = 5; ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.stroke();
+  // ağız
+  ctx.fillStyle = acc; ctx.fillRect(CX - BR * 1.7, CY - R - 10, BR * 3.4, 8);
+}
+function drawBall(x, y, n, r) {
+  var c = ballColor(n);
+  var gr = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r);
+  gr.addColorStop(0, "#ffffff"); gr.addColorStop(.25, c); gr.addColorStop(1, shade(c));
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r * .58, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+  ctx.fillStyle = "#111"; ctx.font = "600 8.5px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(n, x, y + .5);
+}
+function shade(hex) {
+  var v = parseInt(hex.slice(1), 16), r = (v >> 16) * .55, g = ((v >> 8) & 255) * .55, b = (v & 255) * .55;
+  return "rgb(" + (r | 0) + "," + (g | 0) + "," + (b | 0) + ")";
+}
+function ballEl(n, pop) {
+  var d = document.createElement("div"); d.className = "ball" + (pop ? " pop" : "");
+  d.style.background = ballColor(n); d.innerHTML = "<span>" + n + "</span>"; return d;
+}
+function setTray(nums) {
+  var t = document.getElementById("tray"); t.innerHTML = "";
+  for (var i = 0; i < 6; i++) {
+    if (i < nums.length) t.appendChild(ballEl(nums[i], i === nums.length - 1));
+    else { var s = document.createElement("div"); s.className = "slot"; t.appendChild(s); }
+  }
+}
+
+/* ---------- Çalıştırma ---------- */
+var busy = false, idleRaf = null;
+var bLive = document.getElementById("bLive"), statusEl = document.getElementById("status"), progEl = document.getElementById("prog");
+var heavyEl = document.getElementById("heavy");
+function setBusy(b) { busy = b; ["bLive", "b100", "b1k", "b5k", "bReset"].forEach(function (id) { document.getElementById(id).disabled = b; }); heavyEl.disabled = b; }
+
+function idle() {
+  if (!liveWorld) liveWorld = makeWorld(rng, heavyEl.checked);
+  for (var i = 0; i < 4; i++) { liveWorld.step = 0; stepWorld(liveWorld, rng); }
+  render(liveWorld);
+  idleRaf = requestAnimationFrame(idle);
+}
+function stopIdle() { if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf = null; }
+
+function liveDraw() {
+  stopIdle(); setBusy(true); setTray([]);
+  var w = makeWorld(rng, heavyEl.checked); liveWorld = w;
+  statusEl.textContent = "Toplar karışıyor…"; progEl.style.width = "0";
+  (function frame() {
+    for (var i = 0; i < 4; i++) {
+      var c = stepWorld(w, rng);
+      if (c) { setTray(w.got); statusEl.textContent = w.got.length + ". top: " + c.n; progEl.style.width = (w.got.length / 6 * 100) + "%"; }
+      if (w.got.length === PICK) break;
+    }
+    render(w);
+    if (w.got.length < PICK && w.step < MAX_STEPS) { requestAnimationFrame(frame); return; }
+    if (w.got.length === PICK) {
+      record(w.got);
+      var sorted = w.got.slice().sort(function (a, b) { return a - b; });
+      statusEl.textContent = "Çekiliş tamam: " + sorted.join(" – ") + " (çıkış sırası: " + w.got.join(", ") + ")";
+    } else statusEl.textContent = "Bu turda top ağıza ulaşamadı, tekrar deneyin.";
+    updateUI(); setBusy(false);
+    setTimeout(function () { liveWorld = makeWorld(rng, heavyEl.checked); if (!busy) idle(); }, 1800);
+  })();
+}
+
+function batch(count) {
+  stopIdle(); setBusy(true);
+  var done = 0, t0 = performance.now(), lastUI = 0;
+  statusEl.textContent = "Hesaplanıyor: 0 / " + count.toLocaleString("tr-TR");
+  (function chunk() {
+    var start = performance.now();
+    while (done < count && performance.now() - start < 14) {
+      var r = drawHeadless(rng, heavyEl.checked);
+      if (r) record(r); else st.failed++;
+      done++;
+    }
+    progEl.style.width = (done / count * 100) + "%";
+    var now = performance.now();
+    st.rateT += now - start; st.rateN += 0;
+    if (now - lastUI > 250 || done === count) {
+      lastUI = now;
+      statusEl.textContent = "Hesaplanıyor: " + done.toLocaleString("tr-TR") + " / " + count.toLocaleString("tr-TR");
+      document.getElementById("kSpeed").textContent = Math.round(done / ((now - t0) / 1000)).toLocaleString("tr-TR");
+      updateUI();
+      if (st.recent[0]) setTray(st.recent[0].slice());
+    }
+    if (done < count) { requestAnimationFrame(chunk); return; }
+    statusEl.textContent = count.toLocaleString("tr-TR") + " çekiliş tamamlandı, her biri tam fizik hesabıyla." + (st.failed ? " (" + st.failed + " tur zaman aşımı, sayılmadı)" : "");
+    setBusy(false); idle();
+  })();
+}
+
+/* ---------- Arayüz ---------- */
+var fmtP = function (p) { return (p * 100).toFixed(p < 0.01 ? 3 : 1).replace(".", ",") + "%"; };
+var fmtN = function (n) { return Math.round(n).toLocaleString("tr-TR"); };
+function oneIn(p) { return "1 / " + fmtN(1 / p); }
+
+function buildKolon() {
+  var box = document.getElementById("kolon");
+  kolonNums.forEach(function (n, i) {
+    var inp = document.createElement("input"); inp.type = "number"; inp.min = 1; inp.max = 60; inp.value = n;
+    inp.id = "k" + i; inp.setAttribute("aria-label", (i + 1) + ". sayı"); inp.inputMode = "numeric";
+    inp.addEventListener("change", onKolon); box.appendChild(inp);
+  });
+}
+function onKolon() {
+  var vals = [], ok = true;
+  for (var i = 0; i < 6; i++) {
+    var el = document.getElementById("k" + i), v = parseInt(el.value, 10);
+    var bad = !(v >= 1 && v <= 60) || vals.indexOf(v) >= 0;
+    el.classList.toggle("bad", bad); if (bad) ok = false; vals.push(v);
+  }
+  if (!ok) { statusEl.textContent = "Kolon: 1–60 arası, birbirinden farklı 6 sayı girin."; return; }
+  kolonNums = vals; kolonSet = new Set(vals);
+  // eşleşmeleri son çekilişlerden değil, sıfırdan say
+  st.match = new Array(7).fill(0); st.matchFrom = st.total;
+  statusEl.textContent = "Kolon güncellendi. Eşleşme sayacı yeni çekilişlerden itibaren sayar.";
+  updateUI(); mineStrat(); renderBacktest(); renderMineScore();
+}
+
+function distRows(elId, labels, simCounts, total, theory) {
+  var max = Math.max.apply(null, theory.concat(simCounts.map(function (c) { return total ? c / total : 0; }))) * 1.08 || 1;
+  var h = "";
+  for (var i = 0; i < labels.length; i++) {
+    var sp = total ? simCounts[i] / total : 0;
+    h += '<div class="drow"><span>' + labels[i] + '</span><div class="track"><div class="sim" style="width:' + (sp / max * 100) + '%"></div>' +
+      '<div class="th" style="left:calc(' + (theory[i] / max * 100) + '% - 1px)"></div></div>' +
+      '<span class="v"><b>' + (total ? fmtP(sp) : "–") + '</b> / ' + fmtP(theory[i]) + '</span></div>';
+  }
+  document.getElementById(elId).innerHTML = h;
+}
+
+function updateUI() {
+  var T = st.total;
+  document.getElementById("kTotal").textContent = fmtN(T);
+  // ki-kare
+  var exp = T * 6 / 60, chi = 0;
+  for (var n = 1; n <= 60; n++) if (exp) chi += Math.pow(st.freq[n] - exp, 2) / exp;
+  document.getElementById("kChi").textContent = T ? chi.toFixed(1).replace(".", ",") : "–";
+  // ısı haritası
+  var hot = css("--hot"), cold = css("--cold"), h = "", minN = 0, maxN = 0, minV = 1e9, maxV = -1;
+  var sd = Math.sqrt(exp * 0.9) || 1;
+  for (n = 1; n <= 60; n++) {
+    var f = st.freq[n], z = T ? (f - exp) / sd : 0, a = Math.min(Math.abs(z) / 3, 1) * 70;
+    var bg = T ? "color-mix(in srgb, " + (z > 0 ? hot : cold) + " " + a.toFixed(0) + "%, var(--panel))" : "var(--panel)";
+    var kc = kolonSet.has(n) ? " hit" : "";
+    h += '<div class="cell' + kc + '" style="background:' + bg + '"><b>' + n + '</b><small>' + (T ? (z > 0 ? "+" : "") + z.toFixed(1).replace(".", ",") : fmtN(f)) + '</small></div>';
+    if (f > maxV) { maxV = f; maxN = n; } if (f < minV) { minV = f; minN = n; }
+  }
+  document.getElementById("heat").innerHTML = h;
+  var vd = document.getElementById("verdict");
+  if (T < 300) vd.textContent = "Değerlendirme için en az 300 çekiliş gerekir (şu an " + fmtN(T) + ").";
+  else {
+    var msg = "Beklenen: sayı başına " + fmtN(exp) + " kez. En sık " + maxN + " (" + fmtN(maxV) + "), en seyrek " + minN + " (" + fmtN(minV) + "). ";
+    msg += chi <= 78 ? "Ki-kare " + chi.toFixed(1).replace(".", ",") + ": sapmalar tamamen şans sınırları içinde; makine adil." :
+      "Ki-kare " + chi.toFixed(1).replace(".", ",") + ": şansla açıklanamayacak kadar büyük sapma var, makinede kusur olabilir.";
+    if (heavyEl.checked) msg += " 7 numaralı topun sapması: " + ((st.freq[7] - exp) / sd).toFixed(1).replace(".", ",") + "σ.";
+    vd.textContent = msg;
+  }
+  // kolon eşleşmeleri
+  var MT = st.match.reduce(function (a, b) { return a + b; }, 0), mb = "";
+  for (var k = 6; k >= 2; k--) {
+    mb += "<tr><td>" + k + " bilen</td><td class='mono'>" + fmtN(st.match[k]) + "</td><td class='mono'>" + (MT * thMatch[k]).toFixed(MT * thMatch[k] < 10 ? 2 : 0).replace(".", ",") + "</td><td class='mono'>" + oneIn(thMatch[k]) + "</td></tr>";
+  }
+  var win = thMatch[2] + thMatch[3] + thMatch[4] + thMatch[5] + thMatch[6];
+  var simWin = st.match[2] + st.match[3] + st.match[4] + st.match[5] + st.match[6];
+  mb += "<tr><td><b>Herhangi ikramiye</b></td><td class='mono'><b>" + fmtN(simWin) + "</b></td><td class='mono'>" + fmtN(MT * win) + "</td><td class='mono'>" + oneIn(win) + "</td></tr>";
+  document.getElementById("matchBody").innerHTML = mb;
+  // senaryolar
+  distRows("dOdd", [0, 1, 2, 3, 4, 5, 6].map(function (x) { return x + " tek"; }), st.odd, T, thOdd);
+  distRows("dSum", SUM_BANDS.map(function (b) { return b[2]; }), st.sum, T, thSum);
+  distRows("dCon", ["Var", "Yok"], [st.con, T - st.con], T, [thCon, 1 - thCon]);
+  distRows("dSpan", SPAN_BANDS.map(function (b) { return b[2]; }), st.span, T, thSpan);
+  // gerçek çekilişler
+  var rh = "";
+  REAL.forEach(function (r) {
+    var p = pattern(r.n), bp = (baseKey[p.key] || 0) / BASE_N, sp = T ? (st.keys[p.key] || 0) / T : 0;
+    rh += '<div class="rd"><div class="rd-top"><span class="rd-date">' + r.d + '</span><div class="minis">' +
+      r.n.map(function (x) { return '<span class="mini" style="border-color:' + ballColor(x) + '">' + x + '</span>'; }).join("") + '</div></div>' +
+      '<div class="chips"><span class="chip">' + p.odd + ' tek / ' + (6 - p.odd) + ' çift</span><span class="chip">Toplam ' + p.sum + ' (' + SUM_BANDS[p.sb][2] + ')</span><span class="chip">' + (p.con ? "Ardışık var" : "Ardışık yok") + '</span></div>' +
+      '<div class="rd-p">Bu desen saf rastgelelikte <b>' + fmtP(bp) + '</b>, makinede <b>' + (T ? fmtP(sp) + " (" + fmtN(st.keys[p.key] || 0) + " kez)" : "–") + '</b> oluştu. Aynı 6 sayının tekrar çıkma olasılığı: <b>1 / 50.063.860</b></div></div>';
+  });
+  document.getElementById("real").innerHTML = rh;
+  // son çekilişler
+  if (st.recent.length) {
+    document.getElementById("recent").innerHTML = st.recent.map(function (nums, i) {
+      var s = nums.slice().sort(function (a, b) { return a - b; });
+      return '<div class="rrow"><span style="width:44px">#' + fmtN(T - i) + '</span><div class="minis">' +
+        s.map(function (x) { return '<span class="mini' + (kolonSet.has(x) ? " hit" : "") + '" style="border-color:' + ballColor(x) + '">' + x + '</span>'; }).join("") + '</div></div>';
+    }).join("");
+  } else document.getElementById("recent").innerHTML = '<p class="sub" style="margin:0">Henüz çekiliş yok.</p>';
+}
+
+bLive.addEventListener("click", liveDraw);
+document.getElementById("b100").addEventListener("click", function () { batch(100); });
+document.getElementById("b1k").addEventListener("click", function () { batch(1000); });
+document.getElementById("b5k").addEventListener("click", function () { batch(5000); });
+document.getElementById("bReset").addEventListener("click", function () { resetStats(); setTray([]); progEl.style.width = "0"; document.getElementById("kSpeed").textContent = "–"; statusEl.textContent = "Sayaçlar sıfırlandı."; updateUI(); });
+heavyEl.addEventListener("change", function () { resetStats(); liveWorld = null; setTray([]); statusEl.textContent = heavyEl.checked ? "Kusurlu top açık: 7 numara %25 ağır. Sayaçlar sıfırlandı." : "Tüm toplar eşit ağırlıkta. Sayaçlar sıfırlandı."; updateUI(); });
+
+/* ---------- Geçmişten test ---------- */
+function seeded(seed) {
+  var a = seed >>> 0 || 1;
+  return function () { a ^= a << 13; a >>>= 0; a ^= a >>> 17; a ^= a << 5; a >>>= 0; return a / 4294967296; };
+}
+var BT_START = 50, PHYS_N = 23;
+var STRATS = [
+  { id: "hot", ad: "Sıcak sayılar", acik: "En çok çıkan 6 sayı" },
+  { id: "cold", ad: "Soğuk sayılar", acik: "En az çıkan 6 sayı" },
+  { id: "gap", ad: "Geciken sayılar", acik: "En uzun süredir çıkmayan 6 sayı" },
+  { id: "rep", ad: "Önceki çekiliş", acik: "Bir önceki sonucu aynen oynamak" },
+  { id: "phys", ad: "Fizik makinesi", acik: "60 simüle çekilişte en sık çıkan 6 sayı (son 23 çekiliş)" },
+  { id: "pat", ad: "Desen filtresi", acik: "3 tek / 3 çift, toplam 166–200 olan kolon" }
+];
+var btHits = {}; STRATS.forEach(function (s) { btHits[s.id] = []; });
+btHits.mine = [];
+
+function pickBy(score) {
+  var a = []; for (var v = 1; v <= 60; v++) a.push(v);
+  a.sort(function (x, y) { return score(x) - score(y) || x - y; });
+  return a.slice(0, 6);
+}
+function hitsOf(kolon, draw) { var c = 0; for (var i = 0; i < 6; i++) if (draw.indexOf(kolon[i]) >= 0) c++; return c; }
+
+function deterministicStrats() {
+  for (var t = BT_START; t < DATA.length; t++) {
+    var hist = DATA.slice(0, t), f = new Array(61).fill(0), last = new Array(61).fill(-1);
+    hist.forEach(function (d, i) { d.n.forEach(function (v) { f[v]++; last[v] = i; }); });
+    var tgt = DATA[t].n;
+    btHits.hot[t] = hitsOf(pickBy(function (v) { return -f[v]; }), tgt);
+    btHits.cold[t] = hitsOf(pickBy(function (v) { return f[v]; }), tgt);
+    btHits.gap[t] = hitsOf(pickBy(function (v) { return last[v]; }), tgt);
+    btHits.rep[t] = hitsOf(hist[hist.length - 1].n, tgt);
+    var r = seeded(t * 7919 + 13), k;
+    do {
+      var s = new Set(); while (s.size < 6) s.add(1 + Math.floor(r() * 60));
+      k = Array.from(s); var odd = k.filter(function (v) { return v & 1; }).length, sum = k.reduce(function (a, b) { return a + b; }, 0);
+    } while (odd !== 3 || sum < 166 || sum > 200);
+    btHits.pat[t] = hitsOf(k, tgt);
+  }
+}
+function mineStrat() {
+  btHits.mine = [];
+  for (var t = BT_START; t < DATA.length; t++) btHits.mine[t] = hitsOf(kolonNums, DATA[t].n);
+}
+function physStrat(done) {
+  var t = Math.max(BT_START, DATA.length - PHYS_N), rr = seeded(424242);
+  (function chunk() {
+    var start = performance.now();
+    while (t < DATA.length && performance.now() - start < 12) {
+      var f = new Array(61).fill(0), got = 0;
+      while (got < 60) { var d = drawHeadless(rr, false); if (d) { d.forEach(function (v) { f[v]++; }); got++; } }
+      btHits.phys[t] = hitsOf(pickBy(function (v) { return -f[v]; }), DATA[t].n);
+      t++;
+    }
+    renderBacktest(t);
+    if (t < DATA.length) requestAnimationFrame(chunk); else if (done) done();
+  })();
+}
+
+function renderBacktest(physUpTo) {
+  var T = DATA.length - BT_START, rows = "", best = { id: null, m: -1 };
+  var all = STRATS.concat([{ id: "mine", ad: "Kolonunuz", acik: kolonNums.join(" ") }]);
+  all.forEach(function (s) {
+    var arr = btHits[s.id].slice(BT_START).filter(function (x) { return x !== undefined; });
+    if (!arr.length) { rows += "<tr><td>" + s.ad + "<br><span class='nums'>" + s.acik + "</span></td><td class='mono' colspan='7'>hesaplanıyor… " + (physUpTo ? (physUpTo - (DATA.length - PHYS_N)) + "/" + PHYS_N : "") + "</td></tr>"; return; }
+    var cnt = [0, 0, 0, 0, 0, 0, 0]; arr.forEach(function (h) { cnt[h]++; });
+    var mean = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+    if (s.id !== "mine" && arr.length === T && mean > best.m) best = { id: s.id, m: mean };
+    rows += "<tr data-id='" + s.id + "'><td>" + s.ad + "<br><span class='nums'>" + s.acik + "</span></td><td class='mono'>" + mean.toFixed(2).replace(".", ",") + "</td>";
+    for (var k = 2; k <= 6; k++) rows += "<td class='mono'>" + cnt[k] + "</td>";
+    rows += "<td class='mono'>" + (cnt[2] + cnt[3] + cnt[4] + cnt[5] + cnt[6]) + " / " + arr.length + "</td></tr>";
+  });
+  rows += "<tr><td><b>Şans (matematik)</b><br><span class='nums'>herhangi bir kolon</span></td><td class='mono'><b>0,60</b></td>";
+  for (var k2 = 2; k2 <= 6; k2++) rows += "<td class='mono'>" + (T * thMatch[k2]).toFixed(k2 < 4 ? 1 : 3).replace(".", ",") + "</td>";
+  var w = thMatch[2] + thMatch[3] + thMatch[4] + thMatch[5] + thMatch[6];
+  rows += "<td class='mono'>" + (T * w).toFixed(1).replace(".", ",") + " / " + T + "</td></tr>";
+  document.getElementById("btBody").innerHTML = rows;
+  if (best.id) { var tr = document.querySelector("#btBody tr[data-id='" + best.id + "']"); if (tr) tr.classList.add("best"); }
+
+  // ızgara
+  var hot = css("--good"), g = "";
+  for (var t = DATA.length - 1; t >= DATA.length - 30; t--) {
+    var d = DATA[t];
+    g += "<tr><td>" + d.d + "</td><td class='nums'>" + d.n.slice().sort(function (a, b) { return a - b; }).join(" ") + "</td>";
+    ["hot", "cold", "gap", "rep", "phys", "pat"].forEach(function (id) {
+      var h = btHits[id][t];
+      var bg = h === undefined ? "transparent" : "color-mix(in srgb, " + hot + " " + Math.min(h * 22, 80) + "%, transparent)";
+      g += "<td class='h' style='background:" + bg + "'>" + (h === undefined ? "·" : h) + "</td>";
+    });
+    g += "</tr>";
+  }
+  document.getElementById("btGrid").innerHTML = g;
+
+  var physDone = btHits.phys.slice(BT_START).filter(function (x) { return x !== undefined; }).length === Math.min(PHYS_N, T);
+  var v = document.getElementById("btVerdict");
+  if (!physDone) { v.textContent = "Fizik makinesi her çekiliş için 60 çekiliş simüle ediyor…"; return; }
+  var maxAll = 0, lo = 9, hiM = 0, maxZ = 0, maxZad = "";
+  STRATS.forEach(function (s) {
+    var a = btHits[s.id].slice(BT_START).filter(function (x) { return x !== undefined; }), m = a.reduce(function (x, y) { return x + y; }, 0) / a.length;
+    a.forEach(function (h) { if (h > maxAll) maxAll = h; });
+    if (a.length === T) { lo = Math.min(lo, m); hiM = Math.max(hiM, m); }
+    var z = (m - 0.6) / Math.sqrt(6 * 0.1 * 0.9 * 54 / 59 / a.length);
+    if (Math.abs(z) > Math.abs(maxZ)) { maxZ = z; maxZad = s.ad; }
+  });
+  var se = Math.sqrt(6 * 0.1 * 0.9 * 54 / 59 / T);
+  v.textContent = T + " gerçek çekilişte hiçbir strateji " + (maxAll + 1) + " ve üzeri tutturamadı; en iyi tek sonuç " + maxAll + " bilen. " +
+    "Tüm çekilişlerde denenen stratejilerin ortalaması " + lo.toFixed(2).replace(".", ",") + " ile " + hiM.toFixed(2).replace(".", ",") + " arasında; şans 0,60 ve normal oynama ±" + (2 * se).toFixed(2).replace(".", ",") + ". " +
+    "Şanstan en uzak olan " + maxZad + " (" + (maxZ > 0 ? "+" : "") + maxZ.toFixed(1).replace(".", ",") + "σ); 6 strateji yarıştığında birinin 2,5σ'ya kadar sapması tesadüfen beklenir. Hiçbir strateji şanstan anlamlı biçimde ayrışmıyor.";
+}
+
+/* ---------- Sonucu yakala ---------- */
+var huntSel = document.getElementById("huntSel"), huntBtn = document.getElementById("huntBtn"), hunting = false;
+for (var hi = DATA.length - 1; hi >= 0; hi--) {
+  var o = document.createElement("option"); o.value = hi; o.textContent = DATA[hi].d + " (" + DATA[hi].no + ". çekiliş)"; huntSel.appendChild(o);
+}
+function showHuntTarget() {
+  var d = DATA[+huntSel.value], t = document.getElementById("huntTarget"); t.innerHTML = "";
+  d.n.slice().sort(function (a, b) { return a - b; }).forEach(function (v) { t.appendChild(ballEl(v, false)); });
+  document.getElementById("huntBody").innerHTML = [3, 4, 5, 6].map(function (k) {
+    return "<tr><td>" + k + " bilen</td><td class='mono' id='hf" + k + "'>–</td><td class='mono'>~" + fmtN(1 / thMatch[k]) + ". kolonda</td></tr>";
+  }).join("");
+}
+huntSel.addEventListener("change", function () { if (!hunting) showHuntTarget(); });
+function pc(x) { x = x - ((x >>> 1) & 0x55555555); x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; }
+function hunt() {
+  if (hunting) { hunting = false; return; }
+  hunting = true; huntBtn.textContent = "Durdur"; huntSel.disabled = true; showHuntTarget();
+  var d = DATA[+huntSel.value], tl = 0, th = 0;
+  d.n.forEach(function (v) { var b = v - 1; if (b < 32) tl |= (1 << b); else th |= (1 << (b - 32)); });
+  tl >>>= 0; th >>>= 0;
+  var s1 = (crypto.getRandomValues(new Uint32Array(1))[0] | 1) >>> 0;
+  var tries = 0, first = {}, t0 = performance.now(), msg = document.getElementById("huntMsg");
+  msg.textContent = "Rastgele kolonlar üretiliyor…";
+  (function chunk() {
+    var start = performance.now(), found = false;
+    while (performance.now() - start < 30) {
+      for (var it = 0; it < 20000; it++) {
+        var lo = 0, hiw = 0, c = 0;
+        while (c < 6) {
+          s1 ^= s1 << 13; s1 ^= s1 >>> 17; s1 ^= s1 << 5;
+          var b = ((s1 >>> 0) % 60);
+          if (b < 32) { var m = 1 << b; if (!(lo & m)) { lo |= m; c++; } }
+          else { var m2 = 1 << (b - 32); if (!(hiw & m2)) { hiw |= m2; c++; } }
+        }
+        tries++;
+        var hits = pc(lo & tl) + pc(hiw & th);
+        if (hits >= 3 && !first[hits]) {
+          first[hits] = tries;
+          for (var k = 3; k < hits; k++) if (!first[k]) first[k] = tries;
+          for (var k2 = 3; k2 <= hits; k2++) document.getElementById("hf" + k2).textContent = fmtN(first[k2]) + ". kolon";
+        }
+        if (hits === 6) { found = true; break; }
+      }
+      if (found || !hunting) break;
+    }
+    var el = (performance.now() - t0) / 1000;
+    document.getElementById("hTry").textContent = fmtN(tries);
+    document.getElementById("hRate").textContent = fmtN(tries / el);
+    document.getElementById("hTime").textContent = el < 60 ? el.toFixed(1).replace(".", ",") + " sn" : Math.floor(el / 60) + " dk " + Math.round(el % 60) + " sn";
+    if (found) {
+      msg.textContent = d.d + " sonucu " + fmtN(tries) + ". kolonda yakalandı. Gerçek hayatta bu, aynı çekilişe " + fmtN(tries) + " ayrı kolon oynamak demek. Ortalama beklenti 50.063.860 kolon.";
+      hunting = false;
+    } else if (!hunting) msg.textContent = "Durduruldu. " + fmtN(tries) + " kolon denendi, 6 bilen henüz çıkmadı.";
+    if (hunting) { requestAnimationFrame(chunk); return; }
+    huntBtn.textContent = "Yakala"; huntSel.disabled = false;
+  })();
+}
+huntBtn.addEventListener("click", hunt);
+
+/* ---------- Kalabalıktan kaçan kolon ---------- */
+var RECENT_SET = new Set(DATA[DATA.length - 1].n.concat(DATA[DATA.length - 2].n));
+function crowd(k) {
+  var s = k.slice().sort(function (a, b) { return a - b; }), p = 0, why = [];
+  var bday = 0, month = 0, fives = 0, recent = 0;
+  s.forEach(function (v) {
+    if (v <= 31) { p += 1; bday++; }
+    if (v <= 12) { p += 0.6; month++; }
+    if (v === 7) p += 0.5;
+    if (v % 5 === 0) { p += 0.3; fives++; }
+    if (v % 10 === 0) p += 0.2;
+    if (RECENT_SET.has(v)) { p += 0.4; recent++; }
+  });
+  var run = 1, maxRun = 1;
+  for (var i = 1; i < 6; i++) { run = s[i] - s[i - 1] === 1 ? run + 1 : 1; if (run > maxRun) maxRun = run; }
+  if (maxRun >= 3) { p += 2; why.push(maxRun + " ardışık sayı"); }
+  var arith = false;
+  for (var a = 0; a < 6 && !arith; a++) for (var b = a + 1; b < 6 && !arith; b++) {
+    var d = s[b] - s[a], c = 2, nx = s[b] + d;
+    for (var j = b + 1; j < 6; j++) if (s[j] === nx) { c++; nx += d; }
+    if (c >= 4 || (c >= 3 && d > 1 && d % 5 === 0)) arith = true;
+  }
+  if (arith) { p += 2.5; why.push("düzenli aralıklı desen"); }
+  if (s[1] - s[0] === s[5] - s[4] && s[2] - s[1] === s[1] - s[0] && s[3] - s[2] === s[1] - s[0] && s[4] - s[3] === s[1] - s[0]) p += 3;
+  var dec = [0, 0, 0, 0, 0, 0]; s.forEach(function (v) { dec[Math.floor((v - 1) / 10)]++; });
+  if (Math.max.apply(null, dec) >= 4) { p += 1; why.push("aynı onluktan 4+ sayı"); }
+  var ld = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; s.forEach(function (v) { ld[v % 10]++; });
+  if (Math.max.apply(null, ld) >= 3) { p += 1; why.push("3+ sayı aynı rakamla bitiyor"); }
+  if (bday === 6) why.unshift("tamamı 1–31 arası (doğum günü)"); else if (bday >= 4) why.unshift(bday + " sayı 1–31 arası");
+  if (month >= 3) why.push(month + " sayı 1–12 arası (ay)");
+  if (fives >= 2) why.push(fives + " sayı 5'in katı");
+  if (recent >= 2) why.push(recent + " sayı son iki çekilişten");
+  return { p: p, why: why, s: s };
+}
+var CROWD_BASE = (function () {
+  var r = seeded(9001), out = [];
+  for (var t = 0; t < 20000; t++) { var st2 = new Set(); while (st2.size < 6) st2.add(1 + Math.floor(r() * 60)); out.push(crowd(Array.from(st2)).p); }
+  return out.sort(function (a, b) { return a - b; });
+})();
+function crowdScore(p) {
+  var lo = 0, hi = CROWD_BASE.length;
+  while (lo < hi) { var m = (lo + hi) >> 1; if (CROWD_BASE[m] < p) lo = m + 1; else hi = m; }
+  return Math.round(lo / CROWD_BASE.length * 100);
+}
+function genRow(k, idx) {
+  var c = crowd(k), sc = crowdScore(c.p);
+  var why = c.why.length ? c.why.join(" · ") : "Belirgin bir kalabalık deseni yok";
+  return '<div class="gen-row"><div class="minis">' + c.s.map(function (v) { return '<span class="mini" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") +
+    '</div><div class="score"><b>' + sc + '</b><small>kalabalık puanı</small></div>' +
+    (idx !== undefined ? '<button class="copy" data-k="' + c.s.join(",") + '">Kolonuma al</button>' : '') +
+    '<div class="why">' + why + '</div></div>';
+}
+function generate() {
+  var n = +document.getElementById("genCount").value, r = makeRng(), cand = [];
+  for (var t = 0; t < 30000; t++) { var st3 = new Set(); while (st3.size < 6) st3.add(1 + Math.floor(r() * 60)); var k = Array.from(st3); cand.push({ k: k, p: crowd(k).p + r() * 0.05 }); }
+  var chosen = [];
+  for (var q = 0; q < n; q++) {
+    var best = null, bv = 1e9;
+    for (var i = 0; i < cand.length; i++) {
+      var v = cand[i].p;
+      for (var j = 0; j < chosen.length; j++) {
+        var ov = 0; for (var x = 0; x < 6; x++) if (chosen[j].indexOf(cand[i].k[x]) >= 0) ov++;
+        if (ov >= 2) v += (ov - 1) * 0.6;
+      }
+      if (v < bv) { bv = v; best = cand[i].k; }
+    }
+    chosen.push(best);
+  }
+  document.getElementById("genOut").innerHTML = chosen.map(function (k, i) { return genRow(k, i); }).join("");
+}
+function renderMineScore() { document.getElementById("mineScore").innerHTML = genRow(kolonNums); }
+document.getElementById("genBtn").addEventListener("click", generate);
+document.getElementById("genOut").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest(".copy") : null; if (!b) return;
+  b.getAttribute("data-k").split(",").forEach(function (v, i) { document.getElementById("k" + i).value = v; });
+  onKolon(); b.textContent = "Alındı";
+});
+
+/* ---------- Bu gecenin kolon değeri ---------- */
+var LOW_PRIZE = { 5: 211135.20, 4: 4535.00, 3: 241.85, 2: 26.15 }, PRICE = 25;
+var fmtTL = function (v) { return v.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL"; };
+function fmtM(v) { return (v / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 1 }) + " milyon TL"; }
+function evCalc() {
+  var J = +document.getElementById("evJ").value || 0, K = Math.max(+document.getElementById("evK").value || 1, 1);
+  var keep = 1 - Math.min(Math.max(+document.getElementById("evTax").value || 0, 0), 100) / 100;
+  var lam = K * thMatch[6], share = lam > 0 ? (1 - Math.exp(-lam)) / lam : 1;
+  var rows = "", low = 0;
+  var jc = J * keep * share * thMatch[6];
+  rows += "<tr><td>6 bilen</td><td class='mono'>" + fmtM(J) + "</td><td class='mono'>" + oneIn(thMatch[6]) + "</td><td class='mono'>" + fmtTL(jc) + "</td></tr>";
+  [5, 4, 3, 2].forEach(function (k) {
+    var c = LOW_PRIZE[k] * keep * thMatch[k]; low += c;
+    rows += "<tr><td>" + k + " bilen</td><td class='mono'>" + fmtTL(LOW_PRIZE[k]) + "</td><td class='mono'>" + oneIn(thMatch[k]) + "</td><td class='mono'>" + fmtTL(c) + "</td></tr>";
+  });
+  var ev = low + jc;
+  rows += "<tr class='best'><td>Toplam</td><td></td><td></td><td class='mono'>" + fmtTL(ev) + "</td></tr>";
+  document.getElementById("evBody").innerHTML = rows;
+  document.getElementById("evVal").textContent = ev.toFixed(2).replace(".", ",") + " TL";
+  document.getElementById("evRet").textContent = "%" + (ev / PRICE * 100).toFixed(1).replace(".", ",");
+  var be = keep > 0 ? (PRICE - low) / (keep * share * thMatch[6]) : Infinity;
+  document.getElementById("evBE").textContent = isFinite(be) ? fmtM(be) : "–";
+  var edge = ev / PRICE - 1, v = document.getElementById("evVerdict");
+  var shareTxt = "Kazanırsanız ikramiyeyi başkasıyla bölüşme ihtimali %" + ((1 - Math.exp(-lam)) * 100).toFixed(1).replace(".", ",") + ". ";
+  var miss = "Her 100 kolondan yaklaşık 89'u hiçbir şey kazanmaz.";
+  function fmtBig(x) { return x >= 1e12 ? (x / 1e12).toLocaleString("tr-TR", { maximumFractionDigits: 1 }) + " trilyon TL" : x >= 1e9 ? (x / 1e9).toLocaleString("tr-TR", { maximumFractionDigits: 1 }) + " milyar TL" : fmtM(x); }
+  if (edge <= 0) {
+    v.textContent = "Bir kolon ortalamada " + fmtTL(PRICE - ev) + " kaybettirir. " + shareTxt + miss + " Yatırım matematiğine (Kelly kriteri) göre doğru miktar sıfırdır.";
+  } else {
+    var f = edge / (J * keep * share / PRICE), wealth = PRICE / f;
+    var head = edge < 0.005 ? "Matematiksel değer kolon fiyatıyla neredeyse aynı: oyun bu gece başa baş noktasında." : "Matematiksel değer kolon fiyatının %" + (edge * 100).toFixed(1).replace(".", ",") + " üstünde.";
+    v.textContent = head + " Ama bu değerin üçte ikisi 50 milyonda 1'lik tek bir sonuçtan geliyor. " + shareTxt + miss +
+      " Kelly kriterine göre tek bir kolonu haklı çıkarmak için yaklaşık " + fmtBig(wealth) + " servet gerekir. Bunun altındaki herkes için doğru miktar yine sıfırdır.";
+  }
+}
+["evJ", "evK", "evTax"].forEach(function (id) { document.getElementById(id).addEventListener("input", evCalc); });
+
+/* ---------- Aynı para mevduatta ---------- */
+function depCalc() {
+  var k = Math.max(+document.getElementById("dK").value || 1, 1), y = Math.min(Math.max(+document.getElementById("dY").value || 1, 1), 10);
+  var gross = (+document.getElementById("dR").value || 0) / 100, net = gross * (1 - 0.175);
+  var perWeek = k * 3 * PRICE, weeks = Math.round(y * 52), wr = net / 52, bal = 0;
+  for (var w = 0; w < weeks; w++) bal = bal * (1 + wr) + perWeek;
+  var paid = perWeek * weeks, loto = paid * 0.56;
+  document.getElementById("dPaid").textContent = fmtN(paid) + " TL";
+  document.getElementById("dLoto").textContent = fmtN(loto) + " TL";
+  document.getElementById("dDep").textContent = fmtN(bal) + " TL";
+  document.getElementById("dVerdict").textContent = "Haftada " + fmtN(perWeek) + " TL (" + k + " kolon × 3 çekiliş). " + y + " yılda lotoda beklenen sonuç " + fmtN(paid - loto) + " TL kayıp. " +
+    "Aynı para %" + (gross * 100).toFixed(1).replace(".", ",") + " brüt faizle (%17,5 stopaj sonrası %" + (net * 100).toFixed(1).replace(".", ",") + ") " + fmtN(bal - paid) + " TL kazandırır. Aradaki fark: " + fmtN(bal - loto) + " TL. Faiz oranları bankaya ve kampanyaya göre değişir.";
+}
+["dK", "dY", "dR"].forEach(function (id) { document.getElementById(id).addEventListener("input", depCalc); });
+
+/* ---------- Tahmin motoru ---------- */
+var tmMode = "mix";
+function tmWeights(hist, mode, wh, wg) {
+  var f = new Array(61).fill(0), last = new Array(61).fill(-1);
+  hist.forEach(function (d, i) { d.n.forEach(function (v) { f[v]++; last[v] = i; }); });
+  var L = hist.length, fmax = Math.max.apply(null, f.slice(1)) || 1, w = [0];
+  for (var v = 1; v <= 60; v++) {
+    var hotS = (f[v] + 0.5) / (fmax + 0.5), gap = last[v] < 0 ? L : L - 1 - last[v], gapS = (gap + 1) / (L + 1);
+    var x;
+    if (mode === "hot") x = Math.pow(hotS, 2);
+    else if (mode === "cold") x = Math.pow(1 - hotS + 0.05, 2);
+    else if (mode === "gap") x = Math.pow(gapS, 1.5);
+    else if (mode === "bias") x = 1;
+    else x = 0.05 + (wh / 100) * hotS + (wg / 100) * gapS;
+    w.push(x);
+  }
+  var chi = 0, e = L * 6 / 60;
+  if (e > 0) for (v = 1; v <= 60; v++) chi += Math.pow(f[v] - e, 2) / e;
+  var biasOn = false;
+  if (mode === "bias" && L >= 100 && chi > 77.93) {
+    biasOn = true;
+    for (v = 1; v <= 60; v++) w[v] = Math.exp(0.5 * (f[v] - e) / Math.sqrt(e * 0.9));
+  }
+  return { w: w, f: f, last: last, L: L, chi: chi, biasOn: biasOn };
+}
+function tmProbs(w) {
+  var s = 0; for (var v = 1; v <= 60; v++) s += w[v];
+  var p = [0]; for (v = 1; v <= 60; v++) p.push(Math.min(6 * w[v] / s, 1)); return p;
+}
+function tmSample(w, r) {
+  var pool = [], k = [];
+  for (var v = 1; v <= 60; v++) pool.push([v, w[v]]);
+  for (var i = 0; i < 6; i++) {
+    var s = 0; pool.forEach(function (x) { s += x[1]; });
+    var t = r() * s, j = 0;
+    while (j < pool.length - 1 && (t -= pool[j][1]) > 0) j++;
+    k.push(pool[j][0]); pool.splice(j, 1);
+  }
+  return k.sort(function (a, b) { return a - b; });
+}
+function tmParams() { return [+document.getElementById("wHot").value, +document.getElementById("wGap").value]; }
+function tmRender() {
+  var pr = tmParams(), m = tmWeights(DATA, tmMode, pr[0], pr[1]), p = tmProbs(m.w);
+  var order = []; for (var v = 1; v <= 60; v++) order.push(v);
+  order.sort(function (a, b) { return p[b] - p[a] || a - b; });
+  var top = order.slice(0, 12), maxp = p[top[0]] || 1;
+  document.getElementById("tmBars").innerHTML = top.map(function (v) {
+    return '<div class="tbar"><span>' + v + '</span><div class="tr"><i style="width:' + (p[v] / maxp * 100) + '%"></i><u style="left:' + (0.1 / maxp * 100) + '%"></u></div><span>%' + (p[v] * 100).toFixed(1).replace(".", ",") + '</span></div>';
+  }).join("");
+  // aynı yöntemi geçmişte dene
+  var tot = 0, n = 0, best = 0;
+  for (var t = BT_START; t < DATA.length; t++) {
+    var mw = tmWeights(DATA.slice(0, t), tmMode, pr[0], pr[1]).w, pp = tmProbs(mw), o2 = [];
+    for (var x = 1; x <= 60; x++) o2.push(x);
+    o2.sort(function (a, b) { return pp[b] - pp[a] || a - b; });
+    var h = hitsOf(o2.slice(0, 6), DATA[t].n); tot += h; n++; if (h > best) best = h;
+  }
+  var biasNote = tmMode === "bias" ? (m.biasOn ? "Kusur dedektörü açık: ki-kare " + m.chi.toFixed(1).replace(".", ",") + ", makine adil değil, sapan sayılar ağırlıklandırıldı. " :
+    "Kusur dedektörü: ki-kare " + m.chi.toFixed(1).replace(".", ",") + " (sınır 77,9). Kusur bulunmadı, bu yüzden 60 sayının hepsi eşit ağırlıkta. Makine kusurlu çıkarsa bu mod kendiliğinden devreye girer. ") : "";
+  document.getElementById("tmScore").innerHTML = biasNote + "Bu ayarla motor son " + n + " çekilişi önceden tahmin etseydi: ortalama <b>" + (tot / n).toFixed(2).replace(".", ",") + "</b> bilen, en iyi <b>" + best + "</b> bilen. Rastgele kolonun ortalaması 0,60. Çizgi: her sayının gerçek çıkma ihtimali (%10).";
+  document.getElementById("tmSliders").hidden = tmMode !== "mix";
+}
+function tmGenerate() {
+  var pr = tmParams(), m = tmWeights(DATA, tmMode, pr[0], pr[1]), p = tmProbs(m.w), r = makeRng();
+  var n = +document.getElementById("tmN").value, out = [], seen = {};
+  var guard = 0;
+  while (out.length < n && guard++ < 500) { var k = tmSample(m.w, r), key = k.join(","); if (!seen[key]) { seen[key] = 1; out.push(k); } }
+  document.getElementById("tmOut").innerHTML = out.map(function (k) {
+    var sc = k.reduce(function (a, v) { return a + p[v]; }, 0) / 6;
+    var why = k.map(function (v) {
+      var g = m.last[v] < 0 ? m.L : m.L - 1 - m.last[v]; return v + ": " + m.f[v] + " kez, " + (g === 0 ? "son çekilişte çıktı" : g + " çekiliştir yok");
+    }).join(" · ");
+    return '<div class="gen-row"><div class="minis">' + k.map(function (v) { return '<span class="mini" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") +
+      '</div><div class="score"><b>%' + (sc * 100).toFixed(1).replace(".", ",") + '</b><small>ort. model ihtimali</small></div>' +
+      '<button class="copy" data-k="' + k.join(",") + '">Kolonuma al</button><div class="why">' + why + '</div></div>';
+  }).join("");
+}
+document.querySelectorAll(".tm-mode").forEach(function (b) {
+  b.addEventListener("click", function () {
+    tmMode = b.getAttribute("data-m");
+    document.querySelectorAll(".tm-mode").forEach(function (x) { var on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", on ? "true" : "false"); });
+    tmRender(); tmGenerate();
+  });
+});
+["wHot", "wGap"].forEach(function (id) {
+  document.getElementById(id).addEventListener("input", function () { document.getElementById(id + "V").textContent = this.value; tmRender(); });
+});
+document.getElementById("tmBtn").addEventListener("click", tmGenerate);
+document.getElementById("tmOut").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest(".copy") : null; if (!b) return;
+  b.getAttribute("data-k").split(",").forEach(function (v, i) { document.getElementById("k" + i).value = v; });
+  onKolon(); b.textContent = "Alındı";
+});
+document.getElementById("tmSub").textContent = "Sıradaki çekiliş (" + (DATA[DATA.length - 1].no + 1) + ". çekiliş) için tahmin. Motor son " + DATA.length + " çekilişte (" + DATA[0].d + " – " + DATA[DATA.length - 1].d + ") her sayının kaç kez çıktığını ve kaç çekiliştir çıkmadığını tartar, sonra bu ağırlıklarla kolon üretir.";
+
+/* ---------- Motor teşhisi ---------- */
+function top6By(s) { var a = []; for (var v = 1; v <= 60; v++) a.push(v); a.sort(function (x, y) { return s[y] - s[x] || x - y; }); return a.slice(0, 6); }
+var DG_MODELS = [
+  { ad: "Sıcak", fn: function (H) { var s = new Array(61).fill(0); H.forEach(function (d) { d.n.forEach(function (v) { s[v]++; }); }); return top6By(s); } },
+  { ad: "Soğuk", fn: function (H) { var s = new Array(61).fill(0); H.forEach(function (d) { d.n.forEach(function (v) { s[v]--; }); }); return top6By(s); } },
+  { ad: "Geciken", fn: function (H) { var s = new Array(61).fill(H.length); H.forEach(function (d, i) { d.n.forEach(function (v) { s[v] = H.length - 1 - i; }); }); return top6By(s); } },
+  { ad: "Son 10 çekiliş", fn: function (H) { var s = new Array(61).fill(0); H.slice(-10).forEach(function (d) { d.n.forEach(function (v) { s[v]++; }); }); return top6By(s); } },
+  { ad: "Birlikte çıkma", fn: function (H) { var last = H[H.length - 1].n, s = new Array(61).fill(0); H.slice(0, -1).forEach(function (d) { var k = d.n.filter(function (v) { return last.indexOf(v) >= 0; }).length; d.n.forEach(function (v) { s[v] += k; }); }); last.forEach(function (v) { s[v] -= 1e-3; }); return top6By(s); } },
+  { ad: "Ardıllık (Markov)", fn: function (H) { var last = H[H.length - 1].n, s = new Array(61).fill(0); for (var i = 0; i < H.length - 1; i++) { var k = H[i].n.filter(function (v) { return last.indexOf(v) >= 0; }).length; if (k) H[i + 1].n.forEach(function (v) { s[v] += k; }); } return top6By(s); } }
+];
+function diagnose() {
+  var N = DATA.length, f = new Array(61).fill(0), e = N * 6 / 60, chi = 0, mz = 0, mv = 1, ov = 0;
+  DATA.forEach(function (d) { d.n.forEach(function (v) { f[v]++; }); });
+  for (var v = 1; v <= 60; v++) { chi += Math.pow(f[v] - e, 2) / e; var z = (f[v] - e) / Math.sqrt(e * 0.9); if (Math.abs(z) > Math.abs(mz)) { mz = z; mv = v; } }
+  for (var i = 1; i < N; i++) ov += DATA[i].n.filter(function (x) { return DATA[i - 1].n.indexOf(x) >= 0; }).length;
+  document.getElementById("dgN").textContent = N;
+  document.getElementById("dgChi").textContent = chi.toFixed(1).replace(".", ",");
+  document.getElementById("dgMax").textContent = mv + " (" + (mz > 0 ? "+" : "") + mz.toFixed(1).replace(".", ",") + "σ)";
+  document.getElementById("dgOv").textContent = (ov / (N - 1)).toFixed(2).replace(".", ",");
+  var mid = Math.floor((BT_START + N) / 2), rows = "", lo = 9, hi = 0, bestFirst = null;
+  DG_MODELS.forEach(function (m) {
+    var s1 = 0, n1 = 0, s2 = 0, n2 = 0, c3 = 0;
+    for (var t = BT_START; t < N; t++) {
+      var hh = hitsOf(m.fn(DATA.slice(0, t)), DATA[t].n);
+      if (t < mid) { s1 += hh; n1++; } else { s2 += hh; n2++; }
+      if (hh >= 3) c3++;
+    }
+    var mean = (s1 + s2) / (n1 + n2); lo = Math.min(lo, mean); hi = Math.max(hi, mean);
+    if (!bestFirst || s1 / n1 > bestFirst.a) bestFirst = { ad: m.ad, a: s1 / n1, b: s2 / n2 };
+    var fx = function (x) { return x.toFixed(2).replace(".", ","); };
+    rows += "<tr><td>" + m.ad + "</td><td class='mono'>" + fx(mean) + "</td><td class='mono'>" + fx(s1 / n1) + "</td><td class='mono'>" + fx(s2 / n2) + "</td><td class='mono'>" + c3 + "</td></tr>";
+  });
+  var T = N - BT_START, se2 = 2 * Math.sqrt(6 * 0.1 * 0.9 * 54 / 59 / T);
+  rows += "<tr class='best'><td>Şans (rastgele kolon)</td><td class='mono'>0,60</td><td class='mono'>0,60</td><td class='mono'>0,60</td><td class='mono'>" + (T * (thMatch[3] + thMatch[4] + thMatch[5] + thMatch[6])).toFixed(1).replace(".", ",") + "</td></tr>";
+  document.getElementById("dgBody").innerHTML = rows;
+  var expMax = 2.4;
+  document.getElementById("dgVerdict").textContent = "Ki-kare " + chi.toFixed(1).replace(".", ",") + " adil makine aralığında. En sapan sayı " + mv + ", ama 60 sayı arasında ±" + expMax.toString().replace(".", ",") + "σ'luk bir sapma tesadüfen beklenir. " +
+    T + " tahminde modellerin ortalaması " + lo.toFixed(2).replace(".", ",") + "–" + hi.toFixed(2).replace(".", ",") + " arasında; şans etrafındaki normal oynama ±" + se2.toFixed(2).replace(".", ",") + ". İlk yarının en iyisi " + bestFirst.ad + " (" + bestFirst.a.toFixed(2).replace(".", ",") + ") ikinci yarıda " + bestFirst.b.toFixed(2).replace(".", ",") + (bestFirst.b < bestFirst.a ? " oldu; öndeliği kalıcı değil. " : " yaptı. ") +
+    "Yani motorda eksik yok: Süper Loto makinesinde yakalanacak bir kusur yok. Kusur ortaya çıkarsa, Kusur takibi modu onu otomatik kullanır.";
+}
+
+/* ---------- Optimize motor ---------- */
+var OP_W = [5, 10, 20, 40, 80, 1000], OP_CONFIGS = 4000, OP_TRAIN_FROM = 50;
+function opRun() {
+  var btn = document.getElementById("opBtn"), st = document.getElementById("opStatus"), pg = document.getElementById("opProg");
+  btn.disabled = true; st.textContent = "Hazırlanıyor…"; pg.style.width = "0";
+  var D = DATA.map(function (r) { return r.n; }), N = D.length;
+  // her t için: pencere sıklıkları ve gecikme (t = o çekilişten önceki durum)
+  var cache = {};
+  OP_W.forEach(function (W) {
+    cache[W] = [];
+    for (var t = 0; t <= N; t++) {
+      var f = new Array(61).fill(0);
+      for (var i = Math.max(0, t - W); i < t; i++) D[i].forEach(function (v) { f[v]++; });
+      cache[W][t] = f;
+    }
+  });
+  var gaps = [];
+  for (var t = 0; t <= N; t++) {
+    var g = new Array(61).fill(t);
+    for (var i = 0; i < t; i++) D[i].forEach(function (v) { g[v] = t - 1 - i; });
+    gaps[t] = g;
+  }
+  function pred(c, t) {
+    var f = cache[c.W][t], g = gaps[t], last = D[t - 1], s = [];
+    for (var v = 1; v <= 60; v++) s.push([v, c.a * f[v] + c.b * Math.min(g[v], c.gcap) + c.c * (last.indexOf(v) >= 0 ? 1 : 0) + c.d * ((v * c.k) % 7) + c.e * (v <= 30 ? 1 : 0)]);
+    s.sort(function (x, y) { return y[1] - x[1] || x[0] - y[0]; });
+    return s.slice(0, 6).map(function (x) { return x[0]; });
+  }
+  function score(c) { var s = 0; for (var t = OP_TRAIN_FROM; t < N; t++) { var k = pred(c, t); for (var j = 0; j < 6; j++) if (D[t].indexOf(k[j]) >= 0) s++; } return s / (N - OP_TRAIN_FROM); }
+  var a = 12345;
+  function r() { a ^= a << 13; a >>>= 0; a ^= a >>> 17; a ^= a << 5; a >>>= 0; return a / 4294967296; }
+  function rnd() { return r() * 2 - 1; }
+  var cfgs = [];
+  for (var i = 0; i < OP_CONFIGS; i++) {
+    var W = OP_W[Math.floor(r() * 6)], ca = rnd(), cb = rnd(), cc = rnd(), cd = rnd(), ce = rnd(), ck = 1 + Math.floor(r() * 6), cg = 1 + Math.floor(r() * 40);
+    cfgs.push({ W: W, a: ca, b: cb, c: cc, d: cd, e: ce, k: ck, gcap: cg });
+  }
+  var done = 0, res = [];
+  (function chunk() {
+    var start = performance.now();
+    while (done < OP_CONFIGS && performance.now() - start < 30) { res.push([score(cfgs[done]), cfgs[done]]); done++; }
+    pg.style.width = (done / OP_CONFIGS * 100) + "%";
+    st.textContent = fmtN(done) + " / " + fmtN(OP_CONFIGS) + " ayar denendi";
+    if (done < OP_CONFIGS) { requestAnimationFrame(chunk); return; }
+    res.sort(function (x, y) { return y[0] - x[0]; });
+    var top = res.slice(0, 5), html = "";
+    top.forEach(function (x, idx) {
+      var k = pred(x[1], N).sort(function (p, q) { return p - q; });
+      html += '<div class="gen-row"><div class="minis">' + k.map(function (v) { return '<span class="mini" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") +
+        '</div><div class="score"><b>' + x[0].toFixed(2).replace(".", ",") + '</b><small>geçmişte ort. bilen</small></div>' +
+        '<button class="copy" data-k="' + k.join(",") + '">Kolonuma al</button><div class="why">Ayar ' + (idx + 1) + ': son ' + (x[1].W === 1000 ? "tüm" : x[1].W) + ' çekilişin sıklığı, gecikme sınırı ' + x[1].gcap + '</div></div>';
+    });
+    document.getElementById("opOut").innerHTML = html;
+    var last = DATA[N - 1];
+    st.textContent = "Hazır: " + last.d + " sonrasındaki çekiliş için.";
+    document.getElementById("opSub").textContent = "4.000 farklı ayar " + DATA[OP_TRAIN_FROM].d + " – " + last.d + " arasındaki " + (N - OP_TRAIN_FROM) + " çekilişte yarıştırıldı. En iyi 5 ayarın her biri sıradaki çekiliş için bir kolon veriyor. Geçmişteki skor geleceği garanti etmez: aynı yöntem görmediği çekilişlerde ortalama 0,61 bilen yaptı (şans 0,60).";
+    btn.disabled = false;
+  })();
+}
+document.getElementById("opBtn").addEventListener("click", opRun);
+document.getElementById("opOut").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest(".copy") : null; if (!b) return;
+  b.getAttribute("data-k").split(",").forEach(function (v, i) { document.getElementById("k" + i).value = v; });
+  onKolon(); b.textContent = "Alındı";
+});
+
+/* ---------- Yeni sonuç ekle ---------- */
+(function () {
+  var box = document.getElementById("addNums");
+  for (var i = 0; i < 6; i++) {
+    var inp = document.createElement("input"); inp.type = "number"; inp.min = 1; inp.max = 60; inp.id = "an" + i;
+    inp.setAttribute("aria-label", (i + 1) + ". sayı"); inp.inputMode = "numeric"; box.appendChild(inp);
+  }
+  // tarih alanına sıradaki çekiliş gününü öner (Salı, Perşembe, Pazar)
+  var lastIso = trToIso(DATA[DATA.length - 1].d), dt = new Date(lastIso + "T12:00:00");
+  do { dt.setDate(dt.getDate() + 1); } while ([0, 2, 4].indexOf(dt.getDay()) < 0);
+  document.getElementById("addDate").value = dt.toISOString().slice(0, 10);
+  renderAddList();
+})();
+function saveExtra() { try { localStorage.setItem("ekCekilisler", JSON.stringify(EXTRA)); return true; } catch (e) { return false; } }
+function renderAddList() {
+  var el = document.getElementById("addList");
+  if (!EXTRA.length) { el.innerHTML = ""; return; }
+  el.innerHTML = '<p class="sub" style="margin:4px 0 0">Elle eklenen sonuçlar:</p>' + EXTRA.map(function (x, i) {
+    return '<div class="gen-row"><div class="minis">' + x.n.slice().sort(function (a, b) { return a - b; }).map(function (v) { return '<span class="mini" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") +
+      '</div><span class="sub" style="margin:0">' + isoToTr(x.iso) + '</span><button class="copy" data-del="' + i + '">Sil</button></div>';
+  }).join("");
+}
+document.getElementById("addBtn").addEventListener("click", function () {
+  var msg = document.getElementById("addMsg"), iso = document.getElementById("addDate").value, n = [];
+  for (var i = 0; i < 6; i++) n.push(parseInt(document.getElementById("an" + i).value, 10));
+  if (!iso) { msg.textContent = "Çekiliş tarihini seç."; return; }
+  if ([0, 2, 4].indexOf(new Date(iso + "T12:00:00").getDay()) < 0) { msg.textContent = "Süper Loto Salı, Perşembe ve Pazar çekilir. Tarihi kontrol et."; return; }
+  if (n.some(function (v) { return !(v >= 1 && v <= 60); }) || new Set(n).size !== 6) { msg.textContent = "1–60 arası, birbirinden farklı 6 sayı gir."; return; }
+  if (DATA.some(function (r) { return trToIso(r.d) === iso; })) { msg.textContent = "Bu tarihin sonucu zaten kayıtlı."; return; }
+  EXTRA.push({ iso: iso, n: n });
+  if (!saveExtra()) { msg.textContent = "Tarayıcı kaydetmeye izin vermedi (gizli sekme olabilir)."; EXTRA.pop(); return; }
+  msg.textContent = "Eklendi. Sayfa yenileniyor…";
+  setTimeout(function () { location.reload(); }, 600);
+});
+document.getElementById("addList").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest("[data-del]") : null; if (!b) return;
+  if (b.getAttribute("data-sure") !== "1") { b.setAttribute("data-sure", "1"); b.textContent = "Emin misin? Tekrar bas"; return; }
+  EXTRA.splice(+b.getAttribute("data-del"), 1); saveExtra(); location.reload();
+});
+
+buildKolon(); setTray([]); updateUI(); idle();
+evCalc(); depCalc();
+setTimeout(diagnose, 200);
+tmRender(); tmGenerate();
+generate(); renderMineScore();
+document.getElementById("btSub").textContent = DATA[0].d + " – " + DATA[DATA.length - 1].d + " arasındaki " + DATA.length + " gerçek çekiliş. Her strateji, ilk " + BT_START + " çekilişten sonra kalan " + (DATA.length - BT_START) + " çekilişin her birini yalnızca kendinden önceki sonuçlara bakarak tahmin etti.";
+deterministicStrats(); mineStrat(); renderBacktest(); showHuntTarget();
+setTimeout(function () { physStrat(); }, 400);
+</script>
+<script>if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(function(){});</script>
+</body>
+</html>

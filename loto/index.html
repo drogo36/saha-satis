@@ -146,6 +146,19 @@ button.hunt-btn{flex:0 0 auto}
 .tbar .tr i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:3px}
 .tbar .tr u{position:absolute;top:0;bottom:0;width:1px;background:var(--ink);opacity:.5}
 .tbar span:last-child{text-align:right;color:var(--muted)}
+.hero{border:2px solid var(--accent);margin-bottom:22px}
+.yb{margin-bottom:22px}
+.hero-top{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.hero-txt{flex:1 1 320px;min-width:0}
+.hero-txt .sub{margin-bottom:0;max-width:80ch}
+.hero-txt .sub b{color:var(--ink)}
+button.hero-btn{font-size:17px;padding:14px 26px;border-radius:12px;flex:0 0 auto}
+@media (max-width:560px){button.hero-btn{flex:1 1 100%}}
+.hero .prog{margin-top:14px}
+.hero-out{margin-top:12px}
+.hero-out:empty{display:none}
+.end{font:600 20px var(--f-mono);letter-spacing:.04em}
+.end span{color:var(--muted);font-weight:500}
 .add-row{margin-bottom:10px}
 .add-row label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);max-width:220px}
 .add-row input{font:600 15px var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
@@ -173,6 +186,36 @@ button.hunt-btn{flex:0 0 auto}
     <p class="rule"><b>6/60 kuralı:</b> küredeki 60 toptan 6 tanesi çekilir. 2, 3, 4, 5 ve 6 bilen kazanır. Salı, Perşembe ve Pazar 21.30.</p>
   </header>
 
+  <section class="panel hero" aria-label="Hızlı tahmin">
+    <div class="hero-top">
+      <div class="hero-txt">
+        <h2>Sıradaki çekiliş için 5 kolon</h2>
+        <p class="sub" id="opSub">8 Kasım'da 3 bilen tutturan optimize motor: 4.000 ayarı geçmiş çekilişlerde yarıştırır, en iyi 5 ayar birer kolon verir.</p>
+      </div>
+      <button id="opBtn" class="primary hero-btn">5 kolon ver</button>
+    </div>
+    <div class="prog"><i id="opProg"></i></div>
+    <span class="sub" id="opStatus" style="display:block;margin:8px 0 0"></span>
+    <div id="opOut" class="gen-out hero-out"></div>
+  </section>
+
+  <section class="panel yb" aria-label="Yılbaşı modeli">
+    <div class="hero-top">
+      <div class="hero-txt">
+        <h2>Milli Piyango Yılbaşı modeli</h2>
+        <p class="sub">Yılbaşı çekilişinde sayı seçilmez, 7 haneli bilet alınır. İkramiyeler biletin son rakamlarına göre dağıtılır: <b>amorti</b> son rakama (10 rakamdan 2'si, her biletin %20 şansı), <b>son 2 rakam</b> ikramiyesi 100 sonluktan 7'sine (%7) çıkar. Model, 2009–2026 arasındaki 18 yılbaşının amorti rakamlarını ve son yılların son-2 sonuçlarını Süper Loto motoruyla aynı kurallarla tarar ve 5 bilet sonu önerir.</p>
+      </div>
+      <button id="ybBtn" class="primary hero-btn">Yılbaşı için 5 bilet öner</button>
+    </div>
+    <div id="ybOut" class="gen-out hero-out"></div>
+    <h3>Geçmiş yılbaşlarında test (her yıl, yalnızca önceki yıllara bakılarak)</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Yılbaşı</th><th>Model tahmini (amorti)</th><th>Çıkan amorti</th><th>Tutan</th></tr></thead>
+      <tbody id="ybBody"></tbody>
+    </table></div>
+    <div class="verdict" id="ybVerdict"></div>
+  </section>
+
   <div class="grid">
     <div class="col">
       <section class="panel machine" aria-label="Çekiliş makinesi">
@@ -196,17 +239,6 @@ button.hunt-btn{flex:0 0 auto}
     </div>
 
     <div class="col">
-      <section class="panel tm">
-        <h2>Optimize motor</h2>
-        <p class="sub" id="opSub">4.000 farklı ayar (sıklık penceresi, gecikme, önceki çekiliş, sayı aralığı ağırlıkları) geçmiş çekilişlerde yarıştırılır. En iyi 5 ayarın her biri sıradaki çekiliş için bir kolon verir.</p>
-        <div class="hunt-row">
-          <button id="opBtn" class="primary hunt-btn">Optimize motoru çalıştır</button>
-          <span class="sub" id="opStatus" style="margin:0"></span>
-        </div>
-        <div class="prog"><i id="opProg"></i></div>
-        <div id="opOut" class="gen-out" style="margin-top:12px"></div>
-      </section>
-
       <section class="panel">
         <h2>Yeni sonuç ekle</h2>
         <p class="sub">Her çekilişten sonra kazanan 6 sayıyı buraya gir. Motorlar ve testler yeni sonucu hemen kullanır. Kayıt bu tarayıcıda saklanır.</p>
@@ -1605,11 +1637,25 @@ function opRun() {
     });
     document.getElementById("opOut").innerHTML = html;
     var last = DATA[N - 1];
+    try { localStorage.setItem("opCache", JSON.stringify({ n: N, last: last.d, html: html, at: new Date().toLocaleString("tr-TR") })); } catch (e) {}
     st.textContent = "Hazır: " + last.d + " sonrasındaki çekiliş için.";
-    document.getElementById("opSub").textContent = "4.000 farklı ayar " + DATA[OP_TRAIN_FROM].d + " – " + last.d + " arasındaki " + (N - OP_TRAIN_FROM) + " çekilişte yarıştırıldı. En iyi 5 ayarın her biri sıradaki çekiliş için bir kolon veriyor. Geçmişteki skor geleceği garanti etmez: aynı yöntem görmediği çekilişlerde ortalama 0,61 bilen yaptı (şans 0,60).";
+    opSubText(last);
     btn.disabled = false;
   })();
 }
+function opSubText(last) {
+  document.getElementById("opSub").textContent = "4.000 ayar " + DATA[OP_TRAIN_FROM].d + " – " + last.d + " arasındaki " + (DATA.length - OP_TRAIN_FROM) + " çekilişte yarıştırıldı; en iyi 5 ayar birer kolon verdi. Geçmişteki skor geleceği garanti etmez: aynı yöntem görmediği çekilişlerde ortalama 0,61 bilen yaptı, şans 0,60.";
+}
+(function opLoadCache() {
+  try {
+    var c = JSON.parse(localStorage.getItem("opCache") || "null"), last = DATA[DATA.length - 1];
+    if (c && c.n === DATA.length && c.last === last.d) {
+      document.getElementById("opOut").innerHTML = c.html;
+      document.getElementById("opStatus").textContent = last.d + " sonrasındaki çekiliş için kayıtlı kolonlar (" + c.at + "). Yeniden hesaplamak için butona bas.";
+      opSubText(last);
+    }
+  } catch (e) {}
+})();
 document.getElementById("opBtn").addEventListener("click", opRun);
 document.getElementById("opOut").addEventListener("click", function (e) {
   var b = e.target.closest ? e.target.closest(".copy") : null; if (!b) return;
@@ -1656,6 +1702,60 @@ document.getElementById("addList").addEventListener("click", function (e) {
   if (b.getAttribute("data-sure") !== "1") { b.setAttribute("data-sure", "1"); b.textContent = "Emin misin? Tekrar bas"; return; }
   EXTRA.splice(+b.getAttribute("data-del"), 1); saveExtra(); location.reload();
 });
+
+/* ---------- Milli Piyango Yılbaşı modeli ---------- */
+// Amorti rakamları (yılbaşı yılı = çekilişin ertesi yılı; 2026 = 31 Aralık 2025 çekilişi). Kaynak: Takvim (2009–2019), NTV/Habertürk/Milliyet/Sözcü (2020–2026).
+var YB_AM = { 2009: [2, 8], 2010: [1, 7], 2011: [2, 8], 2012: [3, 9], 2013: [4, 5], 2014: [0, 8], 2015: [2, 6], 2016: [2, 8], 2017: [0, 5], 2018: [4, 6], 2019: [4, 9], 2020: [4, 8], 2021: [0, 5], 2022: [4, 5], 2023: [0, 6], 2024: [2, 7], 2025: [2, 7], 2026: [2, 8] };
+// Son 2 rakam ikramiyesi kazanan sonlar (7'şer adet). 2021 için kaynak bulunamadı.
+var YB_SON2 = { 2020: [1, 9, 45, 48, 69, 83, 96], 2022: [7, 41, 45, 65, 66, 71, 92], 2023: [1, 8, 12, 17, 20, 29, 58], 2024: [2, 12, 46, 48, 57, 61, 72], 2025: [8, 20, 21, 42, 61, 71, 91], 2026: [7, 11, 12, 36, 45, 48, 91] };
+var YB_START = 5;
+function ybAmorti(years) {
+  var f = new Array(10).fill(0);
+  years.forEach(function (y) { YB_AM[y].forEach(function (d) { f[d]++; }); });
+  var o = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(function (a, b) { return f[b] - f[a] || a - b; });
+  return { pick: o.slice(0, 2).sort(function (a, b) { return a - b; }), f: f };
+}
+function ybEndings(amYears, s2Years) {
+  var am = ybAmorti(amYears), cnt = new Array(100).fill(0), tens = new Array(10).fill(0), where = {};
+  s2Years.forEach(function (y) { YB_SON2[y].forEach(function (x) { cnt[x]++; tens[Math.floor(x / 10)]++; (where[x] = where[x] || []).push(y); }); });
+  var cand = [];
+  for (var x = 0; x < 100; x++) if (am.pick.indexOf(x % 10) >= 0) cand.push(x);
+  cand.sort(function (a, b) { return cnt[b] - cnt[a] || tens[Math.floor(b / 10)] - tens[Math.floor(a / 10)] || a - b; });
+  return { am: am, list: cand.slice(0, 5), cnt: cnt, where: where };
+}
+function pad2(x) { return (x < 10 ? "0" : "") + x; }
+function ybRender() {
+  var years = Object.keys(YB_AM).map(Number).sort(), rows = "", hits = 0, any = 0, n = 0;
+  for (var i = YB_START; i < years.length; i++) {
+    var y = years[i], p = ybAmorti(years.slice(0, i)).pick, act = YB_AM[y];
+    var h = p.filter(function (d) { return act.indexOf(d) >= 0; }).length; hits += h; any += h > 0 ? 1 : 0; n++;
+    rows += "<tr><td>" + y + "</td><td class='mono'>" + p.join(" ve ") + "</td><td class='mono'>" + act.join(" ve ") + "</td><td class='mono'>" + (h ? "<b>" + h + "</b>" : "0") + "</td></tr>";
+  }
+  document.getElementById("ybBody").innerHTML = rows;
+  // son-2 bilet testi: o yıla kadarki verilerle 5 bilet sonu
+  var s2Years = Object.keys(YB_SON2).map(Number).sort(), s2hit = 0, s2n = 0, amT = 0;
+  s2Years.forEach(function (y, k) {
+    if (k < 2) return;
+    var e = ybEndings(years.filter(function (z) { return z < y; }), s2Years.slice(0, k)).list;
+    e.forEach(function (x) { if (YB_SON2[y].indexOf(x) >= 0) s2hit++; if (YB_AM[y].indexOf(x % 10) >= 0) amT++; });
+    s2n++;
+  });
+  var fx = function (v) { return v.toFixed(2).replace(".", ","); };
+  document.getElementById("ybVerdict").textContent = n + " yılbaşında model ortalama " + fx(hits / n) + " amorti rakamı tuttu; şansın beklentisi 0,40. En az bir amorti rakamını " + any + " yılda yakaladı (şans %38, yani " + (n * 0.378).toFixed(1).replace(".", ",") + " yıl). " +
+    "Son " + s2n + " yılbaşında önerilen 5 bilet sonundan toplam " + amT + " tanesi amorti, " + s2hit + " tanesi son-2 ikramiyesi alırdı (şans: " + (s2n * 5 * 0.2).toFixed(0) + " amorti, " + (s2n * 5 * 0.07).toFixed(1).replace(".", ",") + " son-2). " +
+    "Aynı motorun 500 ayarla optimize edilmiş hali eğitim yıllarında 0,88 tuttu ama görmediği yıllarda 0,20'ye düştü; bu yüzden yılbaşı motoru en sade ve testte en iyi çıkan Sıcak modeli kullanıyor. 18 yıllık veri şansı ayırt etmeye yetmez.";
+}
+function ybSuggest() {
+  var years = Object.keys(YB_AM).map(Number).sort(), s2Years = Object.keys(YB_SON2).map(Number).sort();
+  var r = ybEndings(years, s2Years), next = years[years.length - 1] + 1;
+  document.getElementById("ybOut").innerHTML = '<p class="sub" style="margin:0">' + next + ' yılbaşı (31 Aralık ' + (next - 1) + ') için. Amorti adayı rakamlar: <b>' + r.am.pick.join(" ve ") + '</b> (' + years.length + ' yılda ' + r.am.f[r.am.pick[0]] + ' ve ' + r.am.f[r.am.pick[1]] + ' kez). Bileti alırken numarası bu sonlarla bitenleri seç:</p>' +
+    r.list.map(function (x, i) {
+      var w = r.where[x] ? "son-2 ikramiyesi " + r.where[x].join(", ") + (r.where[x].length > 1 ? " yılbaşlarında" : " yılbaşında") + " çıktı" : "son-2'de çıkmadı, amorti adayı " + (x % 10);
+      return '<div class="gen-row"><div class="end"><span>…</span>' + pad2(x) + '</div><div class="score"><b>' + (i + 1) + '. bilet</b><small>sonu ' + pad2(x) + '</small></div><div class="why">Son rakam ' + (x % 10) + ' amorti adayı · ' + w + '</div></div>';
+    }).join("");
+}
+document.getElementById("ybBtn").addEventListener("click", ybSuggest);
+ybRender();
 
 buildKolon(); setTray([]); updateUI(); idle();
 evCalc(); depCalc();

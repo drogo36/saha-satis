@@ -211,6 +211,9 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const trLow=s=>String(s??"").toLocaleLowerCase("tr-TR").replace(/\s+/g," ").trim();
 const tl=n=>(Number(n)||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ₺";
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+// Pazar çalışılmıyor: Pazar'a denk gelen tarih Pazartesi'ye kayar
+const isSun=s=>!!s&&new Date(s+"T12:00").getDay()===0;
+const noSun=s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(s||"")||!isSun(s))return s;const d=new Date(s+"T12:00");d.setDate(d.getDate()+1);return ymd(d)};
 const today=()=>ymd(new Date());
 const nowTime=()=>new Date().toTimeString().slice(0,5);
 const fmtDate=s=>{if(!s)return "—";const [y,m,d]=s.split("-");return d&&m?`${d}.${m}.${y}`:s};
@@ -371,10 +374,12 @@ const regions=()=>[...new Set(custList().map(c=>c.region||c.district).filter(Boo
 
 /* ---- route / today ---- */
 
-const DAY_DEF={home:"İnönü Mah. Cemevi Sk., Sancaktepe",homeLat:41.0112,homeLng:29.2133,dayStart:"09:00",arriveBy:"18:00",visitMin:30,speed:22,lunchFrom:"12:00",lunchTo:"13:00",lunchMin:45,lunchPlaces:[]};
+const DAY_DEF={office:"Siteler Yolu Sk. No:10, 34854 Maltepe/İstanbul",home:"İnönü Mah. Cemevi Sk., Sancaktepe",homeLat:41.0112,homeLng:29.2133,dayStart:"09:00",arriveBy:"18:00",visitMin:30,speed:22,lunchFrom:"12:00",lunchTo:"13:00",lunchMin:45,lunchPlaces:[]};
 const day=()=>Object.assign({},DAY_DEF,settings().day||{});
 const toMin=s=>{const [h,m]=String(s||"0:0").split(":").map(Number);return (h||0)*60+(m||0)};
 const hhmm=m=>{m=Math.round(m);return String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+const officePt=()=>{const D=day();if(!D.office)return null;return Object.assign({name:"Ofis",address:D.office,city:"",office:true},typeof D.officeLat==="number"&&typeof D.officeLng==="number"?{lat:D.officeLat,lng:D.officeLng}:{})};
+function officeBtn(cls){const o=officePt();return o?`<a class="btn ${cls||""}" id="officeGo" href="${esc(navUrl(o,mapApp()))}" target="_blank" rel="noopener">🏢 Ofise git</a>`:""}
 const homePt=()=>{const D=day();return typeof D.homeLat==="number"&&typeof D.homeLng==="number"?{lat:D.homeLat,lng:D.homeLng,name:"Ev",home:true}:null};
 function travelMin(a,b){const D=day();return km(a,b)*1.35/(Number(D.speed)||22)*60+5}
 const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
@@ -500,6 +505,8 @@ function vRoute(){
   const rg=regions();const q=trLow(U.custQ);
   const pickable=cs.filter(c=>(!U.region||(c.region||c.district)===U.region)&&custMatch(c,q));
   return `${kpis()}
+  ${new Date().getDay()===0?`<div class="banner" id="sunNote">Bugün Pazar, iş günü değil. Haftalık plan ve hatırlatmalar Pazartesi'den devam eder.</div>`:""}
+  ${officePt()?`<div class="row" id="officeRow">${officeBtn("sm")}<span class="why" style="flex:1 1 140px;min-width:0">Toplantı için ofise yol tarifi</span></div>`:""}
   ${live?`<section class="panel live"><div class="row"><h2>Ziyarette: ${esc(live.name)}</h2><span class="chip warn mono">başladı ${esc(U.live.start)}</span></div>
     <span class="sub">${U.live.left?`📍 Saat ${esc(U.live.left)} civarı buradan ayrıldın. Görüşme bittiyse notunu gir.`:"Görüşmeyi bitirince sonucu ve notunu gir."}</span>${hasGeo(live)?"":`<span class="why">Bu müşterinin konumu kayıtlı değil. Şu an oradaysan kaydet, bir dahaki sefere ziyaret kendiliğinden başlasın.</span>`}<div class="row"><button class="btn pri" data-act="visit" data-id="${live.id}">Ziyareti bitir ve not al</button>${hasGeo(live)?"":`<button class="btn" data-act="liveGeo" data-id="${live.id}">📍 Konumu kaydet</button>`}<button class="btn ghost" data-act="cancelLive">Vazgeç</button></div></section>`:""}
   ${tripCard()}
@@ -535,7 +542,7 @@ function vRoute(){
   <input id="custQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ara: firma, bölge, telefon, not, parça…" value="${esc(U.custQ)}">${q&&!pickable.length?`<span class="why">“${esc(U.custQ)}” hiçbir kayıtta geçmiyor.</span>`:""}
   <div class="grid2">${(()=>{const sel=pickable.filter(c=>U.selected.has(c.id)),rest=pickable.filter(c=>!U.selected.has(c.id));return [...sel,...pageOf("pick",rest,30).items]})().map(c=>`<label class="check"><input type="checkbox" data-act="toggleSel" data-id="${c.id}" ${U.selected.has(c.id)?"checked":""}>${tierBadge(c)}<span style="min-width:0"><b>${esc(c.name)}</b><br><span class="meta">${esc(c.region||c.district||c.city||"")}${c.nextVisit&&c.nextVisit<=t?' · <span class="chip warn">ziyaret zamanı</span>':""}${hasGeo(c)?"":' · <span class="chip">konum yok</span>'}</span></span></label>`).join("")}</div>${pageOf("pick",pickable.filter(c=>!U.selected.has(c.id)),30).more}</section>`:""}`}
 /* ---------- satış fırsatları: hedefe günlük kalan, açık teklifler, alımı kesilenler ---------- */
-function workDaysLeft(){const n=new Date(today()+"T00:00");const m=n.getMonth();let k=0;for(const d=new Date(n);d.getMonth()===m;d.setDate(d.getDate()+1)){const w=d.getDay();if(w!==0&&w!==6)k++}return Math.max(1,k)}
+function workDaysLeft(){const n=new Date(today()+"T00:00");const m=n.getMonth();let k=0;for(const d=new Date(n);d.getMonth()===m;d.setDate(d.getDate()+1)){if(d.getDay()!==0)k++}return Math.max(1,k)}
 function openOffers(){const out=[];for(const c of custList()){if(c.status==="Pasif")continue;const vs=visitsOf(c);const tv=vs.find(v=>v.result==="Teklif verildi");
   if(!tv&&c.status!=="Teklif")continue;const since=tv?tv.date||"":"";
   if(tv&&vs.some(v=>v.result==="Sipariş alındı"&&(v.date||"")>=since))continue;
@@ -566,6 +573,9 @@ function dayPanel(){const D=day();const L=D.lunchPlaces||[];
     <label class="f" style="grid-column:1/-1">Ev / gün sonu adresi<input id="df_home" name="home" value="${esc(D.home)}"></label>
     <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="df_geo">📍 Evdeyim, konumu al</button></div>
     <label class="f" style="grid-column:1/-1">Ev konumu (Maps linki ya da koordinat)<input id="df_geo" name="geo" value="${typeof D.homeLat==="number"?D.homeLat+", "+D.homeLng:""}"></label>
+    <label class="f" style="grid-column:1/-1">Ofis adresi (toplantılar için)<input id="df_office" name="office" value="${esc(D.office||"")}"></label>
+    <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="df_ogeo">📍 Ofisteyim, konumu al</button></div>
+    <label class="f" style="grid-column:1/-1">Ofis konumu (isteğe bağlı: Maps linki ya da koordinat)<input id="df_ogeo" name="ogeo" value="${typeof D.officeLat==="number"?D.officeLat+", "+D.officeLng:""}"></label>
     <label class="f">Güne başlama<input id="df_start" type="time" name="dayStart" value="${esc(D.dayStart)}"></label>
     <label class="f">Evde olma saati<input id="df_by" type="time" name="arriveBy" value="${esc(D.arriveBy)}"></label>
     <label class="f">Ziyaret süresi (dk)<input id="df_vm" type="number" min="5" name="visitMin" value="${esc(D.visitMin)}"></label>
@@ -741,7 +751,7 @@ function visitForm(c){const lv=U.live&&U.live.customerId===c.id?U.live:null;
    <label class="f">Bitiş<input id="vf_end" type="time" name="end" value="${lv&&lv.left?lv.left:nowTime()}"></label>
    <label class="f">Sonuç<select id="vf_res" name="result">${Object.keys(RESULTS).map(k=>`<option>${k}</option>`).join("")}</select></label>
    <label class="f">Sipariş / teklif tutarı (₺)<input id="vf_amt" name="amount" inputmode="decimal" placeholder="0"></label>
-   <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return ymd(d)})()}"></label>
+   <label class="f">Sonraki ziyaret<input id="vf_next" type="date" name="nextVisit" value="${(()=>{const d=new Date();d.setDate(d.getDate()+(Number(c.freq)||14));return noSun(ymd(d))})()}"></label>
    <label class="f" style="grid-column:1/-1">İstenen parçalar / OEM no (kodlar stokla otomatik eşleşir)<input id="vf_parts" autocomplete="off" name="parts" placeholder="örn. 1K0 698 151 fren balatası ×10, 06A 115 561 B yağ filtresi ×24"></label><div id="vfCodes" style="grid-column:1/-1"></div>
    <div class="row" style="grid-column:1/-1"><span class="why" style="flex:1 1 200px">Notu serbestçe yaz ya da klavyedeki mikrofonla söyle; AI sonucu, tutarı, parçaları ve sonraki ziyareti doldursun.</span><button class="btn sm" type="button" data-act="aiFill">✨ AI ile düzenle</button></div>
    <div style="grid-column:1/-1;display:grid;gap:6px"><label class="btn sm" for="vf_photo" style="justify-self:start">📷 Fotoğraf ekle (raf, fatura, kartvizit)</label><input id="vf_photo" type="file" accept="image/*" capture="environment" multiple hidden><div class="thumbs" id="vfPhotos">${U.pendingPhotos.map(id=>`<img data-ph="${id}" alt="Fotoğraf">`).join("")}</div></div>
@@ -966,7 +976,7 @@ SON ZİYARETLER:
 ${vs.join("\n")||"(yok)"}
 ${stockContext(q)}
 GECİKEN ÖDEMELER: ${overdueList().slice(0,20).map(g=>g.name+" "+Math.round(g.total)+"₺ "+g.maxDays+" gün").join("; ")||"yok"}`}
-const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir). Stok sorularında yalnızca STOK listesini kullan: ürünün adını, OEM kodunu, stok adedini ve fiyatını yaz; listede yoksa açıkça "stokta kayıtlı değil" de, kod ya da muadil uydurma. Kritik stokları ve en çok satanları satış önerilerinde kullan; bir ürünü önerirken o markayla çalışan müşterileri seç. Uygulamayı güncelleme isteğinde update_app işlemini, yeni özellik ya da hata bildirimi isteğinde request_feature işlemini öner.`;
+const AI_SYS=`Sen Muhammed'in saha satış asistanısın. Muhammed İstanbul'da Ford, Fiat ve PSA (Peugeot, Citroën, Opel) yedek parçası satan bir saha satış danışmanı; hedefi güçlü toptan alıcılar kazanmak. Pazar günleri çalışılmaz; ziyaret, plan ya da sonraki ziyaret tarihini Pazar'a koyma. Türkçe, kısa ve uygulanabilir cevap ver. Sadece verilen verilerdeki firmalardan bahset, veri uydurma. Sayıları ₺ ile yaz. Rota önerirken aynı gün Avrupa ve Anadolu yakasını karıştırma ve kişinin 18:00'de Sancaktepe'de evde olması gerektiğini unutma. Rota önerdiğinde cevabın EN SONUNA ayrı bir satır olarak tam şu biçimde yaz: ROTA: Firma Adı 1 | Firma Adı 2 | ... (firma adları verideki gibi birebir). Stok sorularında yalnızca STOK listesini kullan: ürünün adını, OEM kodunu, stok adedini ve fiyatını yaz; listede yoksa açıkça "stokta kayıtlı değil" de, kod ya da muadil uydurma. Kritik stokları ve en çok satanları satış önerilerinde kullan; bir ürünü önerirken o markayla çalışan müşterileri seç. Uygulamayı güncelleme isteğinde update_app işlemini, yeni özellik ya da hata bildirimi isteğinde request_feature işlemini öner.`;
 
 U.chat=[];U.aiBusy=false;
 function aiSetupPanel(){const cfg=aiCfg();return `<section class="panel"><h2>Yapay zekâ anahtarı</h2>
@@ -1016,7 +1026,7 @@ Sadece şu JSON'u döndür: {"result": "Sipariş alındı"|"Teklif verildi"|"Bil
     const o=aiJSON(t);if(!o)throw new Error("Yanıt okunamadı, tekrar dene.");
     if(o.result&&RESULTS[o.result]!==undefined)$("#vf_res").value=o.result;
     if(o.amount)$("#vf_amt").value=String(o.amount);if(o.parts)$("#vf_parts").value=o.parts;if(o.note)$("#vf_note").value=o.note;
-    if(/^\d{4}-\d{2}-\d{2}$/.test(o.nextVisit||""))$("#vf_next").value=o.nextVisit;toast("Form dolduruldu, kontrol edip kaydet")}
+    if(/^\d{4}-\d{2}-\d{2}$/.test(o.nextVisit||""))$("#vf_next").value=noSun(o.nextVisit);toast("Form dolduruldu, kontrol edip kaydet")}
   catch(e){toast(e.message)}btn.disabled=false;btn.textContent="✨ AI ile düzenle"}
 async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
   const vs=visitsOf(c).slice(0,3).map(v=>`${v.date} ${v.result} ${v.parts||""} ${v.note||""}`).join("\n");
@@ -1024,7 +1034,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.13.0";
+const APP_VERSION="2.14.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1378,7 +1388,7 @@ async function nearSorted(){U.nearList=custList().map(c=>({c,d:null}));U.nearBus
 
 /* Daha menüsü */
 function vMore(){const items=[["stok","cart","Stok ve kod okuma"],["harita","map","Harita"],["ziyaret","list","Ziyaretler"],["siparis","doc","Sipariş / Fatura"],["yakin","radar","Yakındaki potansiyeller"],["gunsonu","report","Gün sonu raporu"],["asistan","spark","Asistan"],["rapor","chart","Rapor ve ayarlar"]];
-  return `<h2>Daha fazla</h2><div class="qa">${items.map(([t,i,l])=>`<button data-goto-tab="${t}"><span class="ic">${ic(i)}</span>${l}</button>`).join("")}</div>`}
+  return `<h2>Daha fazla</h2><div class="qa">${items.map(([t,i,l])=>`<button data-goto-tab="${t}"><span class="ic">${ic(i)}</span>${l}</button>`).join("")}</div>${officePt()?`<div class="row" style="margin-top:12px">${officeBtn()}<span class="why" style="flex:1 1 140px;min-width:0">${esc(day().office)}</span></div>`:""}`}
 
 /* Sipariş alma */
 U.cart=null;
@@ -1493,7 +1503,7 @@ function arrivalCheck(pos){if(pos.acc>ARR_MAX_ACC)return;let ch=leaveCheck(pos);
 /* Rotada olmayan müşteri: 80 m içinde 1 dakika kalınca yalnızca sorar, kendiliğinden başlatmaz. "Hayır" o müşteriyi bugünlük, diğerlerini 30 dakika susturur. */
 const NEAR_KM=0.08,NEAR_MS=60000,NEAR_QUIET=30*60e3,NEAR_MAX_ACC=50;
 const nearAskOn=()=>day().nearAsk!==false;
-function inWorkHours(){const D=day(),n=nowMin();return n>=toMin(D.dayStart)&&n<=toMin(D.arriveBy)}
+function inWorkHours(){const D=day(),n=nowMin();if(new Date().getDay()===0)return false;return n>=toMin(D.dayStart)&&n<=toMin(D.arriveBy)}
 function nearStops(){const t=today(),H=homePt();return custList().filter(c=>!U.selected.has(c.id)&&hasGeo(c)&&c.status!=="Pasif"&&!arrSkipped(c.id)&&!(H&&km(H,c)<0.2)&&!visitsOf(c).some(v=>v.date===t))}
 function nearClear(){clearTimeout(U._nearT);U._nearT=null;U.nearCand=null;U.nearAsk=null;U.nearAt=0}
 function nearCheck(pos){const id=U.nearAsk||(U.nearCand&&U.nearCand.id);
@@ -1532,7 +1542,7 @@ function detectHome(){try{const L=JSON.parse(localStorage.getItem(GK)||"[]");if(
   if(H&&km(c,H)<0.4)return;if(no.some(x=>km(x,c)<0.4))return;U.homeSuggest=c}catch(e){}}
 function nightCheck(){const h=new Date().getHours();if(!(h>=20||h<7))return;
   if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:"geolocation"}).then(st=>{if(st.state==="granted")getPos().then(learnHome).catch(()=>{})}).catch(()=>{})}
-function scheduleHomeNotif(){clearTimeout(U._ht);if(!posFresh()||notifState()!=="granted")return;const H=homePt();if(!H)return;
+function scheduleHomeNotif(){clearTimeout(U._ht);if(new Date().getDay()===0)return;if(!posFresh()||notifState()!=="granted")return;const H=homePt();if(!H)return;
   const leave=toMin(day().arriveBy)-Math.round(travelMin(U.lastPos,H))-15;const ms=(leave-nowMin())*60e3;
   if(ms>0&&ms<6*3600e3)U._ht=setTimeout(async()=>{if(localStorage.getItem("saha-eve-bildirim")===today())return;const reg=await navigator.serviceWorker?.getRegistration?.();
     const o={body:`${day().arriveBy}'de evde olmak için 15 dakika içinde yola çık.`,icon:"icon-192.png",tag:"eve",data:{dest:dirLink(H)}};if(reg)reg.showNotification("🏠 Eve dönüş zamanı",o);else new Notification("🏠 Eve dönüş zamanı",o);localStorage.setItem("saha-eve-bildirim",today())},ms)}
@@ -1717,7 +1727,7 @@ function planActions(acts){const steps=[];const miss=[];
       steps.push({kind:"save",items:[{id:uid("p"),kind:"product",name:String(a.name),sku:String(a.sku||""),oem:String(a.oem||""),brand:String(a.brand||""),price:Number(a.price)||"",stock:a.stock===undefined?"":Number(a.stock),min:5}],text:`Yeni ürün: ${a.sku?"["+a.sku+"] ":""}${a.name}`})}
     else if(a.type==="add_route"){const cs=(a.customers||[]).map(n=>findCust(n)||(miss.push(n),null)).filter(Boolean);if(cs.length)steps.push({kind:"route",ids:cs.map(c=>c.id),text:`Rotaya ekle: ${cs.map(c=>c.name).join(", ")}`})}
     else if(a.type==="mark_paid"){(a.customers||[]).forEach(n=>{const c=findCust(n);if(!c){miss.push(n);return}const inv=overdueList().find(g=>g.c&&g.c.id===c.id);if(inv)steps.push({kind:"save",items:inv.inv.map(o=>Object.assign({},o,{paid:true,paidAt:today()})),text:`${c.name}: ${inv.inv.length} fatura ödendi (${tl(inv.total)})`});else miss.push(n+" için geciken fatura yok")})}
-    else if(a.type==="set_next_visit"){const c=findCust(a.customer);if(!c||!/^\d{4}-\d{2}-\d{2}$/.test(a.date||"")){miss.push(a.customer);continue}steps.push({kind:"save",items:[Object.assign({},c,{nextVisit:a.date})],text:`${c.name} sonraki ziyaret: ${fmtDate(a.date)}`})}
+    else if(a.type==="set_next_visit"){const c=findCust(a.customer);if(!c||!/^\d{4}-\d{2}-\d{2}$/.test(a.date||"")){miss.push(a.customer);continue}const nd=noSun(a.date);steps.push({kind:"save",items:[Object.assign({},c,{nextVisit:nd})],text:`${c.name} sonraki ziyaret: ${fmtDate(nd)}`})}
     else if(a.type==="update_app"){steps.push({kind:"update",text:"Uygulamanın yeni sürümünü kontrol et ve yükle"})}
     else if(a.type==="request_feature"){const ti=String(a.title||"Geliştirme isteği").slice(0,120),de=String(a.details||"");steps.push({kind:"feature",title:ti,details:de,text:`Geliştirme isteği gönder: ${ti}`})}
     else if(a.type==="add_customer"){if(!a.name||findCust(a.name)){miss.push((a.name||"?")+" zaten var");continue}steps.push({kind:"save",items:[{id:uid("c"),kind:"customer",name:String(a.name),phone:String(a.phone||""),region:String(a.region||""),contact:String(a.contact||""),status:"Aday",tier:"B",freq:14,createdAt:Date.now()}],text:`Yeni müşteri: ${a.name}`})}
@@ -1999,7 +2009,8 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
   else if(f.id==="lunchHere"){let pos=U.lunch.pos;try{pos=await getPos();U.lunch.pos=pos}catch(e){if(!pos){toast(e.message);return}}
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:String(fd.name).trim(),lat:+pos.lat.toFixed(6),lng:+pos.lng.toFixed(6)}]});toast("Kaydedildi: "+fd.name);return}
   else if(f.id==="dayForm"){const g=parseCoords(fd.geo);if(fd.geo&&!g){toast("Ev konumu okunamadı.");return}
-    await saveDay({home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,mapApp:MAP_APPS[fd.mapApp]?fd.mapApp:"google",...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
+    const og=parseCoords(fd.ogeo);if(fd.ogeo&&!og){toast("Ofis konumu okunamadı.");return}
+    await saveDay({office:String(fd.office||"").trim(),...(og?{officeLat:og.lat,officeLng:og.lng}:fd.ogeo===""?{officeLat:null,officeLng:null}:{}),home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,mapApp:MAP_APPS[fd.mapApp]?fd.mapApp:"google",...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
   else if(f.id==="vfldForm"){const l=String(fd.label||"").trim().slice(0,30);const F=vFields();if(!l)return;if(F.some(x=>trLow(x)===trLow(l))){toast("Bu alan zaten var.");return}if(F.length>=8){toast("En fazla 8 alan ekleyebilirsin.");return}await save(Object.assign({},settings(),{visitFields:[...F,l]}));f.reset();toast("Alan eklendi. Ziyaret formunda görünür.");return}
   else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:fd.name.trim(),lat:g.lat,lng:g.lng}]});toast("Yemek yeri eklendi")}
@@ -2008,11 +2019,11 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     if(invLeft(n)<=0){n.paid=true;n.paidAt=fd.date||today()}U.payFor=null;await save(n);
     toast(n.paid?"Tahsilat kaydedildi, fatura kapandı":"Tahsilat kaydedildi. Kalan: "+tl(invLeft(n)),{label:"Geri al",fn:async()=>{await save(old)}});return}
   else if(f.id==="setForm"){await save(Object.assign({},settings(),{target:parseNum(fd.target)}));toast("Hedef kaydedildi")}
-  else if(f.id==="visitForm"){const c=S.customers.get(f.dataset.id);
+  else if(f.id==="visitForm"){const c=S.customers.get(f.dataset.id);const sunMoved=isSun(fd.nextVisit);if(sunMoved)fd.nextVisit=noSun(fd.nextVisit);
     const v={id:uid("v"),kind:"visit",customerId:c.id,customerName:c.name,date:fd.date,start:fd.start,end:fd.end,result:fd.result,amount:parseNum(fd.amount),parts:fd.parts,note:fd.note,nextVisit:fd.nextVisit,photos:U.pendingPhotos.slice()};(()=>{const x={};vFields().forEach((l,i)=>{const t=String(fd["x_"+i]||"").trim();if(t)x[l]=t});if(Object.keys(x).length)v.extra=x})();U.pendingPhotos=[];U.arrived=null;
     U.visitFor=null;if(U.live&&U.live.customerId===c.id)U.live=null;U.selected.delete(c.id);keepUI();
     let status=c.status||"Aday";if(fd.result==="Sipariş alındı")status="Aktif";else if(fd.result==="Teklif verildi"&&status!=="Aktif")status="Teklif";else if(status==="Aday"&&fd.result!=="Ulaşılamadı")status="Görüşülüyor";
-    await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status)}});
+    await save(v);await save(Object.assign({},c,{nextVisit:fd.nextVisit||c.nextVisit,status}));toast("Ziyaret kaydedildi · aşama: "+status+(sunMoved?" · sonraki ziyaret Pazar'a denk geldiği için Pazartesi'ye alındı":""))}});
 
 render();boot();setTimeout(cloudInit,0);addEventListener("online",setSync);addEventListener("offline",setSync);
 updatedNotice();setTimeout(()=>checkUpdate(false,true),1500);setInterval(()=>checkUpdate(false),30*60*1000);

@@ -1,1 +1,1 @@
-{"version": "2.13.0", "notes": "Faturaya kısmi tahsilat girebilir, müşteri kartında açık bakiyeyi görüp hesap özetini WhatsApp'tan gönderebilirsin. Yedek artık ziyaret fotoğraflarını da içeriyor."}
+{"version": "2.14.0", "notes": "Pazar günleri tatil sayılıyor: hedef hesabı, sonraki ziyaret tarihi ve hatırlatmalar Pazar'ı atlıyor. Bugün sayfasına ve Daha menüsüne '🏢 Ofise git' düğmesi eklendi."}

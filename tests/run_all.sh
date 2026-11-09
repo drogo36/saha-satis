@@ -32,6 +32,7 @@ run "Rotada olmayan yakın müşteri sorusu" tests/yakinsor.py
 run "Isı haritası, alan çizme, form alanları" tests/bolge.py
 run "Plan: rotayı kontrol et, eski sürüm" tests/plan.py
 run "Satış fırsatları, tam arama, öğle kartı gün boyu" tests/firsat.py
+run "Tahsilat, açık bakiye, fotoğraflı yedek" tests/tahsilat.py
 run "Kendiliğinden güncelleme" tests/upd.py
 [ -n "${SRV:-}" ] && kill $SRV 2>/dev/null
 [ $FAIL -eq 0 ] && echo "TÜM TESTLER GEÇTİ ($V1)" || { echo "TESTLER BAŞARISIZ"; exit 1; }

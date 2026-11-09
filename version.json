@@ -1,1 +1,1 @@
-{"version": "2.12.0", "notes": "Bugün sayfasına Satış fırsatları eklendi (hedefe günlük kalan, dönüş bekleyen teklifler, alımı kesilen müşteriler). Arama artık notlar, telefon, adres, parça ve ziyaret notlarında da arıyor. Öğle/TokenFlex kartı gün boyu açık. Asistan'da yazma kutusu alt menünün altında kalmıyor."}
+{"version": "2.13.0", "notes": "Faturaya kısmi tahsilat girebilir, müşteri kartında açık bakiyeyi görüp hesap özetini WhatsApp'tan gönderebilirsin. Yedek artık ziyaret fotoğraflarını da içeriyor."}

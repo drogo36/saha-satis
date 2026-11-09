@@ -507,7 +507,7 @@ function vRoute(){
   ${sampleItems().length&&S.customers.size>sampleItems().filter(d=>d.kind==="customer").length?`<div class="banner">Gerçek kayıtlarının yanında ${sampleItems().length} örnek kayıt duruyor. <button class="btn sm" data-act="clearSample">Örnekleri temizle</button></div>`:""}
   ${salesOpps()}
   ${lunchCard()}
-  ${n7()?`<div class="banner">Son 7 gündür yedek almadın. <button class="btn sm" data-act="backup">Şimdi yedek al</button></div>`:""}
+  ${n7()?`<div class="banner">Son 7 gündür yedek almadın. Yedeği al, açılan menüden WhatsApp'ta kendine gönder. <button class="btn sm" data-act="backup">Şimdi yedek al</button></div>`:""}
   ${pri.length?`<section class="panel"><div class="row"><h2>Bugün kime gitmeli?</h2><span class="sp"></span><button class="btn sm" data-act="addPri">Hepsini rotaya ekle</button></div>
    <span class="sub">Potansiyel, toptan hacim, açık teklif ve geciken ziyarete göre sıralandı.</span>
    <div class="list">${pri.map(({c,p})=>`<div class="item stop" style="grid-template-columns:auto minmax(0,1fr) auto">${tierBadge(c)}<div style="min-width:0"><div class="t">${esc(c.name)}</div><div class="why">${esc([c.region||c.district,...p.why].filter(Boolean).join(" · "))}</div></div><button class="btn sm" data-act="addSel" data-id="${c.id}">+ Rota</button></div>`).join("")}</div></section>`:""}
@@ -553,7 +553,7 @@ function salesOpps(){if(!S.customers.size)return "";
   const tg=Number(settings().target)||0;const left=tg-base;const wd=workDaysLeft();
   const of=openOffers().slice(0,5),lp=lapsedBuyers().slice(0,5);
   const goal=!tg?`<div class="row"><span class="why" style="flex:1 1 180px">Aylık hedef girersen hedefe ulaşmak için günde ne kadar satman gerektiğini gösteririm.</span><button class="btn sm" data-goto-tab="rapor">Hedef gir</button></div>`
-   :left>0?`<div class="item" id="oppGoal"><b>🎯 Hedefe ${tl(left)} kaldı</b><span class="why">Ayın kalan ${wd} iş gününde günde <b class="mono">${tl(left/wd)}</b> satış yaparsan hedefi tutturursun.</span></div>`
+   :left>0?`<div class="item" id="oppGoal"><b>🎯 Hedefe ${tl(left)} kaldı</b><span class="why">Ayın kalan ${wd} iş gününde günde <b class="mono">${tl(left/wd)}</b> satış yaparsan hedefi tutturursun.</span>${(()=>{const all=openOffers();const sum=all.reduce((a,x)=>a+x.amt,0);if(!sum)return "";const pc=Math.min(100,sum/left*100);return `<span class="why" id="oppCover">Bekleyen ${all.filter(x=>x.amt).length} teklifin toplamı <b class="mono">${tl(sum)}</b>. ${pc>=100?"Hepsi siparişe dönerse <b>hedefi tutturursun</b>.":`Hepsi siparişe dönerse kalan hedefin <b>%${pc.toFixed(0)}</b>'i kapanır.`} Aşağıdaki teklifleri ara.</span>`})()}</div>`
    :`<div class="item" id="oppGoal"><b>🎉 Bu ayın hedefini tutturdun</b><span class="why">Hedefin ${tl(Math.abs(left))} üzerindesin.</span></div>`;
   if(!tg&&!of.length&&!lp.length)return "";
   return `<section class="panel" id="firsat"><div class="row"><h2>💰 Satış fırsatları</h2></div>${goal}
@@ -647,6 +647,7 @@ function vDetail(){const c=S.customers.get(U.detail);if(!c){U.detail=null;return
    ${p.why.length?`<div class="why">Öncelik nedeni: ${esc(p.why.join(" · "))}</div>`:""}
    ${c.notes?`<div class="note">${esc(c.notes)}</div>`:""}
    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sipariş toplamı</div><div class="v">${tl(sip)}</div></div><div class="kpi"><div class="l">Fatura toplamı</div><div class="v">${tl(fat)}</div></div><div class="kpi"><div class="l">Ziyaret</div><div class="v">${vs.length}</div></div></div>
+   ${(()=>{const bal=custBalance(c),n=openInv(c).length;return bal>0?`<div class="row" id="custBal"><span class="chip warn mono">Açık bakiye ${tl(bal)} · ${n} fatura</span><span class="sp"></span><button class="btn sm" data-act="stmt" data-id="${c.id}">Hesap özeti gönder</button></div>`:""})()}
    <div class="row" style="gap:6px"><button class="btn pri" data-act="visit" data-id="${c.id}">Ziyaret notu ekle</button><button class="btn" data-act="aiMsg" data-id="${c.id}">✨ Mesaj yaz</button><button class="btn" data-act="${U.selected.has(c.id)?"unSel":"addSel"}" data-id="${c.id}">${U.selected.has(c.id)?"Rotada ✓":"+ Rotaya ekle"}</button><a class="btn" href="${esc(dirLink(c))}" target="_blank" rel="noopener">Yol tarifi</a>${wa?`<a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>`:""}${c.phone?`<a class="btn" href="${esc(phoneHref(c.phone))}">Ara</a>`:""}<button class="btn" data-act="editCust" data-id="${c.id}">Düzenle</button><button class="btn ghost" data-act="delCust" data-id="${c.id}" style="color:var(--bad)">Müşteriyi sil</button></div></section>
   ${U.msg&&U.msg.id===c.id?`<section class="panel"><h3>Mesaj taslağı</h3><textarea id="msgTxt" rows="5">${esc(U.msg.text)}</textarea><div class="row"><button class="btn sm" data-act="msgCopy">Kopyala</button>${wa?`<a class="btn sm pri" href="${esc(wa)}?text=${encodeURIComponent(U.msg.text)}" target="_blank" rel="noopener">WhatsApp'ta aç</a>`:""}<button class="btn sm ghost" data-act="msgClose">Kapat</button></div></section>`:""}
   <h3>Ziyaret geçmişi</h3><div class="list">${vs.length?vs.map(visitItem).join(""):`<div class="empty">Bu müşteriye henüz ziyaret notu yok.</div>`}</div>
@@ -783,7 +784,7 @@ function impPanel(kind){const I=U.import;if(!I||I.kind!==kind)return "";
    ${kind==="product"?`<label class="f">Yükleme şekli<select id="impMode"><option value="merge" ${I.mode!=="replace"?"selected":""}>Ekle ve güncelle (mevcut stok kalsın)</option><option value="replace" ${I.mode==="replace"?"selected":""}>Stoğu bu dosyayla değiştir (dosyada olmayanları sil)</option></select></label>${I.mode==="replace"?`<div class="banner">Dosyada olmayan stok ürünleri silinecek. Silinenleri 12 saniye içinde geri alabilirsin.</div>`:""}`:""}
    <div class="row"><button class="btn pri" data-act="doImp">${I.rows.length} kaydı içe aktar</button><button class="btn ghost" data-act="cancelImp">Vazgeç</button></div></section>`}
 function ordTable(os){return `<div class="tbl"><table><thead><tr><th>Tarih</th><th>Tür</th><th>Belge</th><th>Müşteri</th><th>Stok kodu</th><th>Parça</th><th class="n">Adet</th><th class="n">Tutar</th><th>Vade</th><th></th></tr></thead><tbody>
-  ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td class="mono">${esc(o.sku||(o.lines||[]).map(l=>l.sku).filter(Boolean).join(", ")||"—")}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td>${o.type==="fatura"?(o.paid?'<span class="chip ok">ödendi</span>':`<span class="chip ${dueOf(o)&&dueOf(o)<today()?"bad":""} mono">${fmtDate(dueOf(o))}</span> <button class="btn sm ghost" data-act="markPaid" data-ids="${o.id}">ödendi</button>`):""}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>`}
+  ${os.map(o=>`<tr><td class="mono">${fmtDate(o.date)}</td><td><span class="chip ${o.type==="fatura"?"ok":"st"}">${esc(o.type)}</span></td><td class="mono">${esc(o.no||"")}</td><td>${esc(o.customer)}</td><td class="mono">${esc(o.sku||(o.lines||[]).map(l=>l.sku).filter(Boolean).join(", ")||"—")}</td><td>${esc(o.item||"")}</td><td class="n">${o.qty||""}</td><td class="n">${tl(o.amount)}</td><td>${o.type==="fatura"?(invLeft(o)<=0?'<span class="chip ok">ödendi</span>':`<span style="display:inline-flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;align-items:center;min-width:0"><span class="chip ${dueOf(o)&&dueOf(o)<today()?"bad":""} mono">${fmtDate(dueOf(o))}</span>${invPaidSum(o)>0?`<span class="chip warn mono">kalan ${tl(invLeft(o))}</span>`:""}<button class="btn sm" data-act="payOpen" data-id="${o.id}">Tahsilat</button><button class="btn sm ghost" data-act="markPaid" data-ids="${o.id}">ödendi</button></span>`):""}</td><td><button class="btn sm ghost" data-act="delOrd" data-id="${o.id}" aria-label="Sil">×</button></td></tr>`).join("")}</tbody></table></div>${payPanel(os)}`}
 function vOrders(){
   const q=trLow(U.ordQ);let os=[...S.orders.values()].filter(o=>(U.ordType==="hepsi"||o.type===U.ordType)&&(!q||trLow([o.customer,o.no,o.item,o.sku,...(o.lines||[]).map(l=>l.sku)].join(" ")).includes(q))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const tot=os.reduce((a,o)=>a+(o.amount||0),0);const unmatched=new Set([...S.orders.values()].filter(o=>!o.customerId&&!custByName(o.customer)).map(o=>o.customer));
@@ -838,20 +839,25 @@ async function exportX(kind){if(!await loadXLSX()){toast("Excel oluşturucu yük
 async function downloadBlob(blob,fn){
   try{const f=new File([blob],fn,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[f],title:fn});return}}catch(e){if(e&&e.name==="AbortError")return}
   const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
-function backupNow(){const all=[...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()];
-  const fn="saha-satis-yedek-"+today()+".json";downloadBlob(new Blob([JSON.stringify({app:"saha-satis",v:1,at:new Date().toISOString(),data:all})],{type:"application/json"}),fn);
-  try{localStorage.setItem(BK,today())}catch(e){}setSync();render();toast("Yedek hazır: "+fn)}
+const photoIds=()=>[...new Set([...S.visits.values()].flatMap(v=>Array.isArray(v.photos)?v.photos:[]))];
+async function backupNow(withPhotos=true){const all=[...S.customers.values(),...S.visits.values(),...S.orders.values(),...S.settings.values(),...S.products.values()];
+  const ids=withPhotos?photoIds():[];const photos={};for(const id of ids){try{const d=await photoGet(id);if(d)photos[id]=d}catch(e){}}const np=Object.keys(photos).length;
+  const fn="saha-satis-yedek-"+today()+(np?"-fotolu":"")+".json";const o={app:"saha-satis",v:1,at:new Date().toISOString(),data:all};if(np)o.photos=photos;
+  await downloadBlob(new Blob([JSON.stringify(o)],{type:"application/json"}),fn);
+  try{localStorage.setItem(BK,today())}catch(e){}setSync();render();toast("Yedek hazır: "+fn+(np?` (${np} fotoğraf dahil)`:""))}
 async function restoreFrom(file){try{const o=JSON.parse(await file.text());const arr=Array.isArray(o)?o:o.data;if(!Array.isArray(arr))throw 0;
-  const n=arr.filter(d=>d&&d.id&&d.kind).length;await saveMany(arr.filter(d=>d&&d.id&&d.kind));toast(n+" kayıt geri yüklendi")}catch(e){toast("Bu dosya bir Saha Satış yedeği değil.")}}
+  const n=arr.filter(d=>d&&d.id&&d.kind).length;await saveMany(arr.filter(d=>d&&d.id&&d.kind));
+  let np=0;if(o.photos&&typeof o.photos==="object")for(const [id,d] of Object.entries(o.photos)){if(typeof d==="string"&&d.startsWith("data:image")){try{await photoPut(id,d);np++}catch(e){}}}
+  toast(n+" kayıt"+(np?", "+np+" fotoğraf":"")+" geri yüklendi");if(np){render();hydratePhotos()}}catch(e){toast("Bu dosya bir Saha Satış yedeği değil.")}}
 function versionPanel(){return `<section class="panel"><h2>Uygulama</h2><div class="row"><span class="chip mono">sürüm ${APP_VERSION}</span><span class="sp"></span><button class="btn sm" data-act="checkUpd">Güncellemeleri denetle</button></div><span class="why">Uygulama açıldığında ve her 30 dakikada bir yeni sürümü kendisi kontrol eder.</span></section>`}
 function samplePanel(){const n=sampleItems().length;return n?`<section class="panel"><h2>Örnek veriler</h2><span class="sub">Denemek için yüklenen ${n} örnek kayıt (müşteri, ziyaret, sipariş, stok) duruyor. Gerçek kayıtlarına dokunmadan hepsini silebilirsin.</span><div class="row"><button class="btn sm" data-act="clearSample">Örnek verileri temizle</button></div></section>`:""}
 function backupPanel(){const lb=lastBackup();const n=S.customers.size+S.visits.size+S.orders.size;
   return `<section class="panel" id="vfldPanel"><h2>Ziyaret formu alanları</h2><span class="sub">Her ziyarette doldurmak istediğin bilgileri ekle: rakip marka, raf durumu gibi.</span>
    <div class="list">${vFields().map((l,i)=>`<div class="row"><span style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(l)}</span><button class="btn sm ghost" data-act="delVfld" data-i="${i}">Kaldır</button></div>`).join("")||'<span class="why">Henüz ek alan yok.</span>'}</div>
    <form id="vfldForm" class="row"><input id="vfld_label" name="label" maxlength="30" placeholder="örn. Rakip marka" style="flex:1 1 180px;min-width:0" required><button class="btn sm" type="submit">＋ Alan ekle</button></form></section>
-  <section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al; dosyayı Google Drive'a ya da WhatsApp'ta kendine gönder. Telefon değişirse yedeği buradan geri yüklersin.</span>
-   <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span></div>
-   <div class="row"><button class="btn pri" data-act="backup">Yedek al</button><label class="btn" for="restoreFile">Yedekten geri yükle</label><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></section>`}
+  <section class="panel"><h2>Yedek</h2><span class="sub">Kayıtların sadece bu telefonda duruyor. Haftada bir yedek al: "Yedek al"a bas, açılan paylaş menüsünden WhatsApp'ı seçip kendine gönder (ya da Google Drive'a kaydet). Ziyaret fotoğrafları da yedeğe dahildir. Telefon değişirse yedeği buradan geri yüklersin.</span>
+   <div class="row"><span class="chip ${lb?"ok":"warn"} mono">${lb?"son yedek "+fmtDate(lb):"henüz yedek yok"}</span><span class="chip mono">${n} kayıt</span>${photoIds().length?`<span class="chip mono">${photoIds().length} fotoğraf</span>`:""}</div>
+   <div class="row"><button class="btn pri" data-act="backup">Yedek al</button>${photoIds().length?`<button class="btn ghost" data-act="backupLite">Fotoğrafsız yedek (küçük dosya)</button>`:""}<label class="btn" for="restoreFile">Yedekten geri yükle</label><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></section>`}
 
 /* ---------- sample ---------- */
 async function loadSample(){const t=today();const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return ymd(x)};
@@ -1018,7 +1024,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.12.0";
+const APP_VERSION="2.13.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1199,12 +1205,31 @@ function fill(t,o){return t.replace(/\{(\w+)\}/g,(m,k)=>o[k]!=null&&o[k]!==""?o[
 // vade ve gecikme
 function dueOf(o){if(o.dueDate)return o.dueDate;if(!o.date)return "";const c=o.customerId&&S.customers.get(o.customerId)||custByName(o.customer);const term=Number(c&&c.term)||Number(msgCfg().defaultTerm)||30;
   const d=new Date(o.date);d.setDate(d.getDate()+term);return d.toISOString().slice(0,10)}
+// tahsilat: faturaya kısmi ödeme (o.pays) ve kalan bakiye
+const PAY_METHODS=["Nakit","Havale / EFT","Çek","Senet","Kredi kartı"];
+function invPaidSum(o){return (Array.isArray(o.pays)?o.pays:[]).reduce((a,p)=>a+(Number(p.amount)||0),0)}
+function invLeft(o){if(!o||o.type!=="fatura"||o.paid)return 0;const base=o.remaining!=null&&o.remaining!==""?Number(o.remaining)||0:Number(o.amount)||0;return Math.max(0,Math.round((base-invPaidSum(o))*100)/100)}
+function openInv(c){return ordersOf(c).filter(o=>invLeft(o)>0).sort((a,b)=>(dueOf(a)||"").localeCompare(dueOf(b)||""))}
+function custBalance(c){return openInv(c).reduce((a,o)=>a+invLeft(o),0)}
+function lastPay(c){let L=null;for(const o of ordersOf(c))for(const p of (Array.isArray(o.pays)?o.pays:[]))if(!L||(p.date||"")>(L.date||""))L=p;return L}
+function stmtText(c){const M=msgCfg();const inv=openInv(c);const t=today();
+  const lines=inv.map(o=>{const due=dueOf(o);const late=due&&due<t?daysSince(due):0;return "• "+[o.no?"Fatura "+o.no:"Fatura",fmtDate(o.date),due?"vade "+fmtDate(due):"","kalan "+tl(invLeft(o))].filter(Boolean).join(" · ")+(late?` (${late} gün gecikti)`:"")});
+  const lp=lastPay(c);
+  return [`Merhaba${c.contact?" "+c.contact:""}, ${c.name} hesap özetiniz (${fmtDate(t)}):`,...lines,`Toplam açık bakiye: ${tl(custBalance(c))}`,lp?`Son ödemeniz: ${fmtDate(lp.date)} · ${tl(lp.amount)}${lp.method?" ("+lp.method+")":""}`:"","Teşekkürler, "+M.sender].filter(Boolean).join("\n")}
+function payPanel(os){const o=U.payFor&&os.find(x=>x.id===U.payFor);if(!o)return "";const left=invLeft(o);const P=Array.isArray(o.pays)?o.pays:[];
+  return `<section class="panel live" id="payPanel"><h3>Tahsilat: ${esc(o.customer||"")} ${o.no?"· "+esc(o.no):""}</h3>
+   <div class="row"><span class="chip mono">fatura ${tl(o.amount)}</span><span class="chip ok mono">ödenen ${tl(invPaidSum(o))}</span><span class="chip warn mono">kalan ${tl(left)}</span></div>
+   ${P.length?`<div class="list">${P.map(p=>`<div class="row"><span class="mono" style="flex:1 1 150px;min-width:0">${fmtDate(p.date)} · ${tl(p.amount)} · ${esc(p.method||"")}</span><button class="btn sm ghost" data-act="payDel" data-id="${o.id}" data-pid="${esc(p.id)}">Sil</button></div>`).join("")}</div>`:""}
+   <form id="payForm" class="grid3" data-id="${o.id}"><label class="f">Alınan tutar (₺)<input id="pf_amt" name="amount" inputmode="decimal" value="${left?esc(String(left).replace(".",",")):""}" required></label>
+    <label class="f">Ödeme şekli<select id="pf_met" name="method">${PAY_METHODS.map(m=>`<option>${m}</option>`).join("")}</select></label>
+    <label class="f">Tarih<input id="pf_date" type="date" name="date" value="${today()}" required></label>
+    <div class="row" style="grid-column:1/-1"><button class="btn pri" type="submit">Tahsilatı kaydet</button><button class="btn ghost" type="button" data-act="payClose">Kapat</button></div></form></section>`}
 let _odC=null;function overdueList(){const key=DV+"|"+today()+"|"+(msgCfg().defaultTerm);if(_odC&&_odC.k===key)return _odC.v;const v=overdueList0();_odC={k:key,v};return v}
 function overdueList0(){const t=today();const by=new Map();
-  for(const o of S.orders.values()){if(o.type!=="fatura"||o.paid)continue;const due=dueOf(o);if(!due||due>=t)continue;
+  for(const o of S.orders.values()){const left=invLeft(o);if(!(left>0))continue;const due=dueOf(o);if(!due||due>=t)continue;
     const c=o.customerId&&S.customers.get(o.customerId)||custByName(o.customer);const key=c?c.id:"x:"+o.customer;
     let g=by.get(key);if(!g)by.set(key,g={c,name:c?c.name:o.customer,inv:[],total:0,maxDays:0});
-    const left=o.remaining!=null&&o.remaining!==""?Number(o.remaining):Number(o.amount)||0;g.inv.push(o);g.total+=left;g.maxDays=Math.max(g.maxDays,daysSince(due))}
+    g.inv.push(o);g.total+=left;g.maxDays=Math.max(g.maxDays,daysSince(due))}
   return [...by.values()].sort((a,b)=>b.maxDays-a.maxDays||b.total-a.total)}
 function overdueMsg(g){const M=msgCfg();return fill(M.tpl.odeme,{firma:g.name,yetkili:g.c&&g.c.contact||"",tutar:tl(g.total),gun:g.maxDays,faturalar:g.inv.map(o=>o.no||fmtDate(o.date)).join(", "),ben:M.sender})}
 function lastSent(cid,kind){const L=(settings().msgLog||[]).filter(x=>x.cid===cid&&x.kind===kind);return L.length?L[L.length-1]:null}
@@ -1739,7 +1764,12 @@ document.addEventListener("click",async e=>{
   else if(a==="tripStart"){const r=buildRoute();const st=routeStops(r);if(!st.length)return;U.trip={date:today(),ids:st.map(c=>c.id),skip:(r.overflow||[]).map(c=>c.id)};keepUI();toast("Rota başladı. İlk durak: "+st[0].name);window.scrollTo(0,0)}
   else if(a==="tripEnd"){U.trip=null;keepUI()}
   else if(a==="tripSkip"){if(U.trip){U.trip.skip.push(id);keepUI();const c=S.customers.get(id);toast((c?c.name:"Durak")+" atlandı",{label:"Geri al",fn:async()=>{if(U.trip){U.trip.skip=U.trip.skip.filter(x=>x!==id);keepUI();render()}}})}}
-  else if(a==="backup"){backupNow();return}
+  else if(a==="backup"){backupNow(true);return}
+  else if(a==="backupLite"){backupNow(false);return}
+  else if(a==="payOpen"){U.payFor=id;render();setTimeout(()=>{const x=$("#payPanel");if(x)x.scrollIntoView({block:"center"})},60);return}
+  else if(a==="payClose"){U.payFor=null}
+  else if(a==="payDel"){const o=S.orders.get(id);if(!o)return;const old=Object.assign({},o);const pays=(o.pays||[]).filter(p=>p.id!==b.dataset.pid);const n=Object.assign({},o,{pays});if(o.paid&&invLeft(Object.assign({},n,{paid:false}))>0){n.paid=false;delete n.paidAt}await save(n);toast("Tahsilat silindi",{label:"Geri al",fn:async()=>{await save(old)}});return}
+  else if(a==="stmt"){const c=S.customers.get(id);if(c){U.msg={id:c.id,text:stmtText(c)};render();setTimeout(()=>{const x=$("#msgTxt");if(x)x.scrollIntoView({block:"center"})},60)}return}
   else if(a==="aiAsk"){aiAsk(b.dataset.q);return}
   else if(a==="aiReset"){U.chat=[]}
   else if(a==="stkLow"){U.stk.low=!U.stk.low}
@@ -1973,6 +2003,10 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
   else if(f.id==="vfldForm"){const l=String(fd.label||"").trim().slice(0,30);const F=vFields();if(!l)return;if(F.some(x=>trLow(x)===trLow(l))){toast("Bu alan zaten var.");return}if(F.length>=8){toast("En fazla 8 alan ekleyebilirsin.");return}await save(Object.assign({},settings(),{visitFields:[...F,l]}));f.reset();toast("Alan eklendi. Ziyaret formunda görünür.");return}
   else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:fd.name.trim(),lat:g.lat,lng:g.lng}]});toast("Yemek yeri eklendi")}
+  else if(f.id==="payForm"){const o=S.orders.get(f.dataset.id);const amt=parseNum(fd.amount);if(!o)return;if(!(amt>0)){toast("Tutarı yaz");return}
+    const old=Object.assign({},o);const n=Object.assign({},o,{pays:[...(Array.isArray(o.pays)?o.pays:[]),{id:uid("py"),date:fd.date||today(),amount:amt,method:fd.method||""}]});
+    if(invLeft(n)<=0){n.paid=true;n.paidAt=fd.date||today()}U.payFor=null;await save(n);
+    toast(n.paid?"Tahsilat kaydedildi, fatura kapandı":"Tahsilat kaydedildi. Kalan: "+tl(invLeft(n)),{label:"Geri al",fn:async()=>{await save(old)}});return}
   else if(f.id==="setForm"){await save(Object.assign({},settings(),{target:parseNum(fd.target)}));toast("Hedef kaydedildi")}
   else if(f.id==="visitForm"){const c=S.customers.get(f.dataset.id);
     const v={id:uid("v"),kind:"visit",customerId:c.id,customerName:c.name,date:fd.date,start:fd.start,end:fd.end,result:fd.result,amount:parseNum(fd.amount),parts:fd.parts,note:fd.note,nextVisit:fd.nextVisit,photos:U.pendingPhotos.slice()};(()=>{const x={};vFields().forEach((l,i)=>{const t=String(fd["x_"+i]||"").trim();if(t)x[l]=t});if(Object.keys(x).length)v.extra=x})();U.pendingPhotos=[];U.arrived=null;

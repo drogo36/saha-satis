@@ -1617,7 +1617,8 @@ var OP_LAST = null;
 var LD_PRIZE = { 2: 29.30, 3: 292.10, 4: 6295.60, 5: 211135.20 }; // son çekilişlerin kişi başı tutarları (yaklaşık)
 var LD_SEED = [
   { id: "s1", iso: "2026-11-08", kolons: [[4, 9, 11, 21, 28, 35], [1, 21, 29, 35, 36, 56], [2, 4, 6, 11, 23, 25], [2, 13, 25, 41, 44, 48], [2, 25, 34, 41, 44, 48]], paid: 350.70 },
-  { id: "s2", iso: "2026-11-10", kolons: [[4, 21, 24, 29, 35, 44], [4, 9, 11, 21, 28, 35], [2, 6, 13, 25, 44, 51], [2, 23, 25, 34, 44, 55], [2, 4, 6, 11, 23, 25]] }
+  { id: "s2", iso: "2026-11-10", kolons: [[4, 21, 24, 29, 35, 44], [4, 9, 11, 21, 28, 35], [2, 6, 13, 25, 44, 51], [2, 23, 25, 34, 44, 55], [2, 4, 6, 11, 23, 25]] },
+  { id: "s3", iso: "2026-11-12", kolons: [[33, 41, 44, 47, 48, 59], [11, 29, 34, 44, 51, 55], [17, 35, 41, 48, 56, 59], [7, 14, 34, 42, 49, 55], [6, 13, 24, 33, 44, 47]] }
 ];
 function nextDrawIso() {
   var dt = new Date(trToIso(DATA[DATA.length - 1].d) + "T12:00:00");
@@ -1625,7 +1626,14 @@ function nextDrawIso() {
   return dt.toISOString().slice(0, 10);
 }
 function ldLoad() {
-  try { var s = localStorage.getItem("oynananlar"); if (s === null) { localStorage.setItem("oynananlar", JSON.stringify(LD_SEED)); return LD_SEED.slice(); } return JSON.parse(s) || []; }
+  try {
+    var s = localStorage.getItem("oynananlar");
+    if (s === null) { localStorage.setItem("oynananlar", JSON.stringify(LD_SEED)); localStorage.setItem("oynananSeed", JSON.stringify(LD_SEED.map(function (x) { return x.id; }))); return LD_SEED.slice(); }
+    var a = JSON.parse(s) || [], seen = JSON.parse(localStorage.getItem("oynananSeed") || '["s1","s2"]'), added = false;
+    LD_SEED.forEach(function (x) { if (seen.indexOf(x.id) < 0) { a.push(x); seen.push(x.id); added = true; } });
+    if (added) { localStorage.setItem("oynananlar", JSON.stringify(a)); localStorage.setItem("oynananSeed", JSON.stringify(seen)); }
+    return a;
+  }
   catch (e) { return LD_SEED.slice(); }
 }
 function ldSave(a) { try { localStorage.setItem("oynananlar", JSON.stringify(a)); return true; } catch (e) { return false; } }

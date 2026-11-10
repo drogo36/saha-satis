@@ -200,13 +200,13 @@ button.hero-btn{font-size:17px;padding:14px 26px;border-radius:12px;flex:0 0 aut
     <div class="hero-top">
       <div class="hero-txt">
         <h2>Sıradaki çekiliş için 5 kolon</h2>
-        <p class="sub" id="opSub">8 Kasım'da 3 bilen tutturan optimize motor: 4.000 ayarı geçmiş çekilişlerde yarıştırır, en iyi 5 ayar birer kolon verir.</p>
+        <p class="sub" id="opSub">8 Kasım'da 3 bilen tutturan optimize motor sayfa açılınca kendiliğinden çalışır: 4.000 ayarı geçmiş çekilişlerde yarıştırır, en iyi ayarların kolonlarını verir.</p>
       </div>
-      <button id="opBtn" class="primary hero-btn">5 kolon ver</button>
+      <button id="opBtn" class="primary hero-btn">Yeniden hesapla</button>
     </div>
     <div class="prog"><i id="opProg"></i></div>
     <span class="sub" id="opStatus" style="display:block;margin:8px 0 0"></span>
-    <label class="check op-check"><input type="checkbox" id="opCrowd">
+    <label class="check op-check"><input type="checkbox" id="opCrowd" checked>
       <span>Kalabalıktan kaçan kolonları seç
       <em>En iyi 40 ayarın kolonları arasından az oynanan sayılara dayalı 5 tanesini seçer. Tutma şansı aynı kalır, kazanırsan ikramiyeyi daha az kişiyle bölüşürsün.</em></span></label>
     <div id="opOut" class="gen-out hero-out"></div>
@@ -1753,11 +1753,14 @@ function opSubText(last) {
     if (c && c.n === DATA.length && c.last === last.d) {
       document.getElementById("opOut").innerHTML = c.html;
       if (c.op) OP_LAST = c.op;
-      document.getElementById("opCrowd").checked = !!c.crowd;
+      document.getElementById("opCrowd").checked = c.crowd !== false;
       document.getElementById("opStatus").textContent = last.d + " sonrasındaki çekiliş için kayıtlı kolonlar (" + c.at + "). Yeniden hesaplamak için butona bas.";
       opSubText(last);
+      return;
     }
   } catch (e) {}
+  // kayıtlı kolon yoksa (ilk açılış ya da yeni sonuç eklendi) motor kendiliğinden çalışır
+  setTimeout(opRun, 400);
 })();
 document.getElementById("opBtn").addEventListener("click", opRun);
 document.getElementById("opOut").addEventListener("click", function (e) {
@@ -1858,7 +1861,7 @@ function ybSuggest() {
     }).join("");
 }
 document.getElementById("ybBtn").addEventListener("click", ybSuggest);
-ybRender();
+ybRender(); ybSuggest();
 ldRender(); showPlayRow();
 
 buildKolon(); setTray([]); updateUI(); idle();

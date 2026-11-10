@@ -159,6 +159,16 @@ button.hero-btn{font-size:17px;padding:14px 26px;border-radius:12px;flex:0 0 aut
 .hero-out:empty{display:none}
 .end{font:600 20px var(--f-mono);letter-spacing:.04em}
 .end span{color:var(--muted);font-weight:500}
+.op-check{border-top:0;padding-top:0;margin-top:12px}
+.led{margin-bottom:22px}
+.led-kpis{margin-bottom:12px}
+.ld-day{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ld-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;font-weight:600;font-size:13.5px}
+.ld-head .sub{margin:0;font-weight:400}
+.ld-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.ld-row .minis{flex:1 1 auto}
+.ld-row b{color:var(--ink);font-family:var(--f-mono)}
+.mini.hitb{background:var(--good);color:#fff}
 .add-row{margin-bottom:10px}
 .add-row label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);max-width:220px}
 .add-row input{font:600 15px var(--f-mono);padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
@@ -196,7 +206,26 @@ button.hero-btn{font-size:17px;padding:14px 26px;border-radius:12px;flex:0 0 aut
     </div>
     <div class="prog"><i id="opProg"></i></div>
     <span class="sub" id="opStatus" style="display:block;margin:8px 0 0"></span>
+    <label class="check op-check"><input type="checkbox" id="opCrowd">
+      <span>Kalabalıktan kaçan kolonları seç
+      <em>En iyi 40 ayarın kolonları arasından az oynanan sayılara dayalı 5 tanesini seçer. Tutma şansı aynı kalır, kazanırsan ikramiyeyi daha az kişiyle bölüşürsün.</em></span></label>
     <div id="opOut" class="gen-out hero-out"></div>
+    <div class="hunt-row" style="margin-top:12px" id="opPlayRow" hidden>
+      <button id="opPlay" class="hunt-btn">Bu 5 kolonu oynadım</button>
+      <span class="sub" id="opPlayMsg" style="margin:0"></span>
+    </div>
+  </section>
+
+  <section class="panel led" aria-label="Oynadıklarım">
+    <h2>Oynadıklarım</h2>
+    <p class="sub">Oynadığın kolonlar ve sonuçları. Sonuç "Yeni sonuç ekle" bölümüne girilince kolonlar otomatik puanlanır. İkramiyeler son çekilişlerin kişi başı tutarlarıyla yaklaşık hesaplanır.</p>
+    <div class="kpis led-kpis">
+      <div class="kpi"><b id="ldSpent">–</b><small>harcanan</small></div>
+      <div class="kpi"><b id="ldWon">–</b><small>kazanılan (yaklaşık)</small></div>
+      <div class="kpi"><b id="ldNet">–</b><small>net</small></div>
+    </div>
+    <div id="ldList" class="gen-out"></div>
+    <div class="verdict" id="ldVerdict"></div>
   </section>
 
   <section class="panel yb" aria-label="Yılbaşı modeli">
@@ -1583,6 +1612,69 @@ function diagnose() {
     "Yani motorda eksik yok: Süper Loto makinesinde yakalanacak bir kusur yok. Kusur ortaya çıkarsa, Kusur takibi modu onu otomatik kullanır.";
 }
 
+/* ---------- Oynadıklarım defteri ---------- */
+var OP_LAST = null;
+var LD_PRIZE = { 2: 29.30, 3: 292.10, 4: 6295.60, 5: 211135.20 }; // son çekilişlerin kişi başı tutarları (yaklaşık)
+var LD_SEED = [
+  { id: "s1", iso: "2026-11-08", kolons: [[4, 9, 11, 21, 28, 35], [1, 21, 29, 35, 36, 56], [2, 4, 6, 11, 23, 25], [2, 13, 25, 41, 44, 48], [2, 25, 34, 41, 44, 48]], paid: 350.70 },
+  { id: "s2", iso: "2026-11-10", kolons: [[4, 21, 24, 29, 35, 44], [4, 9, 11, 21, 28, 35], [2, 6, 13, 25, 44, 51], [2, 23, 25, 34, 44, 55], [2, 4, 6, 11, 23, 25]] }
+];
+function nextDrawIso() {
+  var dt = new Date(trToIso(DATA[DATA.length - 1].d) + "T12:00:00");
+  do { dt.setDate(dt.getDate() + 1); } while ([0, 2, 4].indexOf(dt.getDay()) < 0);
+  return dt.toISOString().slice(0, 10);
+}
+function ldLoad() {
+  try { var s = localStorage.getItem("oynananlar"); if (s === null) { localStorage.setItem("oynananlar", JSON.stringify(LD_SEED)); return LD_SEED.slice(); } return JSON.parse(s) || []; }
+  catch (e) { return LD_SEED.slice(); }
+}
+function ldSave(a) { try { localStorage.setItem("oynananlar", JSON.stringify(a)); return true; } catch (e) { return false; } }
+function showPlayRow() {
+  var row = document.getElementById("opPlayRow");
+  if (!OP_LAST || !OP_LAST.kolons || OP_LAST.kolons.length !== 5) { row.hidden = true; return; }
+  row.hidden = false;
+  var done = ldLoad().some(function (p) { return p.iso === OP_LAST.target && JSON.stringify(p.kolons) === JSON.stringify(OP_LAST.kolons); });
+  document.getElementById("opPlay").disabled = done;
+  document.getElementById("opPlayMsg").textContent = done ? isoToTr(OP_LAST.target) + " için deftere kayıtlı." : isoToTr(OP_LAST.target) + " çekilişi için kaydeder.";
+}
+function ldRender() {
+  var plays = ldLoad().sort(function (a, b) { return a.iso < b.iso ? 1 : -1; });
+  var byIso = {}; DATA.forEach(function (r) { byIso[trToIso(r.d)] = r.n; });
+  var spent = 0, won = 0, scoredK = 0, hitSum = 0, html = "";
+  plays.forEach(function (p, pi) {
+    var res = byIso[p.iso], dayWon = 0, rows = "";
+    spent += p.kolons.length * PRICE;
+    p.kolons.forEach(function (k) {
+      var h = res ? k.filter(function (v) { return res.indexOf(v) >= 0; }).length : null;
+      if (res) { scoredK++; hitSum += h; dayWon += LD_PRIZE[h] || 0; }
+      rows += '<div class="ld-row"><div class="minis">' + k.map(function (v) { return '<span class="mini' + (res && res.indexOf(v) >= 0 ? " hitb" : "") + '" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") + '</div>' +
+        (res ? '<span><b>' + h + '</b> bilen' + (LD_PRIZE[h] ? " · " + fmtTL(LD_PRIZE[h]) : "") + '</span>' : '<span>sonuç bekleniyor</span>') + '</div>';
+    });
+    if (res && typeof p.paid === "number") dayWon = p.paid;
+    won += dayWon;
+    html += '<div class="ld-day"><div class="ld-head"><span>' + isoToTr(p.iso) + (res ? ' · çıkan: ' + res.join(" ") : '') + '</span><span class="sub">' +
+      (res ? (dayWon ? "kazanç " + fmtTL(dayWon) + (typeof p.paid === "number" ? " (bilette yazan)" : "") : "ikramiye yok") : "") + ' <button class="copy" data-ld="' + (p.id || p.iso) + '">Sil</button></span></div>' + rows + '</div>';
+  });
+  document.getElementById("ldList").innerHTML = html || '<p class="sub" style="margin:0">Henüz kayıt yok. "5 kolon ver"den sonra "Bu 5 kolonu oynadım"a bas.</p>';
+  document.getElementById("ldSpent").textContent = fmtN(spent) + " TL";
+  document.getElementById("ldWon").textContent = fmtN(won) + " TL";
+  var net = won - spent;
+  document.getElementById("ldNet").textContent = (net >= 0 ? "+" : "−") + fmtN(Math.abs(net)) + " TL";
+  var expPer = 0; [2, 3, 4, 5].forEach(function (k) { expPer += thMatch[k] * LD_PRIZE[k]; });
+  document.getElementById("ldVerdict").textContent = scoredK ? "Sonucu belli " + scoredK + " kolonda ortalama " + (hitSum / scoredK).toFixed(2).replace(".", ",") + " bilen (rastgele kolon 0,60). Rastgele kolonların bu kadar kolonda beklenen kazancı yaklaşık " + fmtN(expPer * scoredK) + " TL (büyük ikramiye hariç). Motorun gerçek başarısı kayıt biriktikçe netleşir; 100 kolondan azı şans oynamasından ayrılamaz." : "Sonucu belli kolon yok.";
+}
+document.getElementById("opPlay").addEventListener("click", function () {
+  if (!OP_LAST) return;
+  var a = ldLoad(); a.push({ id: "p" + Date.now(), iso: OP_LAST.target, kolons: OP_LAST.kolons });
+  if (!ldSave(a)) { document.getElementById("opPlayMsg").textContent = "Tarayıcı kaydetmeye izin vermedi."; return; }
+  ldRender(); showPlayRow();
+});
+document.getElementById("ldList").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest("[data-ld]") : null; if (!b) return;
+  if (b.getAttribute("data-sure") !== "1") { b.setAttribute("data-sure", "1"); b.textContent = "Emin misin?"; return; }
+  var id = b.getAttribute("data-ld"); ldSave(ldLoad().filter(function (p) { return (p.id || p.iso) !== id; })); ldRender(); showPlayRow();
+});
+
 /* ---------- Optimize motor ---------- */
 var OP_W = [5, 10, 20, 40, 80, 1000], OP_CONFIGS = 4000, OP_TRAIN_FROM = 50;
 function opRun() {
@@ -1629,15 +1721,24 @@ function opRun() {
     if (done < OP_CONFIGS) { requestAnimationFrame(chunk); return; }
     res.sort(function (x, y) { return y[0] - x[0]; });
     var top = res.slice(0, 5), html = "";
+    if (document.getElementById("opCrowd").checked) {
+      var seenK = {}, pool = [];
+      res.slice(0, 40).forEach(function (x) { var k = pred(x[1], N).sort(function (p, q) { return p - q; }), key = k.join(","); if (!seenK[key]) { seenK[key] = 1; pool.push({ x: x, k: k, c: crowdScore(crowd(k).p) }); } });
+      pool.sort(function (a, b) { return a.c - b.c || b.x[0] - a.x[0]; });
+      top = pool.slice(0, 5).map(function (o) { return o.x; });
+    }
+    OP_LAST = { target: nextDrawIso(), kolons: [] };
     top.forEach(function (x, idx) {
       var k = pred(x[1], N).sort(function (p, q) { return p - q; });
+      OP_LAST.kolons.push(k);
       html += '<div class="gen-row"><div class="minis">' + k.map(function (v) { return '<span class="mini" style="border-color:' + ballColor(v) + '">' + v + '</span>'; }).join("") +
         '</div><div class="score"><b>' + x[0].toFixed(2).replace(".", ",") + '</b><small>geçmişte ort. bilen</small></div>' +
-        '<button class="copy" data-k="' + k.join(",") + '">Kolonuma al</button><div class="why">Ayar ' + (idx + 1) + ': son ' + (x[1].W === 1000 ? "tüm" : x[1].W) + ' çekilişin sıklığı, gecikme sınırı ' + x[1].gcap + '</div></div>';
+        '<button class="copy" data-k="' + k.join(",") + '">Kolonuma al</button><div class="why">Ayar ' + (idx + 1) + ': son ' + (x[1].W === 1000 ? "tüm" : x[1].W) + ' çekilişin sıklığı, gecikme sınırı ' + x[1].gcap + ' · kalabalık puanı ' + crowdScore(crowd(k).p) + '</div></div>';
     });
     document.getElementById("opOut").innerHTML = html;
     var last = DATA[N - 1];
-    try { localStorage.setItem("opCache", JSON.stringify({ n: N, last: last.d, html: html, at: new Date().toLocaleString("tr-TR") })); } catch (e) {}
+    try { localStorage.setItem("opCache", JSON.stringify({ n: N, last: last.d, html: html, at: new Date().toLocaleString("tr-TR"), op: OP_LAST, crowd: document.getElementById("opCrowd").checked })); } catch (e) {}
+    showPlayRow();
     st.textContent = "Hazır: " + last.d + " sonrasındaki çekiliş için.";
     opSubText(last);
     btn.disabled = false;
@@ -1651,6 +1752,8 @@ function opSubText(last) {
     var c = JSON.parse(localStorage.getItem("opCache") || "null"), last = DATA[DATA.length - 1];
     if (c && c.n === DATA.length && c.last === last.d) {
       document.getElementById("opOut").innerHTML = c.html;
+      if (c.op) OP_LAST = c.op;
+      document.getElementById("opCrowd").checked = !!c.crowd;
       document.getElementById("opStatus").textContent = last.d + " sonrasındaki çekiliş için kayıtlı kolonlar (" + c.at + "). Yeniden hesaplamak için butona bas.";
       opSubText(last);
     }
@@ -1756,6 +1859,7 @@ function ybSuggest() {
 }
 document.getElementById("ybBtn").addEventListener("click", ybSuggest);
 ybRender();
+ldRender(); showPlayRow();
 
 buildKolon(); setTray([]); updateUI(); idle();
 evCalc(); depCalc();

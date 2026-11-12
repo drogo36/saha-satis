@@ -206,9 +206,9 @@ button.hero-btn{font-size:17px;padding:14px 26px;border-radius:12px;flex:0 0 aut
     </div>
     <div class="prog"><i id="opProg"></i></div>
     <span class="sub" id="opStatus" style="display:block;margin:8px 0 0"></span>
-    <label class="check op-check"><input type="checkbox" id="opCrowd" checked>
-      <span>Kalabalıktan kaçan kolonları seç
-      <em>En iyi 40 ayarın kolonları arasından az oynanan sayılara dayalı 5 tanesini seçer. Tutma şansı aynı kalır, kazanırsan ikramiyeyi daha az kişiyle bölüşürsün.</em></span></label>
+    <label class="check op-check"><input type="checkbox" id="opCrowd">
+      <span>Kalabalıktan kaçan kolonları seç (isteğe bağlı)
+      <em>Kapalıyken motor 8 Kasım'da kazandıran ilk haliyle çalışır: en iyi 5 ayarın kolonları. Açınca en iyi 40 ayarın kolonları arasından az oynanan sayılara dayalı 5 tanesini seçer; tutma şansı aynı kalır, kazanırsan ikramiyeyi daha az kişiyle bölüşürsün.</em></span></label>
     <div id="opOut" class="gen-out hero-out"></div>
     <div class="hunt-row" style="margin-top:12px" id="opPlayRow" hidden>
       <button id="opPlay" class="hunt-btn">Bu 5 kolonu oynadım</button>
@@ -1747,7 +1747,7 @@ function opRun() {
     });
     document.getElementById("opOut").innerHTML = html;
     var last = DATA[N - 1];
-    try { localStorage.setItem("opCache", JSON.stringify({ n: N, last: last.d, html: html, at: new Date().toLocaleString("tr-TR"), op: OP_LAST, crowd: document.getElementById("opCrowd").checked })); } catch (e) {}
+    try { localStorage.setItem("opCache2", JSON.stringify({ n: N, last: last.d, html: html, at: new Date().toLocaleString("tr-TR"), op: OP_LAST, crowd: document.getElementById("opCrowd").checked })); } catch (e) {}
     showPlayRow();
     st.textContent = "Hazır: " + last.d + " sonrasındaki çekiliş için.";
     opSubText(last);
@@ -1759,11 +1759,11 @@ function opSubText(last) {
 }
 (function opLoadCache() {
   try {
-    var c = JSON.parse(localStorage.getItem("opCache") || "null"), last = DATA[DATA.length - 1];
+    var c = JSON.parse(localStorage.getItem("opCache2") || "null"), last = DATA[DATA.length - 1];
     if (c && c.n === DATA.length && c.last === last.d) {
       document.getElementById("opOut").innerHTML = c.html;
       if (c.op) OP_LAST = c.op;
-      document.getElementById("opCrowd").checked = c.crowd !== false;
+      document.getElementById("opCrowd").checked = c.crowd === true;
       document.getElementById("opStatus").textContent = last.d + " sonrasındaki çekiliş için kayıtlı kolonlar (" + c.at + "). Yeniden hesaplamak için butona bas.";
       opSubText(last);
       return;

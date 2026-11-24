@@ -15,6 +15,15 @@ async def run(W):
         await pg.goto("http://127.0.0.1:8767/boot.html");await pg.wait_for_timeout(1500)
         await pg.click("[data-act=sample]");await pg.wait_for_timeout(300)
         R={}
+        # ---- B2B kutucukları (Bugün ekranı, satış kutucuklarının altında) ----
+        await ctx.route("**/favicon.ico",lambda r:r.abort())
+        await pg.evaluate("U.tab='rota';U.detail=null;render()");await pg.wait_for_timeout(400)
+        R["Bugün'de iki B2B kutucuğu"]=await pg.evaluate("[...document.querySelectorAll('#b2bTiles a[data-b2b]')].map(a=>a.href).join(' ')")=="https://b2b.otokocyedekparca.com.tr/web/login https://b2bopar.tofas.com.tr/Login"
+        R["satış kutucuklarının hemen altında"]=await pg.evaluate("(()=>{const k=document.querySelector('#b2bTiles');return !!k&&k.previousElementSibling&&k.previousElementSibling.classList.contains('kpis')})()")
+        R["simge yüklenmezse baş harfler"]=await pg.evaluate("[...document.querySelectorAll('#b2bTiles .em')].map(e=>e.textContent.trim()+':'+!!e.querySelector('img')).join(',')")=="OK:false,OP:false"
+        await pg.click("#b2bTiles a[data-b2b=otokoc]");await pg.wait_for_timeout(200)
+        R["kutucuk dokununca açılıyor"]="açılıyor" in await pg.evaluate("document.querySelector('#toast').textContent")
+        R["yatay taşma yok (Bugün)"]=await pg.evaluate("document.documentElement.scrollWidth")<=W
         # ---- B2B ----
         await pg.evaluate("U.tab='stok';U.stk.q='';U.stk.detail=null;render()");await pg.wait_for_timeout(100)
         R["boş aramada B2B satırı yok"]=await pg.evaluate("!document.querySelector('.b2b')")

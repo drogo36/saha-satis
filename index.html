@@ -107,6 +107,10 @@ h3{font-family:var(--f-display);font-weight:700;font-size:13px;margin:0;text-tra
 @media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
 .kpi .l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.b2bt{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0}
+.b2bt .em{position:relative;flex:0 0 38px;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;overflow:hidden}
+.b2bt .em img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:4px}
+.b2bt .tx{min-width:0}.b2bt .tx b{display:block;font-size:14px;overflow-wrap:anywhere}.b2bt .tx small{display:block;color:var(--muted);font-size:12px}
 .kpi .v{font-family:var(--f-mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:2px}
 .btn{font:700 14px/1 var(--f-body);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn.pri{background:var(--cta);border-color:var(--cta);color:var(--cta-ink)}.btn.pri:active{background:var(--cta-press)}
@@ -504,7 +508,7 @@ function vRoute(){
   const near=r.order.length?cs.filter(c=>hasGeo(c)&&!U.selected.has(c.id)&&c.status!=="Pasif").map(c=>({c,d:Math.min(...r.order.map(s=>km(s,c)))})).filter(x=>x.d<=2.5).sort((a,b)=>priority(b.c).score-priority(a.c).score).slice(0,6):[];
   const rg=regions();const q=trLow(U.custQ);
   const pickable=cs.filter(c=>(!U.region||(c.region||c.district)===U.region)&&custMatch(c,q));
-  return `${kpis()}
+  return `${kpis()}${b2bTiles()}
   ${new Date().getDay()===0?`<div class="banner" id="sunNote">Bugün Pazar, iş günü değil. Haftalık plan ve hatırlatmalar Pazartesi'den devam eder.</div>`:""}
   ${officePt()?`<div class="row" id="officeRow">${officeBtn("sm")}<span class="why" style="flex:1 1 140px;min-width:0">Toplantı için ofise yol tarifi</span></div>`:""}
   ${live?`<section class="panel live"><div class="row"><h2>Ziyarette: ${esc(live.name)}</h2><span class="chip warn mono">başladı ${esc(U.live.start)}</span></div>
@@ -1036,7 +1040,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.15.0";
+const APP_VERSION="2.16.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1539,7 +1543,11 @@ function homeBanner(){if(U.tab!=="rota"||U.detail)return "";const D=day();const 
 function hideToday(k){try{return localStorage.getItem(k)===today()}catch(e){return false}}
 function hideSetToday(k){try{localStorage.setItem(k,today())}catch(e){}}
 /* B2B portalları (Otokoç Yedek Parça, Opar/Tofaş): kodu panoya kopyalar ve siteyi açar. Şifre saklanmaz, siteye uygulama girmez. */
-const B2B_DEF=[{k:"otokoc",name:"Otokoç B2B",url:"https://b2b.otokocyedekparca.com.tr/web/login"},{k:"opar",name:"Opar B2B",url:"https://b2bopar.tofas.com.tr/Login"}];
+const B2B_DEF=[{k:"otokoc",name:"Otokoç B2B",ini:"OK",bg:"#1d4f91",sub:"Ford yedek parça",url:"https://b2b.otokocyedekparca.com.tr/web/login"},{k:"opar",name:"Opar B2B",ini:"OP",bg:"#0e7c66",sub:"Fiat yedek parça",url:"https://b2bopar.tofas.com.tr/Login"}];
+// Bugün ekranında satış kutucuklarının yanında B2B kutucukları; amblem sitenin kendi simgesinden yüklenir, yüklenmezse baş harfler görünür
+function b2bTiles(){return `<div class="kpis" id="b2bTiles" style="margin-top:10px">${b2bSites().map(x=>{let ico="";try{ico=new URL(x.url).origin+"/favicon.ico"}catch(e){}
+  return `<a class="kpi b2bt" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code=""><span class="em" style="background:${x.bg}" aria-hidden="true">${esc(x.ini)}${ico?`<img class="b2bIc" src="${esc(ico)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:""}</span><span class="tx"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></a>`}).join("")}</div>`}
+document.addEventListener("error",e=>{const t=e.target;if(t&&t.classList&&t.classList.contains("b2bIc"))t.remove()},true);
 const b2bUrl=v=>{v=String(v||"").trim();if(v&&!/^https?:\/\//i.test(v))v="https://"+v;return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(:\d+)?(\/[^\s"'<>]*)?$/i.test(v)?v:""};
 function b2bSites(){const D=day();return B2B_DEF.map(x=>Object.assign({},x,{url:b2bUrl(D["b2b_"+x.k])||x.url}))}
 function b2bBtns(code){const c=String(code||"").trim().slice(0,60);return b2bSites().map(x=>`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code="${esc(c)}">🔎 ${esc(x.name)}</a>`).join("")}

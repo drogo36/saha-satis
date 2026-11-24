@@ -573,6 +573,8 @@ function dayPanel(){const D=day();const L=D.lunchPlaces||[];
     <label class="f" style="grid-column:1/-1">Ev / gün sonu adresi<input id="df_home" name="home" value="${esc(D.home)}"></label>
     <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="df_geo">📍 Evdeyim, konumu al</button></div>
     <label class="f" style="grid-column:1/-1">Ev konumu (Maps linki ya da koordinat)<input id="df_geo" name="geo" value="${typeof D.homeLat==="number"?D.homeLat+", "+D.homeLng:""}"></label>
+    <label class="f" style="grid-column:1/-1">Otokoç B2B adresi<input id="df_b2b1" name="b2bOtokoc" inputmode="url" value="${esc(b2bSites()[0].url)}"></label>
+    <label class="f" style="grid-column:1/-1">Opar B2B adresi<input id="df_b2b2" name="b2bOpar" inputmode="url" value="${esc(b2bSites()[1].url)}"></label>
     <label class="f" style="grid-column:1/-1">Ofis adresi (toplantılar için)<input id="df_office" name="office" value="${esc(D.office||"")}"></label>
     <div class="row" style="grid-column:1/-1"><button class="btn sm" type="button" data-act="geoHere" data-t="df_ogeo">📍 Ofisteyim, konumu al</button></div>
     <label class="f" style="grid-column:1/-1">Ofis konumu (isteğe bağlı: Maps linki ya da koordinat)<input id="df_ogeo" name="ogeo" value="${typeof D.officeLat==="number"?D.officeLat+", "+D.officeLng:""}"></label>
@@ -1034,7 +1036,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.14.0";
+const APP_VERSION="2.15.0";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1397,7 +1399,7 @@ function vSales(){const C=U.cart;if(!C)return vMore();const c=S.customers.get(C.
   return `<div class="row"><button class="btn sm ghost" data-act="cartCancel">← Vazgeç</button></div>
   <div class="hero"><span style="opacity:.8;font-size:13px">Sipariş · ${esc(c?c.name:"")}</span><span class="big">${tl(total)}</span><span style="font-size:13px;opacity:.85">${lines.reduce((s,l)=>s+l.qty,0)} kalem${disc?` · %${C.disc} iskonto`:""}</span></div>
   <section class="panel"><h3>Ürün ekle</h3><input id="cartQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ürün adı ya da OEM ara" value="${esc(C.q||"")}" autocomplete="off">
-   ${codeChips(C.q,"cart")}
+   ${codeChips(C.q,"cart")}${(C.q||"").trim()?b2bRow(C.q.trim(),"Stokta yoksa B2B'de bak:"):""}
    <div class="list">${(C.q?matchProducts(C.q):ps).slice(0,8).map(p=>`<button class="item" style="text-align:left;font:inherit;color:inherit;cursor:pointer" data-act="cartAdd" data-id="${p.id}"><span class="row"><b style="flex:1;min-width:0">${esc(p.name)}</b><span class="mono">${p.price?tl(p.price):"fiyat yok"}</span></span><span class="meta mono">${esc([p.sku,p.oem,p.brand,p.stock!==""&&p.stock!=null?"stok "+p.stock:""].filter(Boolean).join(" · "))}</span></button>`).join("")||`<span class="why">Stokta ürün yok; aşağıdan serbest kalem ekleyebilirsin.</span>`}</div>
    <form id="freeLine" class="grid3"><label class="f">Serbest kalem<input name="name" placeholder="Parça adı / OEM" required></label><label class="f">Birim fiyat<input name="price" inputmode="decimal"></label><div class="row" style="align-self:end"><button class="btn" type="submit">Ekle</button></div></form></section>
   <section class="panel lines"><h3>Sepet</h3>${lines.length?lines.map((l,i)=>`<div class="ln"><div style="min-width:0"><b>${esc(l.name)}</b><div class="meta mono">${l.oem?esc(l.oem)+" · ":""}${tl(l.price)}</div></div>${(()=>{const p=l.pid&&S.products.get(l.pid);return p&&p.stock!==""&&p.stock!=null&&l.qty>Number(p.stock)?`<span class="chip nc bad" style="grid-column:1/-1;justify-self:start">stokta sadece ${esc(p.stock)} adet var</span>`:""})()}<span class="qty"><button data-act="cartQty" data-i="${i}" data-d="-1" aria-label="Azalt">−</button><span>${l.qty}</span><button data-act="cartQty" data-i="${i}" data-d="1" aria-label="Arttır">+</button></span><span class="mono">${tl(l.qty*l.price)}</span></div>`).join(""):`<span class="why">Henüz ürün eklenmedi.</span>`}
@@ -1524,24 +1526,42 @@ async function arrivalFire(){const id=U.arrived;if(!id||U.live||U.visitFor||!aut
   toast("Ziyaret kendiliğinden başladı: "+c.name,{label:"Geri al",fn:async()=>{U.live=null;arrSkip(id);render()}});render()}
 function mapMeUpdate(){const el=document.querySelector("#mapSvg .me");if(!el||M.z==null||!U.lastPos)return;const v=nmProj(U.lastPos.lat,U.lastPos.lng,M.z);el.style.left=((v.x-M.cx+M.W/2)/M.W*100).toFixed(3)+"%";el.style.top=((v.y-M.cy+M.H/2)/M.H*100).toFixed(3)+"%"}
 function arrivalWatch(){if(!U._posFail||Date.now()-U._posFail>10*60e3)ensurePos();arrivalArm();const want=(U.selected.size>0||!!U.live||(nearAskOn()&&inWorkHours()&&S.customers.size>0))&&document.visibilityState==="visible"&&"geolocation" in navigator;
-  if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed,t:Date.now()};U.lastPos=pos;if(U.geoDenied){U.geoDenied=false;render()}mapMeUpdate();arrivalCheck(pos)},e=>{if(e.code===1&&!U.geoDenied){U.geoDenied=true;render()}},{enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
+  if(want&&_watch==null){_watch=navigator.geolocation.watchPosition(p=>{const pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed,t:Date.now()};U.lastPos=pos;if(U.geoDenied){U.geoDenied=false;render()}mapMeUpdate();arrivalCheck(pos);if(!U._lhT||Date.now()-U._lhT>5*60e3){U._lhT=Date.now();learnHome(pos)}},e=>{if(e.code===1&&!U.geoDenied){U.geoDenied=true;render()}},{enableHighAccuracy:true,maximumAge:30000,timeout:20000})}
   else if(!want&&_watch!=null){navigator.geolocation.clearWatch(_watch);_watch=null}}
 function homeBanner(){if(U.tab!=="rota"||U.detail)return "";const D=day();const H=homePt();let out="";
   if(U.homeSuggest){const g=U.homeSuggest;out+=`<div class="panel" style="border-color:var(--accent)"><b>🏠 Evini konumundan algıladım</b><span class="sub">Son ${g.n} akşam aynı yerdeydin (${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}). Günü buraya dönecek şekilde planlayayım mı?</span><div class="row"><button class="btn pri sm" data-act="homeYes">Evet, evim burası</button><button class="btn ghost sm" data-act="homeNo">Hayır</button></div></div>`}
-  if(!H||!posFresh())return out;const d=km(U.lastPos,H);if(d<0.4)return out;
+  if(!U.homeSuggest&&homeUnsure()&&!hideToday("saha-ev-gizle"))out+=`<div class="panel" id="homeUnsure" style="border-color:var(--accent)"><b>🏠 Ev konumun henüz doğrulanmadı</b><span class="sub">Şu an Sancaktepe için tahmini bir nokta kullanılıyor. Eve dönüş saati ve rota bu yüzden şaşabilir. Evdeyken aşağıdaki düğmeye bir kez bas.</span><div class="row"><button class="btn pri sm" data-act="homeHere">📍 Şu an evdeyim</button><button class="btn ghost sm" data-act="homeUnsureLater">Sonra</button></div></div>`;
+  if(!H||!posFresh())return out;const d=km(U.lastPos,H);
+  if(d<0.4){const vs=[...S.visits.values()].filter(v=>v.date===today()).length;if(vs&&nowMin()>=toMin(D.arriveBy)-120&&!hideToday("saha-evvar-gizle"))out+=`<div class="panel" id="homeArrived" style="border-color:var(--ok)"><b>🏠 Eve vardın, iyi akşamlar</b><span class="sub">Bugün ${vs} ziyaret yaptın. Gün sonu raporunu göndermeyi unutma.</span><div class="row"><button class="btn pri sm" data-act="homeReport">Gün sonu raporu</button><button class="btn ghost sm" data-act="homeArrivedOk">Tamam</button></div></div>`;return out}
   const back=Math.round(travelMin(U.lastPos,H));const by=toMin(D.arriveBy);const leave=by-back;const n=nowMin();
   if(n<leave-45||n>by+90)return out;
-  const late=n>leave;return out+`<div class="hero" style="${late?"background:linear-gradient(135deg,#e0293a,#ff6b5f)":""}"><span style="font-size:13px;opacity:.9">🏠 Eve dönüş</span><b style="font-size:18px">${late?`${esc(D.arriveBy)}'e yetişmek için çıkman gerekiyordu`:`${esc(D.arriveBy)}'de evde olmak için en geç ${hhmm(leave)}'de çık`}</b><span style="font-size:13px;opacity:.9">Buradan eve ~${back} dk · ${d.toFixed(1).replace(".",",")} km</span><div class="row"><a class="btn" style="background:#fff;color:var(--navy);border:0" href="${esc(dirLink(H))}" target="_blank" rel="noopener">Eve yol tarifi</a></div></div>`}
+  const late=n>leave;return out+`<div class="hero" style="${late?"background:linear-gradient(135deg,#e0293a,#ff6b5f)":""}"><span style="font-size:13px;opacity:.9">🏠 Eve dönüş</span><b style="font-size:18px">${late?`${esc(D.arriveBy)}'e yetişmek için çıkman gerekiyordu`:`${esc(D.arriveBy)}'de evde olmak için en geç ${hhmm(leave)}'de çık`}</b><span style="font-size:13px;opacity:.9">Buradan eve ~${back} dk · ${d.toFixed(1).replace(".",",")} km</span><div class="row"><a class="btn" style="background:#fff;color:var(--navy);border:0" href="${esc(dirLink(H))}" target="_blank" rel="noopener">Eve yol tarifi</a><button class="btn" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.6)" data-act="homeHere">Şu an evdeyim</button></div></div>`}
+function hideToday(k){try{return localStorage.getItem(k)===today()}catch(e){return false}}
+function hideSetToday(k){try{localStorage.setItem(k,today())}catch(e){}}
+/* B2B portalları (Otokoç Yedek Parça, Opar/Tofaş): kodu panoya kopyalar ve siteyi açar. Şifre saklanmaz, siteye uygulama girmez. */
+const B2B_DEF=[{k:"otokoc",name:"Otokoç B2B",url:"https://b2b.otokocyedekparca.com.tr/web/login"},{k:"opar",name:"Opar B2B",url:"https://b2bopar.tofas.com.tr/Login"}];
+const b2bUrl=v=>{v=String(v||"").trim();if(v&&!/^https?:\/\//i.test(v))v="https://"+v;return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(:\d+)?(\/[^\s"'<>]*)?$/i.test(v)?v:""};
+function b2bSites(){const D=day();return B2B_DEF.map(x=>Object.assign({},x,{url:b2bUrl(D["b2b_"+x.k])||x.url}))}
+function b2bBtns(code){const c=String(code||"").trim().slice(0,60);return b2bSites().map(x=>`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code="${esc(c)}">🔎 ${esc(x.name)}</a>`).join("")}
+function b2bRow(code,label){return `<div class="row b2b" style="flex-wrap:wrap">${label?`<span class="why" style="flex:1 1 100%">${label}</span>`:""}${b2bBtns(code)}</div>`}
+const prodCode=p=>p.oem||p.sku||p.name||"";
+function copyText(t){try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).catch(()=>copyOld(t));return true}}catch(e){}return copyOld(t)}
+function copyOld(t){try{const ta=document.createElement("textarea");ta.value=t;ta.setAttribute("readonly","");ta.style.cssText="position:fixed;top:0;left:0;opacity:0";document.body.appendChild(ta);ta.select();const ok=document.execCommand("copy");ta.remove();return ok}catch(e){return false}}
 const GK="saha-gece";
-function learnHome(p){try{const h=new Date().getHours();if(!(h>=20||h<7)||!p||(p.acc&&p.acc>200))return;const L=JSON.parse(localStorage.getItem(GK)||"[]").filter(x=>x.d!==today());L.push({d:today(),lat:p.lat,lng:p.lng});
+const homeUnsure=()=>{const D=day();return !D.homeOk&&D.homeLat===DAY_DEF.homeLat&&D.homeLng===DAY_DEF.homeLng};
+const nightHour=h=>h>=19||h<8;
+function learnHome(p){try{try{localStorage.setItem("saha-konum-ok","1")}catch(e){}const h=new Date().getHours();if(!nightHour(h)||!p||(p.acc&&p.acc>300))return;const L=JSON.parse(localStorage.getItem(GK)||"[]").filter(x=>x.d!==today());L.push({d:today(),lat:p.lat,lng:p.lng});
   localStorage.setItem(GK,JSON.stringify(L.slice(-30)));detectHome()}catch(e){}}
-function detectHome(){try{const L=JSON.parse(localStorage.getItem(GK)||"[]");if(L.length<3)return;let best=null;
+function detectHome(){try{const L=JSON.parse(localStorage.getItem(GK)||"[]");const need=homeUnsure()?1:2;if(L.length<need)return;let best=null;
   for(const a of L){const near=L.filter(b=>km(a,b)<0.3);if(!best||near.length>best.length)best=near}
-  if(!best||best.length<3)return;const c={lat:best.reduce((s,x)=>s+x.lat,0)/best.length,lng:best.reduce((s,x)=>s+x.lng,0)/best.length,n:best.length};
+  if(!best||best.length<need)return;const c={lat:best.reduce((s,x)=>s+x.lat,0)/best.length,lng:best.reduce((s,x)=>s+x.lng,0)/best.length,n:best.length};
   const H=homePt();const no=JSON.parse(localStorage.getItem(GK+"-hayir")||"[]");
   if(H&&km(c,H)<0.4)return;if(no.some(x=>km(x,c)<0.4))return;U.homeSuggest=c}catch(e){}}
-function nightCheck(){const h=new Date().getHours();if(!(h>=20||h<7))return;
-  if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:"geolocation"}).then(st=>{if(st.state==="granted")getPos().then(learnHome).catch(()=>{})}).catch(()=>{})}
+function nightCheck(){const h=new Date().getHours();if(!nightHour(h)||!("geolocation" in navigator))return;
+  // iPhone'da izin sorgusu çoğu zaman "prompt" döner; daha önce konum verildiyse yine de dene
+  let ok=false;try{ok=localStorage.getItem("saha-konum-ok")==="1"}catch(e){}
+  const go=()=>getPos().then(p=>{U.lastPos=Object.assign(p,{t:Date.now()});learnHome(p);render()}).catch(()=>{});
+  if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:"geolocation"}).then(st=>{if(st.state==="granted"||(ok&&st.state!=="denied"))go()}).catch(()=>{if(ok)go()});else if(ok)go()}
 function scheduleHomeNotif(){clearTimeout(U._ht);if(new Date().getDay()===0)return;if(!posFresh()||notifState()!=="granted")return;const H=homePt();if(!H)return;
   const leave=toMin(day().arriveBy)-Math.round(travelMin(U.lastPos,H))-15;const ms=(leave-nowMin())*60e3;
   if(ms>0&&ms<6*3600e3)U._ht=setTimeout(async()=>{if(localStorage.getItem("saha-eve-bildirim")===today())return;const reg=await navigator.serviceWorker?.getRegistration?.();
@@ -1630,7 +1650,7 @@ function findCodes(text){const ix=prodIndex().byCode;const toks=String(text||"")
   toks.forEach((t,i)=>{if(used.has(i))return;const k=normCode(t);if(k.length>=6&&/\d/.test(k)&&/[A-Z]/.test(k)||/^\d{7,13}$/.test(k))unknown.add(t)});
   return {hits:[...hits.values()],unknown:[...unknown].slice(0,6)}}
 function codeChips(text,ctx){const r=findCodes(text);if(!r.hits.length&&!r.unknown.length)return "";
-  return `<div class="chips" style="margin-top:6px">${r.hits.map(h=>`<span class="chip nc ${lowOf(h.p)?"warn":"ok"}" title="${esc(h.p.name)}">✓ ${esc(h.p.sku||h.p.oem)} · ${esc(h.p.name.slice(0,24))} · ${h.p.stock===""||h.p.stock==null?"stok ?":esc(h.p.stock)+" ad."}${h.p.price?" · "+tl(h.p.price):""}</span>${ctx==="cart"?`<button class="fchip" data-act="cartAdd" data-id="${h.p.id}">+ sepete</button>`:""}`).join("")}${r.unknown.map(u=>`<span class="chip nc">? ${esc(u)} stokta kayıtlı değil</span>`).join("")}</div>`}
+  return `<div class="chips" style="margin-top:6px">${r.hits.map(h=>`<span class="chip nc ${lowOf(h.p)?"warn":"ok"}" title="${esc(h.p.name)}">✓ ${esc(h.p.sku||h.p.oem)} · ${esc(h.p.name.slice(0,24))} · ${h.p.stock===""||h.p.stock==null?"stok ?":esc(h.p.stock)+" ad."}${h.p.price?" · "+tl(h.p.price):""}</span>${ctx==="cart"?`<button class="fchip" data-act="cartAdd" data-id="${h.p.id}">+ sepete</button>`:""}`).join("")}${r.unknown.map(u=>`<span class="chip nc">? ${esc(u)} stokta kayıtlı değil</span>`).join("")}</div>${r.unknown.length&&ctx!=="cart"?b2bRow(r.unknown[0],"Stokta olmayan kodu B2B'de ara:"):""}`}
 function prodSales(p){let q=0,n=0;const who=new Map();for(const o of S.orders.values()){for(const l of (o.lines||[])){if(l.pid===p.id||(p.oem&&normCode(l.oem)===normCode(p.oem))){q+=l.qty;n++;const c=o.customerId&&S.customers.get(o.customerId);if(c)who.set(c.id,(who.get(c.id)||0)+l.qty)}}}
   return {q,n,who:[...who.entries()].sort((a,b)=>b[1]-a[1]).map(([id,q])=>({c:S.customers.get(id),q}))}}
 function matchProducts(q){const k=normCode(q),t=trLow(q);if(!q)return products();return products().filter(p=>(k.length>=2&&(normCode(p.sku).includes(k)||normCode(p.oem).includes(k)))||trLow([p.name,p.brand].join(" ")).includes(t))}
@@ -1644,7 +1664,7 @@ function vStockPage(){const K=U.stk;if(K.detail){const p=S.products.get(K.detail
   ${U.import&&U.import.kind==="product"?impPanel("product"):""}
   ${scanPanel()}
   <section class="panel"><div class="row"><input id="stkQ" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Stok kodu, OEM ya da ürün adı ara" value="${esc(K.q)}" style="flex:1 1 220px" autocomplete="off"><button class="fchip" data-act="stkLow" aria-pressed="${K.low}">Kritik stok (${low.length})</button></div>
-   <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div></section>
+   <div class="row"><button class="btn sm pri" data-act="scanLabel">📷 Etiketten kod oku</button><button class="btn sm" data-act="stkNew">+ Yeni ürün</button></div>${K.q.trim()?b2bRow(K.q.trim(),"Aradığını B2B'de de ara:"):""}</section>
   ${(()=>{const L=all.filter(p=>!p.sku&&p.oem);return L.length?`<section class="panel" style="border-color:var(--accent)"><b>Stok kodu sütunu ${L.length} üründe boş</b>
    <span class="sub">Eski sürümle yüklenen Excel'deki "Stok Kodu" sütunu OEM alanına kaydedilmişti. Bu kodlar şu an OEM sütununda duruyor (örnek: ${L.slice(0,3).map(p=>esc(p.oem)).join(", ")}).</span>
    <div class="row"><button class="btn sm pri" data-act="stkMoveOem">Bu kodları Stok kodu sütununa taşı</button><button class="btn sm" data-act="impProd2">Excel'i yeniden yükle</button></div>
@@ -1665,7 +1685,8 @@ function prodDetail(p){const s=prodSales(p);return `<div class="row"><button cla
   <section class="panel"><div class="row"><h2 style="flex:1">${esc(p.name)}</h2><span class="chip ${lowOf(p)?"bad":"ok"} mono">${esc(p.stock??"?")} adet</span></div>
    <div class="meta">${p.sku?`<span class="mono">Stok kodu: <b>${esc(p.sku)}</b></span>`:""}${p.oem?`<span class="mono">OEM: ${esc(p.oem)}</span>`:""}${p.brand?`<span>${esc(p.brand)}</span>`:""}${p.price?`<span class="mono">${tl(p.price)}</span>`:""}</div>
    <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi"><div class="l">Uygulamadan satılan</div><div class="v">${s.q} adet</div></div><div class="kpi"><div class="l">Sipariş sayısı</div><div class="v">${s.n}</div></div></div>
-   <div class="row"><button class="btn sm" data-act="stkEdit" data-id="${p.id}">Düzenle</button><button class="btn sm" data-act="stkAsk" data-id="${p.id}">✨ Kime önerebilirim?</button></div></section>
+   <div class="row"><button class="btn sm" data-act="stkEdit" data-id="${p.id}">Düzenle</button><button class="btn sm" data-act="stkAsk" data-id="${p.id}">✨ Kime önerebilirim?</button></div>
+   ${b2bRow(prodCode(p),"B2B'de fiyat/stok bak: kod kopyalanır, site açılır, arama kutusuna yapıştırırsın.")}</section>
   <section class="panel"><h3>Bu ürünü alanlar</h3>${s.who.length?`<div class="list">${s.who.map(x=>`<div class="row"><span style="flex:1;min-width:0">${esc(x.c.name)}</span><span class="chip mono">${x.q} adet</span><button class="btn sm" data-act="detail" data-id="${x.c.id}">Kart</button></div>`).join("")}</div>`:`<span class="why">Uygulamadan alınan siparişlerde bu ürün henüz yok.</span>`}</section>`}
 
 /* Etiket / kutu / fatura fotoğrafından kod okuma (Gemini görüntü tanıma) */
@@ -1752,6 +1773,7 @@ document.addEventListener("toggle",e=>{if(e.target.id==="dayDetails")U.dayOpen=e
 function addSel(ids){ids.forEach(i=>U.selected.add(i));keepUI();toast(ids.length===1?"Rotaya eklendi":ids.length+" durak eklendi")}
 document.addEventListener("click",async e=>{
   if(M.dragged){M.dragged=false;return}
+  const bb=e.target.closest("a[data-b2b]");if(bb){const c=bb.dataset.code;U.b2bLast={code:c,site:bb.dataset.b2b};if(c){copyText(c);toast(`"${c}" kopyalandı. B2B sitesinde arama kutusuna yapıştır.`)}else toast("B2B sitesi açılıyor…");return}
   const tab=e.target.closest("nav.bottom [data-tab],[data-goto-tab]");if(tab&&tab.dataset.gotoTab)tab.dataset.tab=tab.dataset.gotoTab;if(tab){U.sheet=null;U.lim={};U.tab=tab.dataset.tab;U.detail=null;U.visitFor=null;U.editCust=null;keepUI();render();window.scrollTo(0,0);return}
   const pin=e.target.closest("[data-pin]");if(pin){U.mapSel=pin.dataset.pin;render();return}
   const b=e.target.closest("[data-act]");if(!b||b.matches("input,select"))return;const id=b.dataset.id,a=b.dataset.act;
@@ -1807,8 +1829,17 @@ document.addEventListener("click",async e=>{
   else if(a==="more"){U.lim=U.lim||{};U.lim[b.dataset.k]=((U.lim[b.dataset.k])||Number(b.dataset.n))+Number(b.dataset.n)*2}
   else if(a==="forceAll"){U.forceAll=true}
   else if(a==="forceOff"){U.forceAll=false}
-  else if(a==="homeYes"){const g=U.homeSuggest;U.homeSuggest=null;await saveDay({homeLat:+g.lat.toFixed(6),homeLng:+g.lng.toFixed(6)});
+  else if(a==="homeYes"){const g=U.homeSuggest;U.homeSuggest=null;await saveDay({homeLat:+g.lat.toFixed(6),homeLng:+g.lng.toFixed(6),homeOk:true});
     try{const ad=await reverseGeo(g.lat,g.lng);if(ad.address)await saveDay({home:[ad.address,ad.region].filter(Boolean).join(", ")})}catch(e){}toast("Ev konumu güncellendi");return}
+  else if(a==="homeHere"){b.disabled=true;b.textContent="Konum alınıyor…";let p;try{p=await getPos()}catch(err){b.disabled=false;b.textContent="📍 Tekrar dene";toast(err.message);return}
+    if(p.acc&&p.acc>300){b.disabled=false;b.textContent="📍 Tekrar dene";toast("Konum çok belirsiz ("+Math.round(p.acc)+" m). Pencereye yaklaşıp tekrar dene.");return}
+    const D=day(),old={homeLat:D.homeLat,homeLng:D.homeLng,home:D.home,homeOk:D.homeOk||false};U.lastPos=Object.assign(p,{t:Date.now()});learnHome(p);U.homeSuggest=null;
+    await saveDay({homeLat:+p.lat.toFixed(6),homeLng:+p.lng.toFixed(6),homeOk:true});
+    toast("Ev konumun kaydedildi. Artık eve vardığını anlarım.",{label:"Geri al",fn:async()=>{await saveDay(old);render()}});
+    try{const ad=await reverseGeo(p.lat,p.lng);if(ad.address&&day().homeOk&&day().homeLat===+p.lat.toFixed(6))await saveDay({home:[ad.address,ad.region].filter(Boolean).join(", ")})}catch(e){}render();return}
+  else if(a==="homeUnsureLater"){hideSetToday("saha-ev-gizle")}
+  else if(a==="homeArrivedOk"){hideSetToday("saha-evvar-gizle")}
+  else if(a==="homeReport"){hideSetToday("saha-evvar-gizle");U.tab="gunsonu";U.detail=null;keepUI();render();window.scrollTo(0,0);return}
   else if(a==="homeNo"){try{const no=JSON.parse(localStorage.getItem(GK+"-hayir")||"[]");no.push(U.homeSuggest);localStorage.setItem(GK+"-hayir",JSON.stringify(no.slice(-10)))}catch(e){}U.homeSuggest=null}
   else if(a==="quick"){U.sheet="quick"}
   else if(a==="closeSheet"){U.sheet=null;U._sheetFocused=false;U.pickQ="";renderSheet();return}
@@ -2010,7 +2041,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:String(fd.name).trim(),lat:+pos.lat.toFixed(6),lng:+pos.lng.toFixed(6)}]});toast("Kaydedildi: "+fd.name);return}
   else if(f.id==="dayForm"){const g=parseCoords(fd.geo);if(fd.geo&&!g){toast("Ev konumu okunamadı.");return}
     const og=parseCoords(fd.ogeo);if(fd.ogeo&&!og){toast("Ofis konumu okunamadı.");return}
-    await saveDay({office:String(fd.office||"").trim(),...(og?{officeLat:og.lat,officeLng:og.lng}:fd.ogeo===""?{officeLat:null,officeLng:null}:{}),home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,mapApp:MAP_APPS[fd.mapApp]?fd.mapApp:"google",...(g?{homeLat:g.lat,homeLng:g.lng}:{})});toast("Gün ayarları kaydedildi")}
+    await saveDay({office:String(fd.office||"").trim(),...(og?{officeLat:og.lat,officeLng:og.lng}:fd.ogeo===""?{officeLat:null,officeLng:null}:{}),home:fd.home,dayStart:fd.dayStart,arriveBy:fd.arriveBy,visitMin:Number(fd.visitMin)||30,lunchFrom:fd.lunchFrom,lunchTo:fd.lunchTo,lunchMin:Number(fd.lunchMin)||45,speed:Number(fd.speed)||22,mapApp:MAP_APPS[fd.mapApp]?fd.mapApp:"google",...(g?{homeLat:g.lat,homeLng:g.lng,homeOk:true}:{}),b2b_otokoc:b2bUrl(fd.b2bOtokoc),b2b_opar:b2bUrl(fd.b2bOpar)});toast("Gün ayarları kaydedildi")}
   else if(f.id==="vfldForm"){const l=String(fd.label||"").trim().slice(0,30);const F=vFields();if(!l)return;if(F.some(x=>trLow(x)===trLow(l))){toast("Bu alan zaten var.");return}if(F.length>=8){toast("En fazla 8 alan ekleyebilirsin.");return}await save(Object.assign({},settings(),{visitFields:[...F,l]}));f.reset();toast("Alan eklendi. Ziyaret formunda görünür.");return}
   else if(f.id==="lunchForm"){const g=parseCoords(fd.geo);if(!g){toast("Konum okunamadı. Koordinatı “41.07, 28.80” biçiminde yaz.");return}
     await saveDay({lunchPlaces:[...(day().lunchPlaces||[]),{name:fd.name.trim(),lat:g.lat,lng:g.lng}]});toast("Yemek yeri eklendi")}

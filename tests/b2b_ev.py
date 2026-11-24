@@ -16,11 +16,20 @@ async def run(W):
         await pg.click("[data-act=sample]");await pg.wait_for_timeout(300)
         R={}
         # ---- B2B kutucukları (Bugün ekranı, satış kutucuklarının altında) ----
-        await ctx.route("**/favicon.ico",lambda r:r.abort())
+        PNG=bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201a5f5d6a40000000049454e44ae426082")
+        ico_hits=[]
+        async def fav(r):
+            ico_hits.append(r.request.url)
+            if "google.com/s2" in r.request.url and "tofas" in r.request.url: await r.fulfill(status=200,content_type="image/png",body=PNG)
+            else: await r.abort()
+        await ctx.unroute("https://www.google.com/**");await ctx.route("https://www.google.com/**",fav)
+        await ctx.route("**/favicon.ico",fav)
         await pg.evaluate("U.tab='rota';U.detail=null;render()");await pg.wait_for_timeout(400)
         R["Bugün'de iki B2B kutucuğu"]=await pg.evaluate("[...document.querySelectorAll('#b2bTiles a[data-b2b]')].map(a=>a.href).join(' ')")=="https://b2b.otokocyedekparca.com.tr/web/login https://b2bopar.tofas.com.tr/Login"
         R["satış kutucuklarının hemen altında"]=await pg.evaluate("(()=>{const k=document.querySelector('#b2bTiles');return !!k&&k.previousElementSibling&&k.previousElementSibling.classList.contains('kpis')})()")
-        R["simge yüklenmezse baş harfler"]=await pg.evaluate("[...document.querySelectorAll('#b2bTiles .em')].map(e=>e.textContent.trim()+':'+!!e.querySelector('img')).join(',')")=="OK:false,OP:false"
+        await pg.wait_for_timeout(600)
+        R["sitenin simgesi yoksa ikinci kaynak denendi"]=any("google.com/s2" in u and "otokoc" in u for u in ico_hits)
+        R["hiçbiri yoksa baş harfler, bulunan amblem gösteriliyor"]=await pg.evaluate("[...document.querySelectorAll('#b2bTiles .em')].map(e=>e.textContent.trim()+':'+!!e.querySelector('img')).join(',')")=="OK:false,OP:true"
         await pg.click("#b2bTiles a[data-b2b=otokoc]");await pg.wait_for_timeout(200)
         R["kutucuk dokununca açılıyor"]="açılıyor" in await pg.evaluate("document.querySelector('#toast').textContent")
         R["yatay taşma yok (Bugün)"]=await pg.evaluate("document.documentElement.scrollWidth")<=W

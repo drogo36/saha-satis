@@ -1,1 +1,1 @@
-{"version": "2.16.0", "notes": "Bugün ekranında satış kutucuklarının altına amblemli Otokoç B2B ve Opar B2B kısayolları eklendi; dokununca site açılır."}
+{"version": "2.16.1", "notes": "B2B kutucuklarında site amblemleri daha güvenilir yükleniyor: sitenin kendi simgesi bulunamazsa ikinci kaynaktan alınıyor."}

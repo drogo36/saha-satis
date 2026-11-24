@@ -1040,7 +1040,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.16.0";
+const APP_VERSION="2.16.1";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1545,9 +1545,10 @@ function hideSetToday(k){try{localStorage.setItem(k,today())}catch(e){}}
 /* B2B portalları (Otokoç Yedek Parça, Opar/Tofaş): kodu panoya kopyalar ve siteyi açar. Şifre saklanmaz, siteye uygulama girmez. */
 const B2B_DEF=[{k:"otokoc",name:"Otokoç B2B",ini:"OK",bg:"#1d4f91",sub:"Ford yedek parça",url:"https://b2b.otokocyedekparca.com.tr/web/login"},{k:"opar",name:"Opar B2B",ini:"OP",bg:"#0e7c66",sub:"Fiat yedek parça",url:"https://b2bopar.tofas.com.tr/Login"}];
 // Bugün ekranında satış kutucuklarının yanında B2B kutucukları; amblem sitenin kendi simgesinden yüklenir, yüklenmezse baş harfler görünür
-function b2bTiles(){return `<div class="kpis" id="b2bTiles" style="margin-top:10px">${b2bSites().map(x=>{let ico="";try{ico=new URL(x.url).origin+"/favicon.ico"}catch(e){}
-  return `<a class="kpi b2bt" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code=""><span class="em" style="background:${x.bg}" aria-hidden="true">${esc(x.ini)}${ico?`<img class="b2bIc" src="${esc(ico)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:""}</span><span class="tx"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></a>`}).join("")}</div>`}
-document.addEventListener("error",e=>{const t=e.target;if(t&&t.classList&&t.classList.contains("b2bIc"))t.remove()},true);
+function b2bTiles(){return `<div class="kpis" id="b2bTiles" style="margin-top:10px">${b2bSites().map(x=>{let ico="",alt="";try{const u=new URL(x.url);ico=u.origin+"/favicon.ico";alt="https://www.google.com/s2/favicons?sz=64&domain_url="+encodeURIComponent(u.origin)}catch(e){}
+  return `<a class="kpi b2bt" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code=""><span class="em" style="background:${x.bg}" aria-hidden="true">${esc(x.ini)}${ico?`<img class="b2bIc" src="${esc(ico)}" data-alt="${esc(alt)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:""}</span><span class="tx"><b>${esc(x.name)}</b><small>${esc(x.sub)}</small></span></a>`}).join("")}</div>`}
+document.addEventListener("error",e=>{const t=e.target;if(t&&t.classList&&t.classList.contains("b2bIc")){const a=t.dataset.alt;if(a){t.dataset.alt="";t.src=a}else t.remove()}},true);
+// Sitenin kökünde favicon.ico yoksa simgeyi sayfanın kendisinde tanımlı simgeden (Google simge servisi) alır; o da olmazsa baş harfler kalır
 const b2bUrl=v=>{v=String(v||"").trim();if(v&&!/^https?:\/\//i.test(v))v="https://"+v;return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(:\d+)?(\/[^\s"'<>]*)?$/i.test(v)?v:""};
 function b2bSites(){const D=day();return B2B_DEF.map(x=>Object.assign({},x,{url:b2bUrl(D["b2b_"+x.k])||x.url}))}
 function b2bBtns(code){const c=String(code||"").trim().slice(0,60);return b2bSites().map(x=>`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" data-b2b="${x.k}" data-code="${esc(c)}">🔎 ${esc(x.name)}</a>`).join("")}

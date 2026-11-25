@@ -1,1 +1,1 @@
-{"version": "2.16.1", "notes": "B2B kutucuklarında site amblemleri daha güvenilir yükleniyor: sitenin kendi simgesi bulunamazsa ikinci kaynaktan alınıyor."}
+{"version": "2.17.0", "notes": "Ziyaretler artık düzenlenebiliyor (Ziyaretler listesinde 'Düzenle'). Ziyareti başlatınca konum kendiliğinden alınıyor; konumu olmayan müşteriye kaydediliyor ve gün sonu raporunda 'Gidilen yerler' olarak görünüyor."}

@@ -36,6 +36,7 @@ run "Tahsilat, açık bakiye, fotoğraflı yedek" tests/tahsilat.py
 run "Pazar tatili ve Ofise git" tests/pazar_ofis.py
 run "B2B kısayolları ve ev konumu" tests/b2b_ev.py
 run "Ziyaret düzenleme ve ziyaret konumu" tests/ziyaret_duzenle.py
+run "Harita servisi yedek sunucular" tests/overpass.py
 run "Kendiliğinden güncelleme" tests/upd.py
 [ -n "${SRV:-}" ] && kill $SRV 2>/dev/null
 [ $FAIL -eq 0 ] && echo "TÜM TESTLER GEÇTİ ($V1)" || { echo "TESTLER BAŞARISIZ"; exit 1; }

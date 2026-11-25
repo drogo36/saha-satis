@@ -1,1 +1,1 @@
-{"version": "2.17.0", "notes": "Ziyaretler artık düzenlenebiliyor (Ziyaretler listesinde 'Düzenle'). Ziyareti başlatınca konum kendiliğinden alınıyor; konumu olmayan müşteriye kaydediliyor ve gün sonu raporunda 'Gidilen yerler' olarak görünüyor."}
+{"version": "2.17.1", "notes": "Yakındakiler ve öğle yemeği aramasında harita servisi yanıt vermezse artık yedek sunuculara geçiliyor; “Harita servisi yanıt vermedi” hatası çok daha seyrek çıkar."}

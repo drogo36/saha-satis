@@ -1042,7 +1042,7 @@ async function aiMessage(c,btn){btn.disabled=true;btn.textContent="Yazıyor…";
     U.msg={id:c.id,text:t};render()}catch(e){toast(e.message)}btn.disabled=false}
 
 /* ---------- self update ---------- */
-const APP_VERSION="2.17.0";
+const APP_VERSION="2.17.1";
 U.update=null;
 function safeToReload(){return !document.querySelector("input:focus,textarea:focus,select:focus")&&!U.visitFor&&!U.cart&&U.editCust==null&&!U.aiBusy&&!U.live&&!(U.msg2&&U.msg2.queue)&&!U.import&&!(U.stk&&(U.stk.edit||U.stk.scan&&U.stk.scan.busy))&&!U.sheet}
 async function checkUpdate(manual,auto){try{const r=await fetch("https://raw.githubusercontent.com/drogo36/saha-satis/main/version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;const v=await r.json();
@@ -1062,6 +1062,16 @@ async function applyUpdate(){toast("Güncelleniyor…");
   location.replace(location.pathname+"?v="+encodeURIComponent((U.update&&U.update.version)||Date.now()))}
 function updateBanner(){const u=U.update;if(!u)return "";return `<div class="banner" style="background:var(--steel-bg);color:var(--steel)"><b>Yeni sürüm ${esc(u.version)}</b>${u.notes?": "+esc(u.notes):""} <button class="btn sm pri" data-act="doUpdate">Şimdi güncelle</button><span class="why">Kayıtların silinmez.</span></div>`}
 
+/* Harita (OpenStreetMap Overpass) sorgusu: ana sunucu yoğunsa/yanıt vermezse sırayla yedek sunucuları dener; son çalışanı hatırlar */
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+async function overpass(q,waitMs=20000){let last="";try{last=localStorage.getItem("saha-overpass")||""}catch(e){}
+  const list=OVERPASS.includes(last)?[last,...OVERPASS.filter(u=>u!==last)]:OVERPASS;let code="";
+  for(const u of list){const ac=typeof AbortController!=="undefined"?new AbortController():null;const tm=ac?setTimeout(()=>ac.abort(),waitMs):0;
+    try{const r=await fetch(u,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac?ac.signal:undefined});
+      if(!r.ok){code=r.status;continue}const d=await r.json();if(!d||!Array.isArray(d.elements)){code="boş";continue}
+      try{localStorage.setItem("saha-overpass",u)}catch(e){}return d}
+    catch(e){code=code||"bağlantı"}finally{clearTimeout(tm)}}
+  throw new Error("Harita servisleri şu an yanıt vermiyor"+(code?" ("+code+")":"")+". İnternetini kontrol et, biraz sonra tekrar dene.")}
 /* ---------- öğle: konumdan TokenFlex yeri bulma + bildirim ---------- */
 U.lunch={pos:null,busy:false,err:"",open:false,cand:null};
 /* Öğle: yakındaki yemek yerlerini OpenStreetMap'ten kendisi bulur; kullanıcı ✓/✗ ile TokenFlex geçip geçmediğini işaretler, belleğe kaydedilir */
@@ -1070,8 +1080,7 @@ const sameSpot=(a,b)=>km(a,b)<0.03||(trLow(a.name||"")===trLow(b.name||"")&&km(a
 async function lunchCandidates(pos){if(!pos)return;const key=pos.lat.toFixed(3)+","+pos.lng.toFixed(3);const C=U.lunch.cand;if(C&&C.key===key&&(C.busy||C.list))return;
   U.lunch.cand={key,busy:true,list:null,pos};
   try{const q=`[out:json][timeout:20];(node["amenity"~"^(restaurant|fast_food|cafe|food_court)$"](around:1000,${pos.lat},${pos.lng});way["amenity"~"^(restaurant|fast_food|cafe|food_court)$"](around:1000,${pos.lat},${pos.lng}););out center 300;`;
-    const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
-    if(!r.ok)throw new Error("Harita servisi yanıt vermedi, biraz sonra tekrar dene.");const d=await r.json();
+    const d=await overpass(q);
     const list=(d.elements||[]).map(e=>{const t=e.tags||{};return {name:t.name||"",lat:e.lat??e.center?.lat,lng:e.lon??e.center?.lon,kind:LKIND[t.amenity]||"Yemek yeri"}}).filter(x=>x.name&&x.lat!=null);
     U.lunch.cand={key,busy:false,list,pos};if(!hereGuess()&&!nearbyLunch(pos,1).some(x=>x.d<=HERE_KM))lunchReverse(pos,key)}
   catch(e){U.lunch.cand={key,busy:false,list:[],pos,err:e.message||"Bağlantı sorunu."}}
@@ -1436,9 +1445,7 @@ U.prospects=null;
 async function findProspects(radius=3000){U.prospects={busy:true,list:[],radius};U.nmSel=null;U.sheet="nearMap";render();renderSheet();
   try{const p=await getPos();U.lastPos=p;U.prospects.pos=p;if(U.sheet==="nearMap")renderSheet();
     const q=`[out:json][timeout:25];(node["shop"~"car_parts|car_repair|tyres|car"](around:${radius},${p.lat},${p.lng});way["shop"~"car_parts|car_repair|tyres|car"](around:${radius},${p.lat},${p.lng});node["craft"="car_repair"](around:${radius},${p.lat},${p.lng});node["amenity"="car_repair"](around:${radius},${p.lat},${p.lng}););out center 80;`;
-    const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
-    if(!r.ok)throw new Error("Harita servisi yanıt vermedi ("+r.status+"), biraz sonra tekrar dene.");
-    const d=await r.json();const cs=custList();
+    const d=await overpass(q);const cs=custList();
     const list=(d.elements||[]).map(e=>{const t=e.tags||{};const lat=e.lat??e.center?.lat,lng=e.lon??e.center?.lon;return {name:t.name||"",lat,lng,kind:t.shop==="car_parts"?"Yedek parçacı":t.shop==="tyres"?"Lastikçi":t.shop==="car"?"Oto galeri / bayi":"Servis / tamirhane",phone:t.phone||t["contact:phone"]||"",addr:[t["addr:street"],t["addr:housenumber"]?"No:"+t["addr:housenumber"]:""].filter(Boolean).join(" "),region:t["addr:district"]||t["addr:suburb"]||"",d:km(p,{lat,lng})}})
       .filter(x=>x.name&&x.lat).filter(x=>!cs.some(c=>trLow(c.name)===trLow(x.name)||(hasGeo(c)&&km(c,x)<0.05))).sort((a,b)=>(a.kind==="Yedek parçacı"?0:1)-(b.kind==="Yedek parçacı"?0:1)||a.d-b.d);
     U.prospects={busy:false,list,at:Date.now(),pos:p,radius}}
